@@ -1,6 +1,6 @@
 import { useSocket } from '../context/SocketContext'
 import { RefreshCw, CheckCircle, Wifi, WifiOff, AlertTriangle, ServerOff } from 'lucide-react'
-
+import { resetWASession } from '../hooks/useApi'
 const BACKEND_URL = 'wa-dashboard-backend-production.up.railway.app'
 
 export default function QRSetupPage() {
@@ -58,6 +58,16 @@ const io = new Server(server, {
               <Wifi size={14} />
               <span>Live</span>
             </div>
+
+            <button
+              className="btn btn-secondary"
+              onClick={async () => {
+                if (!window.confirm('Reset sesi WhatsApp? Harus scan QR ulang.')) return;
+                try { await resetWASession(); } catch(e) { alert('Reset gagal'); }
+              }}
+              style={{marginTop: '8px', color: 'var(--red)'}}>
+              Disconnect & Reset Session
+            </button>
           </div>
         ) : (
           <div className="qr-state">
