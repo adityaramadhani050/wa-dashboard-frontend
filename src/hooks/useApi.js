@@ -20,3 +20,4 @@ export const getAgentStats = () => api.get('/stats/agents').then(r => r.data)
 export const getAgents = () => api.get('/agents').then(r => r.data)
 
 export default api
+export const resetWASession = () => api.post('/wa/reset').then(r => r.data)
