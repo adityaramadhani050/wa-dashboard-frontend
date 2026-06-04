@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useSocket } from '../context/SocketContext'
 import { useAuth } from '../context/AuthContext'
 import { getMessages, sendMessage, assignAgent, updateStatus, getConversations, getAgents } from '../hooks/useApi'
-import { Send, ChevronDown, User, ArrowLeft, MoreVertical } from 'lucide-react'
+import { Send, ChevronDown, ArrowLeft, MoreVertical } from 'lucide-react'
 
 const STATUS_OPTIONS = ['open', 'in_progress', 'resolved']
 
@@ -22,6 +22,31 @@ function cleanPhone(phone) {
   return phone.split('@')[0]
 }
 
+// Checkmark icon — WA Web style
+function MessageTick({ status }) {
+  // status: 'sent' | 'delivered' | 'read' | null
+  const isRead = status === 'read'
+  const isDelivered = status === 'delivered' || isRead
+  const color = isRead ? '#53bdeb' : 'rgba(255,255,255,0.5)'
+
+  if (isDelivered) {
+    // Double tick
+    return (
+      <svg width="18" height="12" viewBox="0 0 18 12" fill="none" style={{flexShrink:0}}>
+        <path d="M1 6l4 4L13 2" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M5 6l4 4 8-8" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    )
+  }
+
+  // Single tick (sent)
+  return (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{flexShrink:0}}>
+      <path d="M1 6l3.5 4L11 2" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  )
+}
+
 export default function ChatPage({ chatId }) {
   const id = chatId
   const navigate = useNavigate()
@@ -34,10 +59,8 @@ export default function ChatPage({ chatId }) {
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
   const [showStatusMenu, setShowStatusMenu] = useState(false)
-  const [showAgentMenu, setShowAgentMenu] = useState(false)
   const [showMoreMenu, setShowMoreMenu] = useState(false)
   const bottomRef = useRef(null)
-  const textareaRef = useRef(null)
   const { newMessages } = useSocket()
 
   const fetchData = useCallback(async () => {
@@ -65,7 +88,7 @@ export default function ChatPage({ chatId }) {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  const closeMenus = () => { setShowStatusMenu(false); setShowAgentMenu(false); setShowMoreMenu(false) }
+  const closeMenus = () => { setShowStatusMenu(false); setShowMoreMenu(false) }
 
   const handleSend = async () => {
     if (!text.trim() || sending) return
@@ -102,21 +125,21 @@ export default function ChatPage({ chatId }) {
     <div className="chat-view" onClick={closeMenus}>
       {/* Header */}
       <div className="cv-header" onClick={e => e.stopPropagation()}>
-        <button className="cv-back" onClick={() => navigate('/inbox')} title="Back">
+        <button className="cv-back" onClick={() => navigate('/inbox')}>
           <ArrowLeft size={20} />
         </button>
         <div className="cv-avatar">{name[0].toUpperCase()}</div>
         <div className="cv-contact">
           <div className="cv-name">{name}</div>
-          {phone && name !== phone && <div className="cv-subname">{phone}</div>}
-          {assignedAgent && <div className="cv-subname">Agent: {assignedAgent}</div>}
+          {phone && name !== phone && <div className="cv-sub">{phone}</div>}
+          {assignedAgent && <div className="cv-sub">Agent: {assignedAgent}</div>}
         </div>
         <div className="cv-actions" onClick={e => e.stopPropagation()}>
-          {/* Status badge */}
-          <div className="cv-dd-wrap">
+          {/* Status */}
+          <div className="cv-dd">
             <button
-              className={`cv-status-chip status-${status}`}
-              onClick={() => { setShowStatusMenu(!showStatusMenu); setShowAgentMenu(false); setShowMoreMenu(false) }}
+              className={`cv-chip st-${status}`}
+              onClick={() => { setShowStatusMenu(!showStatusMenu); setShowMoreMenu(false) }}
             >
               {statusLabel(status)}
               <ChevronDown size={12} />
@@ -124,31 +147,30 @@ export default function ChatPage({ chatId }) {
             {showStatusMenu && (
               <div className="cv-menu" style={{minWidth:130}}>
                 {STATUS_OPTIONS.map(s => (
-                  <button key={s} className={`cv-menu-item si-${s}`} onClick={() => handleStatusChange(s)}>
+                  <button key={s} className={`cv-mi si-${s}`} onClick={() => handleStatusChange(s)}>
                     {statusLabel(s)}
                   </button>
                 ))}
               </div>
             )}
           </div>
-          {/* More menu */}
-          <div className="cv-dd-wrap">
+          {/* More */}
+          <div className="cv-dd">
             <button
               className="cv-icon-btn"
-              onClick={() => { setShowMoreMenu(!showMoreMenu); setShowStatusMenu(false); setShowAgentMenu(false) }}
-              title="More"
+              onClick={() => { setShowMoreMenu(!showMoreMenu); setShowStatusMenu(false) }}
             >
               <MoreVertical size={18} />
             </button>
             {showMoreMenu && (
-              <div className="cv-menu" style={{minWidth:190}}>
+              <div className="cv-menu" style={{minWidth:200}}>
                 <div className="cv-menu-label">Assign Agent</div>
                 {agents.length === 0
-                  ? <div className="cv-menu-item muted">No agents available</div>
+                  ? <div className="cv-mi muted">No agents available</div>
                   : agents.map(a => (
-                    <button key={a.id} className="cv-menu-item" onClick={() => handleAgentAssign(a)}>
+                    <button key={a.id} className="cv-mi" onClick={() => handleAgentAssign(a)}>
                       <span>{a.name}</span>
-                      <span className="cv-menu-sub">{a.email}</span>
+                      <span className="cv-mi-sub">{a.email}</span>
                     </button>
                   ))
                 }
@@ -161,7 +183,7 @@ export default function ChatPage({ chatId }) {
       {error && (
         <div className="cv-error">
           {error}
-          <button onClick={() => setError('')} style={{marginLeft:8,fontWeight:700}}>×</button>
+          <button onClick={() => setError('')} style={{marginLeft:8,fontWeight:700,fontSize:16}}>×</button>
         </div>
       )}
 
@@ -182,7 +204,10 @@ export default function ChatPage({ chatId }) {
               <div key={msg.id || i} className={`cv-row ${sent ? 'sent' : 'recv'}`}>
                 <div className={`cv-bubble ${sent ? 'bsent' : 'brecv'}`}>
                   <p>{msg.body || msg.content || msg.text}</p>
-                  <span className="cv-time">{formatTime(msg.timestamp || msg.createdAt)}</span>
+                  <div className="cv-meta">
+                    <span className="cv-time">{formatTime(msg.timestamp || msg.createdAt)}</span>
+                    {sent && <MessageTick status={msg.status} />}
+                  </div>
                 </div>
               </div>
             )
@@ -194,7 +219,6 @@ export default function ChatPage({ chatId }) {
       {/* Input */}
       <div className="cv-input-bar">
         <textarea
-          ref={textareaRef}
           className="cv-input"
           placeholder="Type a message"
           value={text}
@@ -220,7 +244,6 @@ export default function ChatPage({ chatId }) {
           min-width: 0;
           background: #0b141a;
         }
-        /* Header */
         .cv-header {
           display: flex;
           align-items: center;
@@ -233,12 +256,10 @@ export default function ChatPage({ chatId }) {
         }
         .cv-back {
           display: none;
-          align-items: center;
-          justify-content: center;
+          align-items: center; justify-content: center;
           width: 38px; height: 38px;
           border-radius: 50%;
           color: #8696a0;
-          flex-shrink: 0;
           transition: all 0.15s;
         }
         .cv-back:hover { background: #2a3942; color: #e9edef; }
@@ -253,26 +274,25 @@ export default function ChatPage({ chatId }) {
         }
         .cv-contact { flex: 1; min-width: 0; }
         .cv-name { font-size: 15px; font-weight: 500; color: #e9edef; }
-        .cv-subname { font-size: 12px; color: #8696a0; }
+        .cv-sub { font-size: 12px; color: #8696a0; }
         .cv-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
-        .cv-dd-wrap { position: relative; }
-        .cv-status-chip {
+        .cv-dd { position: relative; }
+        .cv-chip {
           display: flex; align-items: center; gap: 5px;
           padding: 5px 12px;
           border-radius: 20px;
           font-size: 12px; font-weight: 600;
           transition: opacity 0.15s;
         }
-        .cv-status-chip:hover { opacity: 0.8; }
-        .cv-status-chip.status-open { background: rgba(83,189,235,0.15); color: #53bdeb; }
-        .cv-status-chip.status-in_progress { background: rgba(255,169,41,0.15); color: #ffa929; }
-        .cv-status-chip.status-resolved { background: rgba(0,168,132,0.15); color: #00a884; }
+        .cv-chip:hover { opacity: 0.8; }
+        .cv-chip.st-open { background: rgba(83,189,235,0.15); color: #53bdeb; }
+        .cv-chip.st-in_progress { background: rgba(255,169,41,0.15); color: #ffa929; }
+        .cv-chip.st-resolved { background: rgba(0,168,132,0.15); color: #00a884; }
         .cv-icon-btn {
           width: 38px; height: 38px;
           border-radius: 50%;
           display: flex; align-items: center; justify-content: center;
-          color: #8696a0;
-          transition: all 0.15s;
+          color: #8696a0; transition: all 0.15s;
         }
         .cv-icon-btn:hover { background: #2a3942; color: #e9edef; }
         .cv-menu {
@@ -287,44 +307,37 @@ export default function ChatPage({ chatId }) {
         }
         .cv-menu-label {
           padding: 8px 16px 4px;
-          font-size: 11px;
-          font-weight: 600;
+          font-size: 11px; font-weight: 600;
           color: #8696a0;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
+          text-transform: uppercase; letter-spacing: 0.5px;
         }
-        .cv-menu-item {
+        .cv-mi {
           display: flex; flex-direction: column;
           width: 100%; text-align: left;
           padding: 10px 16px;
           font-size: 14px; color: #e9edef;
           transition: background 0.1s;
         }
-        .cv-menu-item:hover { background: #2a3942; }
-        .cv-menu-item.muted { color: #8696a0; cursor: default; }
-        .cv-menu-sub { font-size: 11px; color: #8696a0; margin-top: 1px; }
+        .cv-mi:hover { background: #2a3942; }
+        .cv-mi.muted { color: #8696a0; cursor: default; }
+        .cv-mi-sub { font-size: 11px; color: #8696a0; margin-top: 1px; }
         .si-open { color: #53bdeb !important; }
         .si-in_progress { color: #ffa929 !important; }
         .si-resolved { color: #00a884 !important; }
-        /* Error bar */
         .cv-error {
           background: rgba(241,92,109,0.1);
           border-bottom: 1px solid rgba(241,92,109,0.2);
           color: #f15c6d;
           padding: 8px 16px;
           font-size: 13px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
+          display: flex; align-items: center; justify-content: space-between;
           flex-shrink: 0;
         }
-        /* Messages area */
+        /* Messages */
         .cv-messages {
-          flex: 1;
-          overflow-y: auto;
+          flex: 1; overflow-y: auto;
           padding: 12px 6%;
-          display: flex;
-          flex-direction: column;
+          display: flex; flex-direction: column;
           gap: 2px;
           background-color: #0b141a;
           background-image: url("data:image/svg+xml,%3Csvg width='300' height='300' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='0.015'%3E%3Cpath d='M150 0l150 150-150 150L0 150z'/%3E%3C/g%3E%3C/svg%3E");
@@ -348,13 +361,12 @@ export default function ChatPage({ chatId }) {
           background: rgba(0,0,0,0.25);
           border-radius: 8px;
         }
-        /* Bubbles */
         .cv-row { display: flex; margin-bottom: 2px; }
         .cv-row.sent { justify-content: flex-end; }
         .cv-row.recv { justify-content: flex-start; }
         .cv-bubble {
           max-width: 65%;
-          padding: 6px 12px 20px;
+          padding: 6px 12px 8px;
           border-radius: 8px;
           position: relative;
           box-shadow: 0 1px 2px rgba(0,0,0,0.4);
@@ -374,15 +386,22 @@ export default function ChatPage({ chatId }) {
           font-size: 14.2px;
           line-height: 1.5;
           white-space: pre-wrap;
+          /* leave room for meta row */
+          padding-right: 0;
+        }
+        .cv-meta {
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
+          gap: 4px;
+          margin-top: 3px;
         }
         .cv-time {
-          position: absolute;
-          bottom: 4px; right: 8px;
           font-size: 11px;
           color: rgba(255,255,255,0.45);
           white-space: nowrap;
         }
-        /* Input bar */
+        /* Input */
         .cv-input-bar {
           display: flex;
           align-items: flex-end;
