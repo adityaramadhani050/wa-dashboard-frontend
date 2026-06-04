@@ -19,11 +19,14 @@ export default function LoginPage() {
       return
     }
     setLoading(true)
-    await new Promise(r => setTimeout(r, 400))
-    const ok = login(email, password)
-    if (ok) navigate('/inbox')
-    else setError('Invalid credentials')
-    setLoading(false)
+    try {
+      await login(email)
+      navigate('/inbox')
+    } catch (err) {
+      setError(err.response?.data?.error || 'Login failed. Check your email.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -115,16 +118,8 @@ export default function LoginPage() {
           margin: 0 auto 16px;
           box-shadow: 0 8px 24px rgba(37,211,102,0.3);
         }
-        .login-logo h1 {
-          font-size: 22px;
-          font-weight: 700;
-          color: var(--text);
-          margin-bottom: 4px;
-        }
-        .login-logo p {
-          font-size: 13px;
-          color: var(--text-muted);
-        }
+        .login-logo h1 { font-size: 22px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+        .login-logo p { font-size: 13px; color: var(--text-muted); }
         .login-form { display: flex; flex-direction: column; gap: 16px; }
         .form-group { display: flex; flex-direction: column; gap: 6px; }
         .form-group label { font-size: 13px; font-weight: 500; color: var(--text-muted); }

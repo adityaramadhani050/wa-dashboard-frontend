@@ -1,7 +1,5 @@
 import axios from 'axios'
 
-// Direct backend URL — the browser calls this directly.
-// The backend must return CORS headers allowing this frontend's origin.
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://wa-dashboard-backend-production.up.railway.app'
 
 const api = axios.create({
@@ -10,7 +8,8 @@ const api = axios.create({
   withCredentials: false,
 })
 
-export const getConversations = () => api.get('/conversations').then(r => r.data)
+export const getConversations = (agentId) =>
+  api.get('/conversations', agentId ? { params: { agent_id: agentId } } : {}).then(r => r.data)
 export const getMessages = (id) => api.get(`/conversations/${id}/messages`).then(r => r.data)
 export const sendMessage = (id, message) => api.post(`/conversations/${id}/messages`, { message }).then(r => r.data)
 export const assignAgent = (id, agent_id) => api.post(`/conversations/${id}/assign`, { agent_id }).then(r => r.data)
@@ -18,6 +17,6 @@ export const updateStatus = (id, status) => api.patch(`/conversations/${id}/stat
 export const getDailyStats = () => api.get('/stats/daily').then(r => r.data)
 export const getAgentStats = () => api.get('/stats/agents').then(r => r.data)
 export const getAgents = () => api.get('/agents').then(r => r.data)
+export const resetWASession = () => api.post('/wa/reset').then(r => r.data)
 
 export default api
-export const resetWASession = () => api.post('/wa/reset').then(r => r.data)

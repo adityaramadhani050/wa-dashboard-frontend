@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSocket } from '../context/SocketContext'
+import { useAuth } from '../context/AuthContext'
 import { getConversations } from '../hooks/useApi'
 import { Search, RefreshCw, MessageSquare, Clock, User } from 'lucide-react'
 import clsx from 'clsx'
@@ -28,11 +29,13 @@ export default function InboxPage() {
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('all')
   const { newMessages } = useSocket()
+  const { user } = useAuth()
   const navigate = useNavigate()
 
   const fetchConversations = useCallback(async () => {
     try {
-      const data = await getConversations()
+      const agentId = user?.role === 'agent' ? user.id : null
+      const data = await getConversations(agentId)
       setConversations(Array.isArray(data) ? data : data?.conversations || [])
       setError('')
     } catch (e) {
@@ -40,7 +43,7 @@ export default function InboxPage() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [user])
 
   useEffect(() => { fetchConversations() }, [fetchConversations])
 
@@ -62,7 +65,7 @@ export default function InboxPage() {
       <div className="inbox-header">
         <div>
           <h1>Inbox</h1>
-          <p>{conversations.length} conversation{conversations.length !== 1 ? 's' : ''}</p>
+          <p>{conversations.length} conversation{conversations.length !== 1 ? 's' : ''}{user?.role === 'agent' ? ' assigned to you' : ''}</p>
         </div>
         <button className="btn btn-secondary" onClick={fetchConversations}>
           <RefreshCw size={14} />

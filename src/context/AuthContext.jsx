@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useState } from 'react'
+import api from '../hooks/useApi'
 
 const AuthContext = createContext(null)
 
@@ -10,11 +11,12 @@ export function AuthProvider({ children }) {
     } catch { return null }
   })
 
-  const login = (email, password) => {
-    const userData = { email, name: email.split('@')[0] }
+  const login = async (email) => {
+    const { data } = await api.post('/auth/login', { email })
+    const userData = data.user
     localStorage.setItem('wa_user', JSON.stringify(userData))
     setUser(userData)
-    return true
+    return userData
   }
 
   const logout = () => {
