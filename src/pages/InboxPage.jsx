@@ -98,7 +98,6 @@ export default function InboxPage() {
             const initial = name[0].toUpperCase()
             const preview = conv.lastMessage || 'No messages yet'
             const assignedAgent = conv.agents
-            const isAssigned = !!assignedAgent
 
             return (
               <div
@@ -115,15 +114,14 @@ export default function InboxPage() {
                   <div className="cl-row">
                     <span className="cl-preview">{preview}</span>
                     <div className="cl-badges">
-                      {/* Assigned agent indicator — admin only */}
-                      {isAdmin && isAssigned && (
+                      {isAdmin && assignedAgent && (
                         <span className="cl-agent-badge" title={`Assigned to ${assignedAgent.name}`}>
                           <UserCheck size={10} />
                           {assignedAgent.name}
                         </span>
                       )}
-                      {isAdmin && !isAssigned && (
-                        <span className="cl-unassigned-badge" title="Not assigned">—</span>
+                      {isAdmin && !assignedAgent && (
+                        <span className="cl-unassigned">—</span>
                       )}
                       <span className="cl-dot" style={{ background: statusColor(conv.status) }} />
                     </div>
@@ -137,9 +135,13 @@ export default function InboxPage() {
 
       <style>{`
         .chat-list {
-          width: 360px; min-width: 300px;
-          display: flex; flex-direction: column;
-          height: 100vh; background: #111b21; overflow: hidden;
+          width: 360px;
+          min-width: 300px;
+          display: flex;
+          flex-direction: column;
+          height: 100%;        /* fill parent flex height, not force 100vh */
+          background: #111b21;
+          overflow: hidden;
         }
         .cl-header {
           display: flex; align-items: center; justify-content: space-between;
@@ -171,9 +173,9 @@ export default function InboxPage() {
         .cl-search input::placeholder { color: #8696a0; }
         .cl-list { flex: 1; overflow-y: auto; }
         .cl-skel {
-          height: 72px; margin: 0 0 1px;
-          background: rgba(255,255,255,0.03);
+          height: 72px; background: rgba(255,255,255,0.03);
           animation: pulse 1.5s ease infinite;
+          border-bottom: 1px solid rgba(34,45,52,0.4);
         }
         .cl-empty {
           text-align: center; padding: 60px 20px;
@@ -217,13 +219,8 @@ export default function InboxPage() {
           white-space: nowrap; max-width: 80px;
           overflow: hidden; text-overflow: ellipsis;
         }
-        .cl-unassigned-badge {
-          font-size: 12px; color: #667781;
-        }
-        .cl-dot {
-          width: 8px; height: 8px;
-          border-radius: 50%; flex-shrink: 0;
-        }
+        .cl-unassigned { font-size: 12px; color: #667781; }
+        .cl-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
         @media (max-width: 768px) {
           .chat-list { width: 100vw; min-width: unset; }
         }

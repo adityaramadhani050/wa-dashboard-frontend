@@ -26,7 +26,6 @@ function MessageTick({ status }) {
   const isRead = status === 'read'
   const isDelivered = status === 'delivered' || isRead
   const color = isRead ? '#53bdeb' : 'rgba(255,255,255,0.5)'
-
   if (isDelivered) {
     return (
       <svg width="18" height="12" viewBox="0 0 18 12" fill="none" style={{flexShrink:0}}>
@@ -120,7 +119,6 @@ export default function ChatPage({ chatId }) {
 
   return (
     <div className="chat-view" onClick={closeMenus}>
-      {/* Header */}
       <div className="cv-header" onClick={e => e.stopPropagation()}>
         <button className="cv-back" onClick={() => navigate('/inbox')}>
           <ArrowLeft size={20} />
@@ -130,7 +128,6 @@ export default function ChatPage({ chatId }) {
           <div className="cv-name">{name}</div>
           <div className="cv-sub-row">
             {phone && name !== phone && <span className="cv-phone">{phone}</span>}
-            {/* Assigned agent badge — visible to admin only */}
             {isAdmin && assignedAgent && (
               <span className="cv-assigned-badge">
                 <UserCheck size={11} />
@@ -162,7 +159,7 @@ export default function ChatPage({ chatId }) {
                     : agents.map(a => (
                       <button
                         key={a.id}
-                        className={`cv-mi ${assignedAgent?.id === a.id ? 'active-agent' : ''}`}
+                        className={`cv-mi${assignedAgent?.id === a.id ? ' active-agent' : ''}`}
                         onClick={() => handleAgentAssign(a)}
                       >
                         <span>{a.name}</span>
@@ -175,7 +172,7 @@ export default function ChatPage({ chatId }) {
             </div>
           )}
 
-          {/* Status — visible to everyone */}
+          {/* Status — everyone */}
           <div className="cv-dd">
             <button
               className={`cv-chip st-${status}`}
@@ -204,12 +201,11 @@ export default function ChatPage({ chatId }) {
         </div>
       )}
 
-      {/* Messages */}
       <div className="cv-messages">
         {loading ? (
           <div className="cv-loading">
             {[...Array(5)].map((_, i) => (
-              <div key={i} className={`cv-skel ${i % 2 === 0 ? 'left' : 'right'}`} style={{ animationDelay: `${i * 0.1}s` }} />
+              <div key={i} className={`cv-skel ${i % 2 === 0 ? 'left' : 'right'}`} style={{animationDelay:`${i*0.1}s`}} />
             ))}
           </div>
         ) : messages.length === 0 ? (
@@ -233,7 +229,6 @@ export default function ChatPage({ chatId }) {
         <div ref={bottomRef} />
       </div>
 
-      {/* Input */}
       <div className="cv-input-bar">
         <textarea
           className="cv-input"
@@ -254,8 +249,13 @@ export default function ChatPage({ chatId }) {
 
       <style>{`
         .chat-view {
-          flex: 1; display: flex; flex-direction: column;
-          height: 100vh; min-width: 0; background: #0b141a;
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          height: 100%;       /* fill parent, not force 100vh */
+          min-width: 0;
+          background: #0b141a;
+          overflow: hidden;
         }
         .cv-header {
           display: flex; align-items: center; gap: 12px;
@@ -267,7 +267,7 @@ export default function ChatPage({ chatId }) {
         .cv-back {
           display: none; align-items: center; justify-content: center;
           width: 38px; height: 38px; border-radius: 50%;
-          color: #8696a0; transition: all 0.15s;
+          color: #8696a0; transition: all 0.15s; flex-shrink: 0;
         }
         .cv-back:hover { background: #2a3942; color: #e9edef; }
         @media (max-width: 768px) { .cv-back { display: flex; } }
@@ -343,9 +343,10 @@ export default function ChatPage({ chatId }) {
           display: flex; align-items: center; justify-content: space-between;
           flex-shrink: 0;
         }
+        /* Messages area */
         .cv-messages {
           flex: 1; overflow-y: auto;
-          padding: 12px 6%;
+          padding: 16px 20px;      /* fixed px — no more % overflow */
           display: flex; flex-direction: column; gap: 2px;
           background-color: #0b141a;
           background-image: url("data:image/svg+xml,%3Csvg width='300' height='300' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='0.015'%3E%3Cpath d='M150 0l150 150-150 150L0 150z'/%3E%3C/g%3E%3C/svg%3E");
@@ -364,13 +365,14 @@ export default function ChatPage({ chatId }) {
           text-align: center; padding: 32px;
           background: rgba(0,0,0,0.25); border-radius: 8px;
         }
+        /* Bubbles */
         .cv-row { display: flex; margin-bottom: 2px; }
         .cv-row.sent { justify-content: flex-end; }
         .cv-row.recv { justify-content: flex-start; }
         .cv-bubble {
           max-width: 65%;
           padding: 6px 12px 8px;
-          border-radius: 8px; position: relative;
+          border-radius: 8px;
           box-shadow: 0 1px 2px rgba(0,0,0,0.4);
           word-break: break-word;
         }
@@ -382,6 +384,7 @@ export default function ChatPage({ chatId }) {
           justify-content: flex-end; gap: 4px; margin-top: 3px;
         }
         .cv-time { font-size: 11px; color: rgba(255,255,255,0.45); white-space: nowrap; }
+        /* Input */
         .cv-input-bar {
           display: flex; align-items: flex-end; gap: 10px;
           padding: 10px 16px; background: #202c33; flex-shrink: 0;
