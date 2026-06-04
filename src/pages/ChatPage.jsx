@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useSocket } from '../context/SocketContext'
+import { useAuth } from '../context/AuthContext'
 import { getMessages, sendMessage, assignAgent, updateStatus, getConversations, getAgents } from '../hooks/useApi'
-import { ArrowLeft, Send, User, ChevronDown } from 'lucide-react'
-import clsx from 'clsx'
+import { Send, ChevronDown, User, ArrowLeft, MoreVertical } from 'lucide-react'
 
 const STATUS_OPTIONS = ['open', 'in_progress', 'resolved']
 
@@ -22,9 +22,10 @@ function cleanPhone(phone) {
   return phone.split('@')[0]
 }
 
-export default function ChatPage() {
-  const { id } = useParams()
+export default function ChatPage({ chatId }) {
+  const id = chatId
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [messages, setMessages] = useState([])
   const [conversation, setConversation] = useState(null)
   const [agents, setAgents] = useState([])
@@ -34,176 +35,154 @@ export default function ChatPage() {
   const [error, setError] = useState('')
   const [showStatusMenu, setShowStatusMenu] = useState(false)
   const [showAgentMenu, setShowAgentMenu] = useState(false)
+  const [showMoreMenu, setShowMoreMenu] = useState(false)
   const bottomRef = useRef(null)
+  const textareaRef = useRef(null)
   const { newMessages } = useSocket()
 
   const fetchData = useCallback(async () => {
     try {
-      const [msgs, convs] = await Promise.all([
-        getMessages(id),
-        getConversations(),
-      ])
-      const msgList = Array.isArray(msgs) ? msgs : msgs?.messages || []
-      setMessages(msgList)
-      const convList = Array.isArray(convs) ? convs : convs?.conversations || []
-      const conv = convList.find(c => String(c.id || c._id) === String(id))
-      setConversation(conv || null)
+      const agentId = user?.role === 'agent' ? user.id : null
+      const [msgs, convs] = await Promise.all([getMessages(id), getConversations(agentId)])
+      setMessages(Array.isArray(msgs) ? msgs : [])
+      const convList = Array.isArray(convs) ? convs : []
+      setConversation(convList.find(c => String(c.id) === String(id)) || null)
       setError('')
-    } catch (e) {
-      setError('Failed to load messages.')
-    } finally {
-      setLoading(false)
-    }
-  }, [id])
+    } catch { setError('Failed to load messages.') }
+    finally { setLoading(false) }
+  }, [id, user])
 
   useEffect(() => {
     fetchData()
-    getAgents().then(data => setAgents(Array.isArray(data) ? data : [])).catch(() => {})
+    getAgents().then(d => setAgents(Array.isArray(d) ? d : [])).catch(() => {})
   }, [fetchData])
 
   useEffect(() => {
-    const relevant = newMessages.filter(m => String(m.conversationId) === String(id))
-    if (relevant.length > 0) fetchData()
+    if (newMessages.some(m => String(m.conversationId) === String(id))) fetchData()
   }, [newMessages, id, fetchData])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
+  const closeMenus = () => { setShowStatusMenu(false); setShowAgentMenu(false); setShowMoreMenu(false) }
+
   const handleSend = async () => {
     if (!text.trim() || sending) return
     const msg = text.trim()
     setText('')
     setSending(true)
-    try {
-      await sendMessage(id, msg)
-      await fetchData()
-    } catch (e) {
-      const errMsg = e?.response?.data?.error || 'Failed to send message.'
-      setError(errMsg)
-      setText(msg)
-    } finally {
-      setSending(false)
-    }
-  }
-
-  const handleStatusChange = async (status) => {
-    setShowStatusMenu(false)
-    try {
-      await updateStatus(id, status)
-      setConversation(prev => prev ? { ...prev, status } : prev)
-    } catch { setError('Failed to update status.') }
-  }
-
-  const handleAgentAssign = async (agent) => {
-    setShowAgentMenu(false)
-    try {
-      await assignAgent(id, agent.id)
-      setConversation(prev => prev ? { ...prev, agents: agent } : prev)
-    } catch { setError('Failed to assign agent.') }
+    try { await sendMessage(id, msg); await fetchData() }
+    catch (e) { setError(e?.response?.data?.error || 'Failed to send.'); setText(msg) }
+    finally { setSending(false) }
   }
 
   const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      handleSend()
-    }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() }
   }
 
-  const assignedAgentName = conversation?.agents?.name || null
-  const displayPhone = cleanPhone(conversation?.contact?.phone)
+  const handleStatusChange = async (status) => {
+    closeMenus()
+    try { await updateStatus(id, status); setConversation(p => p ? { ...p, status } : p) }
+    catch { setError('Failed to update status.') }
+  }
+
+  const handleAgentAssign = async (agent) => {
+    closeMenus()
+    try { await assignAgent(id, agent.id); setConversation(p => p ? { ...p, agents: agent } : p) }
+    catch { setError('Failed to assign agent.') }
+  }
+
+  const name = conversation?.contact?.name || conversation?.contact?.phone || 'Unknown'
+  const phone = cleanPhone(conversation?.contact?.phone)
+  const assignedAgent = conversation?.agents?.name
+  const status = conversation?.status || 'open'
 
   return (
-    <div className="chat-page fade-in">
-      <div className="chat-header">
-        <button className="back-btn" onClick={() => navigate('/inbox')}>
-          <ArrowLeft size={18} />
+    <div className="chat-view" onClick={closeMenus}>
+      {/* Header */}
+      <div className="cv-header" onClick={e => e.stopPropagation()}>
+        <button className="cv-back" onClick={() => navigate('/inbox')} title="Back">
+          <ArrowLeft size={20} />
         </button>
-        <div className="chat-contact">
-          <div className="chat-avatar">
-            {(conversation?.contact?.name || conversation?.contact?.phone || '?')[0].toUpperCase()}
-          </div>
-          <div>
-            <div className="chat-name">
-              {conversation?.contact?.name || conversation?.contact?.phone || 'Unknown Contact'}
-            </div>
-            {displayPhone && conversation?.contact?.name && (
-              <div className="chat-phone">{displayPhone}</div>
-            )}
-          </div>
+        <div className="cv-avatar">{name[0].toUpperCase()}</div>
+        <div className="cv-contact">
+          <div className="cv-name">{name}</div>
+          {phone && name !== phone && <div className="cv-subname">{phone}</div>}
+          {assignedAgent && <div className="cv-subname">Agent: {assignedAgent}</div>}
         </div>
-        <div className="chat-actions">
-          <div className="dropdown-wrap">
+        <div className="cv-actions" onClick={e => e.stopPropagation()}>
+          {/* Status badge */}
+          <div className="cv-dd-wrap">
             <button
-              className="btn btn-secondary"
-              onClick={() => { setShowAgentMenu(!showAgentMenu); setShowStatusMenu(false) }}
+              className={`cv-status-chip status-${status}`}
+              onClick={() => { setShowStatusMenu(!showStatusMenu); setShowAgentMenu(false); setShowMoreMenu(false) }}
             >
-              <User size={14} />
-              {assignedAgentName || 'Assign Agent'}
-              <ChevronDown size={13} />
-            </button>
-            {showAgentMenu && (
-              <div className="dropdown-menu">
-                {agents.length === 0 ? (
-                  <div className="dropdown-item" style={{ color: 'var(--text-muted)', cursor: 'default' }}>
-                    No agents found
-                  </div>
-                ) : (
-                  agents.map(agent => (
-                    <button key={agent.id} className="dropdown-item" onClick={() => handleAgentAssign(agent)}>
-                      <span style={{fontWeight:500}}>{agent.name}</span>
-                      <span style={{fontSize:'11px', color:'var(--text-muted)'}}>{agent.email}</span>
-                    </button>
-                  ))
-                )}
-              </div>
-            )}
-          </div>
-          <div className="dropdown-wrap">
-            <button
-              className={`btn badge-${conversation?.status || 'open'}`}
-              style={{ borderRadius: 'var(--radius-sm)' }}
-              onClick={() => { setShowStatusMenu(!showStatusMenu); setShowAgentMenu(false) }}
-            >
-              {statusLabel(conversation?.status || 'open')}
-              <ChevronDown size={13} />
+              {statusLabel(status)}
+              <ChevronDown size={12} />
             </button>
             {showStatusMenu && (
-              <div className="dropdown-menu">
+              <div className="cv-menu" style={{minWidth:130}}>
                 {STATUS_OPTIONS.map(s => (
-                  <button
-                    key={s}
-                    className={clsx('dropdown-item', `status-${s}`)}
-                    onClick={() => handleStatusChange(s)}
-                  >
+                  <button key={s} className={`cv-menu-item si-${s}`} onClick={() => handleStatusChange(s)}>
                     {statusLabel(s)}
                   </button>
                 ))}
               </div>
             )}
           </div>
+          {/* More menu */}
+          <div className="cv-dd-wrap">
+            <button
+              className="cv-icon-btn"
+              onClick={() => { setShowMoreMenu(!showMoreMenu); setShowStatusMenu(false); setShowAgentMenu(false) }}
+              title="More"
+            >
+              <MoreVertical size={18} />
+            </button>
+            {showMoreMenu && (
+              <div className="cv-menu" style={{minWidth:190}}>
+                <div className="cv-menu-label">Assign Agent</div>
+                {agents.length === 0
+                  ? <div className="cv-menu-item muted">No agents available</div>
+                  : agents.map(a => (
+                    <button key={a.id} className="cv-menu-item" onClick={() => handleAgentAssign(a)}>
+                      <span>{a.name}</span>
+                      <span className="cv-menu-sub">{a.email}</span>
+                    </button>
+                  ))
+                }
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {error && <div className="chat-error">{error}</div>}
+      {error && (
+        <div className="cv-error">
+          {error}
+          <button onClick={() => setError('')} style={{marginLeft:8,fontWeight:700}}>×</button>
+        </div>
+      )}
 
-      <div className="chat-messages" onClick={() => { setShowStatusMenu(false); setShowAgentMenu(false) }}>
+      {/* Messages */}
+      <div className="cv-messages">
         {loading ? (
-          <div className="loading-msgs">
+          <div className="cv-loading">
             {[...Array(5)].map((_, i) => (
-              <div key={i} className={clsx('skeleton-bubble', i % 2 === 0 ? 'left' : 'right')} />
+              <div key={i} className={`cv-skel ${i % 2 === 0 ? 'left' : 'right'}`} style={{ animationDelay: `${i * 0.1}s` }} />
             ))}
           </div>
         ) : messages.length === 0 ? (
-          <div className="no-messages">No messages yet. Say hello!</div>
+          <div className="cv-empty">No messages yet. Say hello! 👋</div>
         ) : (
           messages.map((msg, i) => {
-            const isSent = msg.from_me === true || msg.from_me === 1 || msg.fromMe === true
+            const sent = msg.from_me === true || msg.from_me === 1 || msg.fromMe === true
             return (
-              <div key={msg.id || msg._id || i} className={clsx('msg-wrap', isSent ? 'sent' : 'received')}>
-                <div className={clsx('bubble', isSent ? 'bubble-sent' : 'bubble-received')}>
-                  <p>{msg.body || msg.content || msg.message || msg.text}</p>
-                  <span className="msg-time">{formatTime(msg.timestamp || msg.createdAt)}</span>
+              <div key={msg.id || i} className={`cv-row ${sent ? 'sent' : 'recv'}`}>
+                <div className={`cv-bubble ${sent ? 'bsent' : 'brecv'}`}>
+                  <p>{msg.body || msg.content || msg.text}</p>
+                  <span className="cv-time">{formatTime(msg.timestamp || msg.createdAt)}</span>
                 </div>
               </div>
             )
@@ -212,184 +191,232 @@ export default function ChatPage() {
         <div ref={bottomRef} />
       </div>
 
-      <div className="chat-input-area">
+      {/* Input */}
+      <div className="cv-input-bar">
         <textarea
-          className="chat-input"
-          placeholder="Type a message..."
+          ref={textareaRef}
+          className="cv-input"
+          placeholder="Type a message"
           value={text}
           onChange={e => setText(e.target.value)}
           onKeyDown={handleKeyDown}
           rows={1}
-          style={{ resize: 'none' }}
         />
         <button
-          className={clsx('send-btn', text.trim() && 'active')}
+          className={`cv-send-btn ${text.trim() ? 'ready' : ''}`}
           onClick={handleSend}
           disabled={!text.trim() || sending}
         >
-          <Send size={18} />
+          <Send size={20} />
         </button>
       </div>
 
       <style>{`
-        .chat-page {
+        .chat-view {
+          flex: 1;
           display: flex;
           flex-direction: column;
           height: 100vh;
-          background: var(--bg);
+          min-width: 0;
+          background: #0b141a;
         }
-        .chat-header {
+        /* Header */
+        .cv-header {
           display: flex;
           align-items: center;
           gap: 12px;
-          padding: 12px 20px;
-          background: var(--bg-card);
-          border-bottom: 1px solid var(--border);
+          padding: 8px 16px;
+          background: #202c33;
+          border-bottom: 1px solid #222d34;
           flex-shrink: 0;
+          min-height: 60px;
         }
-        .back-btn {
-          padding: 8px;
-          border-radius: var(--radius-sm);
-          color: var(--text-muted);
-          transition: all 0.15s;
-        }
-        .back-btn:hover { background: var(--bg-hover); color: var(--text); }
-        .chat-contact { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
-        .chat-avatar {
-          width: 40px;
-          height: 40px;
-          background: var(--green-dark);
-          border-radius: 50%;
-          display: flex;
+        .cv-back {
+          display: none;
           align-items: center;
           justify-content: center;
-          font-size: 15px;
-          font-weight: 700;
-          color: white;
+          width: 38px; height: 38px;
+          border-radius: 50%;
+          color: #8696a0;
+          flex-shrink: 0;
+          transition: all 0.15s;
+        }
+        .cv-back:hover { background: #2a3942; color: #e9edef; }
+        @media (max-width: 768px) { .cv-back { display: flex; } }
+        .cv-avatar {
+          width: 42px; height: 42px;
+          border-radius: 50%;
+          background: #6b7c85;
+          display: flex; align-items: center; justify-content: center;
+          font-size: 18px; font-weight: 500; color: white;
           flex-shrink: 0;
         }
-        .chat-name { font-size: 15px; font-weight: 600; }
-        .chat-phone { font-size: 12px; color: var(--text-muted); }
-        .chat-actions { display: flex; gap: 8px; align-items: center; flex-shrink: 0; flex-wrap: wrap; }
-        .dropdown-wrap { position: relative; }
-        .dropdown-menu {
+        .cv-contact { flex: 1; min-width: 0; }
+        .cv-name { font-size: 15px; font-weight: 500; color: #e9edef; }
+        .cv-subname { font-size: 12px; color: #8696a0; }
+        .cv-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+        .cv-dd-wrap { position: relative; }
+        .cv-status-chip {
+          display: flex; align-items: center; gap: 5px;
+          padding: 5px 12px;
+          border-radius: 20px;
+          font-size: 12px; font-weight: 600;
+          transition: opacity 0.15s;
+        }
+        .cv-status-chip:hover { opacity: 0.8; }
+        .cv-status-chip.status-open { background: rgba(83,189,235,0.15); color: #53bdeb; }
+        .cv-status-chip.status-in_progress { background: rgba(255,169,41,0.15); color: #ffa929; }
+        .cv-status-chip.status-resolved { background: rgba(0,168,132,0.15); color: #00a884; }
+        .cv-icon-btn {
+          width: 38px; height: 38px;
+          border-radius: 50%;
+          display: flex; align-items: center; justify-content: center;
+          color: #8696a0;
+          transition: all 0.15s;
+        }
+        .cv-icon-btn:hover { background: #2a3942; color: #e9edef; }
+        .cv-menu {
           position: absolute;
-          right: 0;
-          top: calc(100% + 6px);
-          background: var(--bg-card);
-          border: 1px solid var(--border);
-          border-radius: var(--radius-sm);
-          min-width: 140px;
-          z-index: 100;
-          box-shadow: var(--shadow);
+          right: 0; top: calc(100% + 6px);
+          background: #233138;
+          border: 1px solid #2a3942;
+          border-radius: 8px;
+          z-index: 200;
+          box-shadow: 0 4px 24px rgba(0,0,0,0.5);
           overflow: hidden;
         }
-        .dropdown-item {
-          display: block;
-          width: 100%;
-          text-align: left;
-          padding: 10px 14px;
-          font-size: 13px;
-          color: var(--text);
-          transition: background 0.12s;
+        .cv-menu-label {
+          padding: 8px 16px 4px;
+          font-size: 11px;
+          font-weight: 600;
+          color: #8696a0;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
         }
-        .dropdown-item:hover { background: var(--bg-hover); }
-        .chat-error {
-          background: rgba(255,71,87,0.1);
-          color: var(--red);
-          padding: 8px 20px;
+        .cv-menu-item {
+          display: flex; flex-direction: column;
+          width: 100%; text-align: left;
+          padding: 10px 16px;
+          font-size: 14px; color: #e9edef;
+          transition: background 0.1s;
+        }
+        .cv-menu-item:hover { background: #2a3942; }
+        .cv-menu-item.muted { color: #8696a0; cursor: default; }
+        .cv-menu-sub { font-size: 11px; color: #8696a0; margin-top: 1px; }
+        .si-open { color: #53bdeb !important; }
+        .si-in_progress { color: #ffa929 !important; }
+        .si-resolved { color: #00a884 !important; }
+        /* Error bar */
+        .cv-error {
+          background: rgba(241,92,109,0.1);
+          border-bottom: 1px solid rgba(241,92,109,0.2);
+          color: #f15c6d;
+          padding: 8px 16px;
           font-size: 13px;
-          border-bottom: 1px solid rgba(255,71,87,0.2);
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
           flex-shrink: 0;
         }
-        .chat-messages {
+        /* Messages area */
+        .cv-messages {
           flex: 1;
           overflow-y: auto;
-          padding: 20px;
+          padding: 12px 6%;
           display: flex;
           flex-direction: column;
-          gap: 4px;
+          gap: 2px;
+          background-color: #0b141a;
+          background-image: url("data:image/svg+xml,%3Csvg width='300' height='300' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='0.015'%3E%3Cpath d='M150 0l150 150-150 150L0 150z'/%3E%3C/g%3E%3C/svg%3E");
+          background-size: 150px;
         }
-        .loading-msgs { display: flex; flex-direction: column; gap: 10px; }
-        .skeleton-bubble {
-          height: 48px;
-          border-radius: 16px;
-          max-width: 60%;
-          background: var(--bg-card);
+        .cv-loading { display: flex; flex-direction: column; gap: 10px; }
+        .cv-skel {
+          height: 44px; max-width: 58%;
+          border-radius: 10px;
+          background: rgba(255,255,255,0.05);
           animation: pulse 1.4s ease infinite;
         }
-        .skeleton-bubble.left { align-self: flex-start; }
-        .skeleton-bubble.right { align-self: flex-end; }
-        .no-messages {
-          text-align: center;
-          color: var(--text-muted);
-          font-size: 14px;
+        .cv-skel.left { align-self: flex-start; }
+        .cv-skel.right { align-self: flex-end; }
+        .cv-empty {
           margin: auto;
+          color: #8696a0;
+          font-size: 14px;
+          text-align: center;
+          padding: 32px;
+          background: rgba(0,0,0,0.25);
+          border-radius: 8px;
         }
-        .msg-wrap { display: flex; margin-bottom: 2px; }
-        .msg-wrap.sent { justify-content: flex-end; }
-        .msg-wrap.received { justify-content: flex-start; }
-        .bubble {
-          max-width: 70%;
-          padding: 10px 14px;
-          border-radius: 18px;
+        /* Bubbles */
+        .cv-row { display: flex; margin-bottom: 2px; }
+        .cv-row.sent { justify-content: flex-end; }
+        .cv-row.recv { justify-content: flex-start; }
+        .cv-bubble {
+          max-width: 65%;
+          padding: 6px 12px 20px;
+          border-radius: 8px;
           position: relative;
+          box-shadow: 0 1px 2px rgba(0,0,0,0.4);
+          word-break: break-word;
         }
-        .bubble-sent {
-          background: var(--green-dark);
-          color: white;
-          border-bottom-right-radius: 4px;
+        .bsent {
+          background: #005c4b;
+          color: #e9edef;
+          border-bottom-right-radius: 2px;
         }
-        .bubble-received {
-          background: var(--bg-card);
-          border: 1px solid var(--border);
-          color: var(--text);
-          border-bottom-left-radius: 4px;
+        .brecv {
+          background: #202c33;
+          color: #e9edef;
+          border-bottom-left-radius: 2px;
         }
-        .bubble p { font-size: 14px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
-        .msg-time {
-          display: block;
-          font-size: 10px;
-          margin-top: 4px;
-          opacity: 0.65;
-          text-align: right;
+        .cv-bubble p {
+          font-size: 14.2px;
+          line-height: 1.5;
+          white-space: pre-wrap;
         }
-        .chat-input-area {
+        .cv-time {
+          position: absolute;
+          bottom: 4px; right: 8px;
+          font-size: 11px;
+          color: rgba(255,255,255,0.45);
+          white-space: nowrap;
+        }
+        /* Input bar */
+        .cv-input-bar {
           display: flex;
           align-items: flex-end;
           gap: 10px;
-          padding: 12px 16px;
-          background: var(--bg-card);
-          border-top: 1px solid var(--border);
+          padding: 10px 16px;
+          background: #202c33;
           flex-shrink: 0;
         }
-        .chat-input {
+        .cv-input {
           flex: 1;
-          max-height: 120px;
-          overflow-y: auto;
-          border-radius: 20px;
+          background: #2a3942;
+          border: none;
+          border-radius: 8px;
+          color: #e9edef;
           padding: 10px 16px;
-          font-size: 14px;
-          line-height: 1.5;
+          font-size: 15px;
+          line-height: 1.4;
+          outline: none;
+          resize: none;
+          max-height: 140px;
+          overflow-y: auto;
         }
-        .send-btn {
-          width: 42px;
-          height: 42px;
+        .cv-input::placeholder { color: #8696a0; }
+        .cv-send-btn {
+          width: 44px; height: 44px;
           border-radius: 50%;
-          background: var(--bg-hover);
-          color: var(--text-muted);
-          display: flex;
-          align-items: center;
-          justify-content: center;
+          background: #374a52;
+          color: #8696a0;
+          display: flex; align-items: center; justify-content: center;
           transition: all 0.15s;
           flex-shrink: 0;
         }
-        .send-btn.active { background: var(--green); color: white; }
-        .send-btn:disabled { opacity: 0.5; }
-        @media (max-width: 600px) {
-          .chat-actions { gap: 4px; }
-          .chat-header { padding: 10px 12px; }
-        }
+        .cv-send-btn.ready { background: #00a884; color: white; }
+        .cv-send-btn:disabled { opacity: 0.6; }
       `}</style>
     </div>
   )
