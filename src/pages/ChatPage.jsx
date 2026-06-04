@@ -1,17 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useSocket } from '../context/SocketContext'
-import { getMessages, sendMessage, assignAgent, updateStatus, getConversations } from '../hooks/useApi'
+import { getMessages, sendMessage, assignAgent, updateStatus, getConversations, getAgents } from '../hooks/useApi'
 import { ArrowLeft, Send, User, ChevronDown } from 'lucide-react'
 import clsx from 'clsx'
 
 const STATUS_OPTIONS = ['open', 'in_progress', 'resolved']
-const AGENTS = [
-  { id: 'agent1', name: 'Alice' },
-  { id: 'agent2', name: 'Bob' },
-  { id: 'agent3', name: 'Carlos' },
-  { id: 'agent4', name: 'Diana' },
-]
 
 function formatTime(dateStr) {
   if (!dateStr) return ''
@@ -28,6 +22,7 @@ export default function ChatPage() {
   const navigate = useNavigate()
   const [messages, setMessages] = useState([])
   const [conversation, setConversation] = useState(null)
+  const [agents, setAgents] = useState([])
   const [text, setText] = useState('')
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
@@ -46,7 +41,7 @@ export default function ChatPage() {
       const msgList = Array.isArray(msgs) ? msgs : msgs?.messages || []
       setMessages(msgList)
       const convList = Array.isArray(convs) ? convs : convs?.conversations || []
-      const conv = convList.find(c => (c.id || c._id) === id)
+      const conv = convList.find(c => String(c.id || c._id) === String(id))
       setConversation(conv || null)
       setError('')
     } catch (e) {
@@ -56,10 +51,13 @@ export default function ChatPage() {
     }
   }, [id])
 
-  useEffect(() => { fetchData() }, [fetchData])
+  useEffect(() => {
+    fetchData()
+    getAgents().then(data => setAgents(Array.isArray(data) ? data : [])).catch(() => {})
+  }, [fetchData])
 
   useEffect(() => {
-    const relevant = newMessages.filter(m => m.conversationId === id)
+    const relevant = newMessages.filter(m => String(m.conversationId) === String(id))
     if (relevant.length > 0) fetchData()
   }, [newMessages, id, fetchData])
 
@@ -75,8 +73,9 @@ export default function ChatPage() {
     try {
       await sendMessage(id, msg)
       await fetchData()
-    } catch {
-      setError('Failed to send message.')
+    } catch (e) {
+      const errMsg = e?.response?.data?.error || 'Failed to send message.'
+      setError(errMsg)
       setText(msg)
     } finally {
       setSending(false)
@@ -95,7 +94,7 @@ export default function ChatPage() {
     setShowAgentMenu(false)
     try {
       await assignAgent(id, agent.id)
-      setConversation(prev => prev ? { ...prev, assignedAgent: agent } : prev)
+      setConversation(prev => prev ? { ...prev, agents: agent } : prev)
     } catch { setError('Failed to assign agent.') }
   }
 
@@ -105,6 +104,8 @@ export default function ChatPage() {
       handleSend()
     }
   }
+
+  const assignedAgentName = conversation?.agents?.name || null
 
   return (
     <div className="chat-page fade-in">
@@ -132,16 +133,22 @@ export default function ChatPage() {
               onClick={() => { setShowAgentMenu(!showAgentMenu); setShowStatusMenu(false) }}
             >
               <User size={14} />
-              {conversation?.assignedAgent?.name || 'Assign Agent'}
+              {assignedAgentName || 'Assign Agent'}
               <ChevronDown size={13} />
             </button>
             {showAgentMenu && (
               <div className="dropdown-menu">
-                {AGENTS.map(agent => (
-                  <button key={agent.id} className="dropdown-item" onClick={() => handleAgentAssign(agent)}>
-                    {agent.name}
-                  </button>
-                ))}
+                {agents.length === 0 ? (
+                  <div className="dropdown-item" style={{ color: 'var(--text-muted)', cursor: 'default' }}>
+                    No agents found
+                  </div>
+                ) : (
+                  agents.map(agent => (
+                    <button key={agent.id} className="dropdown-item" onClick={() => handleAgentAssign(agent)}>
+                      {agent.name}
+                    </button>
+                  ))
+                )}
               </div>
             )}
           </div>
@@ -184,12 +191,12 @@ export default function ChatPage() {
           <div className="no-messages">No messages yet. Say hello!</div>
         ) : (
           messages.map((msg, i) => {
-            const isSent = msg.direction === 'outbound' || msg.fromMe || msg.type === 'sent'
+            const isSent = msg.from_me === true || msg.from_me === 1 || msg.fromMe === true
             return (
               <div key={msg.id || msg._id || i} className={clsx('msg-wrap', isSent ? 'sent' : 'received')}>
                 <div className={clsx('bubble', isSent ? 'bubble-sent' : 'bubble-received')}>
-                  <p>{msg.content || msg.body || msg.message || msg.text}</p>
-                  <span className="msg-time">{formatTime(msg.createdAt || msg.timestamp)}</span>
+                  <p>{msg.body || msg.content || msg.message || msg.text}</p>
+                  <span className="msg-time">{formatTime(msg.timestamp || msg.createdAt)}</span>
                 </div>
               </div>
             )
