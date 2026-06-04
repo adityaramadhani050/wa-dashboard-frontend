@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { getDailyStats, getAgentStats } from '../hooks/useApi'
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -6,27 +6,27 @@ import {
 } from 'recharts'
 import { RefreshCw, TrendingUp, Users, MessageSquare, UserCheck } from 'lucide-react'
 
-function StatCard({ icon: Icon, label, value, color = 'var(--green)' }) {
+function StatCard({ icon: Icon, label, value, color }) {
   return (
-    <div className="stat-card card">
-      <div className="stat-icon" style={{ background: `${color}1a`, color }}>
-        <Icon size={20} />
+    <div className="an-stat">
+      <div className="an-stat-icon" style={{ background: `${color}22`, color }}>
+        <Icon size={18} />
       </div>
       <div>
-        <div className="stat-value">{value ?? '—'}</div>
-        <div className="stat-label">{label}</div>
+        <div className="an-stat-val">{value ?? '—'}</div>
+        <div className="an-stat-lbl">{label}</div>
       </div>
     </div>
   )
 }
 
-const CustomTooltip = ({ active, payload, label }) => {
+const Tip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null
   return (
-    <div className="chart-tooltip">
-      <p className="tooltip-label">{label}</p>
+    <div className="an-tip">
+      <p className="an-tip-lbl">{label}</p>
       {payload.map(p => (
-        <p key={p.name} style={{ color: p.color }}>
+        <p key={p.name} style={{ color: p.color, margin: '2px 0' }}>
           {p.name}: <strong>{p.value}</strong>
         </p>
       ))}
@@ -35,144 +35,157 @@ const CustomTooltip = ({ active, payload, label }) => {
 }
 
 export default function AnalyticsPage() {
-  const [dailyStats, setDailyStats] = useState([])
-  const [agentStats, setAgentStats] = useState([])
+  const [daily, setDaily] = useState([])
+  const [agents, setAgents] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  const fetchStats = async () => {
+  const load = useCallback(async () => {
     setLoading(true)
+    setError('')
     try {
-      const [daily, agents] = await Promise.all([getDailyStats(), getAgentStats()])
-      setDailyStats(Array.isArray(daily) ? daily : daily?.data || [])
-      setAgentStats(Array.isArray(agents) ? agents : agents?.data || [])
-      setError('')
+      const [d, a] = await Promise.all([getDailyStats(), getAgentStats()])
+      setDaily(Array.isArray(d) ? d : [])
+      setAgents(Array.isArray(a) ? a : [])
     } catch {
-      setError('Failed to load analytics data.')
+      setError('Failed to load analytics. Check backend connection.')
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
-  useEffect(() => { fetchStats() }, [])
+  useEffect(() => { load() }, [load])
 
-  const totalMessages = dailyStats.reduce((s, d) => s + (d.messages || d.messageCount || 0), 0)
-  const totalContacts = dailyStats.reduce((s, d) => s + (d.newContacts || d.contacts || 0), 0)
-  const totalResolved = agentStats.reduce((s, a) => s + (a.resolved || 0), 0)
-  const avgResponseTime = agentStats.length
-    ? Math.round(agentStats.reduce((s, a) => s + (a.avgResponseTime || 0), 0) / agentStats.length)
-    : null
+  const totalMessages = daily.reduce((s, d) => s + (d.messages || 0), 0)
+  const totalIncoming = daily.reduce((s, d) => s + (d.incoming || 0), 0)
+  const totalOutgoing = daily.reduce((s, d) => s + (d.outgoing || 0), 0)
+  const totalResolved = agents.reduce((s, a) => s + (a.resolved || 0), 0)
+  const totalAssigned = agents.reduce((s, a) => s + (a.total || 0), 0)
 
-  const chartData = dailyStats.map(d => ({
-    date: d.date ? new Date(d.date).toLocaleDateString('en', { month: 'short', day: 'numeric' }) : d.day || d.label,
-    Messages: d.messages || d.messageCount || 0,
-    Contacts: d.newContacts || d.contacts || 0,
+  const chartData = daily.map(d => ({
+    date: new Date(d.date).toLocaleDateString('id', { day: 'numeric', month: 'short' }),
+    Masuk: d.incoming || 0,
+    Keluar: d.outgoing || 0,
+  }))
+
+  const agentChart = agents.map(a => ({
+    name: a.name || 'Agent',
+    Total: a.total || 0,
+    Resolved: a.resolved || 0,
   }))
 
   return (
-    <div className="analytics-page fade-in">
-      <div className="analytics-header">
+    <div className="an-page">
+      <div className="an-header">
         <div>
           <h1>Analytics</h1>
-          <p>Performance overview and agent metrics</p>
+          <p>Statistik pesan dan performa agent</p>
         </div>
-        <button className="btn btn-secondary" onClick={fetchStats} disabled={loading}>
-          <RefreshCw size={14} className={loading ? 'spin' : ''} />
+        <button className="an-refresh" onClick={load} disabled={loading}>
+          <RefreshCw size={15} style={loading ? { animation: 'spin 1s linear infinite' } : {}} />
           Refresh
         </button>
       </div>
 
-      {error && <div className="error-banner">{error}</div>}
+      {error && <div className="an-error">{error}</div>}
 
-      <div className="stats-grid">
-        <StatCard icon={MessageSquare} label="Total Messages" value={totalMessages} color="var(--blue)" />
-        <StatCard icon={Users} label="New Contacts" value={totalContacts} color="var(--purple)" />
-        <StatCard icon={UserCheck} label="Resolved" value={totalResolved} color="var(--green)" />
-        <StatCard icon={TrendingUp} label="Avg Response (min)" value={avgResponseTime} color="var(--orange)" />
+      {/* Summary cards */}
+      <div className="an-cards">
+        <StatCard icon={MessageSquare} label="Total Pesan" value={totalMessages} color="#53bdeb" />
+        <StatCard icon={TrendingUp} label="Pesan Masuk" value={totalIncoming} color="#00a884" />
+        <StatCard icon={TrendingUp} label="Pesan Keluar" value={totalOutgoing} color="#ffa929" />
+        <StatCard icon={UserCheck} label="Resolved" value={totalResolved} color="#00a884" />
+        <StatCard icon={Users} label="Di-assign" value={totalAssigned} color="#53bdeb" />
       </div>
 
-      <div className="charts-grid">
-        <div className="chart-card card">
-          <h3>Daily Activity</h3>
-          <p className="chart-subtitle">Messages and new contacts over time</p>
+      {/* Charts */}
+      <div className="an-charts">
+        {/* Daily messages */}
+        <div className="an-chart-box">
+          <h3>Aktivitas Pesan (14 Hari)</h3>
+          <p className="an-chart-sub">Pesan masuk dan keluar per hari</p>
           {loading ? (
-            <div className="chart-skeleton" />
-          ) : chartData.length === 0 ? (
-            <div className="chart-empty">No data available</div>
+            <div className="an-skel" />
+          ) : chartData.every(d => d.Masuk === 0 && d.Keluar === 0) ? (
+            <div className="an-chart-empty">Belum ada data pesan</div>
           ) : (
-            <ResponsiveContainer width="100%" height={240}>
+            <ResponsiveContainer width="100%" height={220}>
               <LineChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="date" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} />
-                <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 11 }} />
-                <Tooltip content={<CustomTooltip />} />
-                <Legend wrapperStyle={{ fontSize: '12px' }} />
-                <Line type="monotone" dataKey="Messages" stroke="var(--blue)" strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="Contacts" stroke="var(--purple)" strokeWidth={2} dot={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#222d34" />
+                <XAxis dataKey="date" tick={{ fill: '#8696a0', fontSize: 11 }} />
+                <YAxis tick={{ fill: '#8696a0', fontSize: 11 }} allowDecimals={false} />
+                <Tooltip content={<Tip />} />
+                <Legend wrapperStyle={{ fontSize: 12, color: '#8696a0' }} />
+                <Line type="monotone" dataKey="Masuk" stroke="#00a884" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="Keluar" stroke="#ffa929" strokeWidth={2} dot={false} />
               </LineChart>
             </ResponsiveContainer>
           )}
         </div>
 
-        {agentStats.length > 0 && (
-          <div className="chart-card card">
-            <h3>Agent Performance</h3>
-            <p className="chart-subtitle">Conversations handled per agent</p>
-            <ResponsiveContainer width="100%" height={240}>
-              <BarChart
-                data={agentStats.map(a => ({
-                  name: a.agentName || a.name || a.agent || 'Agent',
-                  Handled: a.handled || a.conversations || 0,
-                  Resolved: a.resolved || 0,
-                }))}
-                margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="name" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} />
-                <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 11 }} />
-                <Tooltip content={<CustomTooltip />} />
-                <Legend wrapperStyle={{ fontSize: '12px' }} />
-                <Bar dataKey="Handled" fill="var(--blue)" radius={[4,4,0,0]} />
-                <Bar dataKey="Resolved" fill="var(--green)" radius={[4,4,0,0]} />
+        {/* Agent performance */}
+        <div className="an-chart-box">
+          <h3>Performa Agent</h3>
+          <p className="an-chart-sub">Percakapan ditangani per agent</p>
+          {loading ? (
+            <div className="an-skel" />
+          ) : agents.length === 0 ? (
+            <div className="an-chart-empty">Belum ada percakapan yang di-assign</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={agentChart} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#222d34" />
+                <XAxis dataKey="name" tick={{ fill: '#8696a0', fontSize: 11 }} />
+                <YAxis tick={{ fill: '#8696a0', fontSize: 11 }} allowDecimals={false} />
+                <Tooltip content={<Tip />} />
+                <Legend wrapperStyle={{ fontSize: 12, color: '#8696a0' }} />
+                <Bar dataKey="Total" fill="#53bdeb" radius={[4,4,0,0]} />
+                <Bar dataKey="Resolved" fill="#00a884" radius={[4,4,0,0]} />
               </BarChart>
             </ResponsiveContainer>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
-      {!loading && agentStats.length > 0 && (
-        <div className="agent-table card">
-          <h3>Agent Breakdown</h3>
-          <div className="table-wrap">
-            <table>
+      {/* Agent table */}
+      {!loading && agents.length > 0 && (
+        <div className="an-table-box">
+          <h3>Detail per Agent</h3>
+          <div className="an-table-wrap">
+            <table className="an-table">
               <thead>
                 <tr>
                   <th>Agent</th>
-                  <th>Handled</th>
+                  <th>Total</th>
+                  <th>Open</th>
+                  <th>In Progress</th>
                   <th>Resolved</th>
-                  <th>Avg Response</th>
                   <th>Resolution Rate</th>
                 </tr>
               </thead>
               <tbody>
-                {agentStats.map((a, i) => {
-                  const handled = a.handled || a.conversations || 0
-                  const resolved = a.resolved || 0
-                  const rate = handled > 0 ? Math.round((resolved / handled) * 100) : 0
+                {agents.map((a, i) => {
+                  const rate = a.total > 0 ? Math.round(((a.resolved || 0) / a.total) * 100) : 0
                   return (
                     <tr key={i}>
                       <td>
-                        <div className="agent-cell">
-                          <div className="agent-av">{(a.agentName || a.name || 'A')[0].toUpperCase()}</div>
-                          {a.agentName || a.name || 'Agent'}
+                        <div className="an-agent-cell">
+                          <div className="an-avatar">{(a.name || 'A')[0].toUpperCase()}</div>
+                          <div>
+                            <div className="an-agent-name">{a.name}</div>
+                            <div className="an-agent-email">{a.email}</div>
+                          </div>
                         </div>
                       </td>
-                      <td>{handled}</td>
-                      <td>{resolved}</td>
-                      <td>{a.avgResponseTime ? `${a.avgResponseTime}m` : '—'}</td>
+                      <td>{a.total || 0}</td>
+                      <td><span className="an-badge open">{a.open || 0}</span></td>
+                      <td><span className="an-badge progress">{a.in_progress || 0}</span></td>
+                      <td><span className="an-badge resolved">{a.resolved || 0}</span></td>
                       <td>
-                        <div className="rate-bar">
-                          <div className="rate-fill" style={{ width: `${rate}%` }} />
+                        <div className="an-rate">
+                          <div className="an-rate-bar">
+                            <div className="an-rate-fill" style={{ width: `${rate}%` }} />
+                          </div>
                           <span>{rate}%</span>
                         </div>
                       </td>
@@ -186,130 +199,131 @@ export default function AnalyticsPage() {
       )}
 
       <style>{`
-        .analytics-page { padding: 28px 24px; }
-        .analytics-header {
-          display: flex;
-          align-items: flex-start;
-          justify-content: space-between;
-          margin-bottom: 24px;
+        .an-page {
+          padding: 28px 32px;
+          max-width: 1100px;
+          color: #e9edef;
         }
-        .analytics-header h1 { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
-        .analytics-header p { color: var(--text-muted); font-size: 13px; }
-        .error-banner {
-          background: rgba(255,71,87,0.1);
-          border: 1px solid rgba(255,71,87,0.2);
-          border-radius: var(--radius-sm);
-          padding: 12px 16px;
-          color: var(--red);
-          font-size: 13px;
-          margin-bottom: 20px;
+        .an-header {
+          display: flex; align-items: flex-start;
+          justify-content: space-between; margin-bottom: 24px;
         }
-        .stats-grid {
+        .an-header h1 { font-size: 20px; font-weight: 600; margin-bottom: 3px; }
+        .an-header p { font-size: 13px; color: #8696a0; }
+        .an-refresh {
+          display: flex; align-items: center; gap: 6px;
+          padding: 8px 16px; border-radius: 8px;
+          background: #2a3942; color: #e9edef;
+          font-size: 13px; font-weight: 500; transition: background 0.15s;
+        }
+        .an-refresh:hover { background: #374a52; }
+        .an-refresh:disabled { opacity: 0.6; }
+        .an-error {
+          background: rgba(241,92,109,0.1);
+          border: 1px solid rgba(241,92,109,0.2);
+          border-radius: 8px; padding: 12px 16px;
+          color: #f15c6d; font-size: 13px; margin-bottom: 20px;
+        }
+        /* Stat cards */
+        .an-cards {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-          gap: 16px;
-          margin-bottom: 24px;
+          grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+          gap: 12px; margin-bottom: 24px;
         }
-        .stat-card {
-          display: flex;
-          align-items: center;
-          gap: 14px;
+        .an-stat {
+          display: flex; align-items: center; gap: 12px;
+          padding: 16px; background: #202c33;
+          border: 1px solid #222d34; border-radius: 10px;
         }
-        .stat-icon {
-          width: 44px;
-          height: 44px;
-          border-radius: 10px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
+        .an-stat-icon {
+          width: 40px; height: 40px; border-radius: 10px;
+          display: flex; align-items: center; justify-content: center;
           flex-shrink: 0;
         }
-        .stat-value { font-size: 24px; font-weight: 700; line-height: 1; }
-        .stat-label { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
-        .charts-grid {
+        .an-stat-val { font-size: 22px; font-weight: 700; line-height: 1; }
+        .an-stat-lbl { font-size: 12px; color: #8696a0; margin-top: 3px; }
+        /* Charts */
+        .an-charts {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-          gap: 20px;
-          margin-bottom: 24px;
+          grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+          gap: 16px; margin-bottom: 24px;
         }
-        .chart-card h3 { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
-        .chart-subtitle { font-size: 12px; color: var(--text-muted); margin-bottom: 20px; }
-        .chart-skeleton {
-          height: 240px;
-          background: var(--bg-hover);
-          border-radius: var(--radius-sm);
+        .an-chart-box {
+          background: #202c33;
+          border: 1px solid #222d34;
+          border-radius: 10px; padding: 20px;
+        }
+        .an-chart-box h3 { font-size: 14px; font-weight: 600; margin-bottom: 3px; }
+        .an-chart-sub { font-size: 12px; color: #8696a0; margin-bottom: 16px; }
+        .an-skel {
+          height: 220px; background: #2a3942;
+          border-radius: 8px;
           animation: pulse 1.4s ease infinite;
         }
-        .chart-empty {
-          height: 240px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: var(--text-muted);
-          font-size: 13px;
+        .an-chart-empty {
+          height: 220px; display: flex;
+          align-items: center; justify-content: center;
+          color: #8696a0; font-size: 13px;
         }
-        .chart-tooltip {
-          background: var(--bg-card);
-          border: 1px solid var(--border);
-          border-radius: var(--radius-sm);
-          padding: 10px 14px;
+        /* Tooltip */
+        .an-tip {
+          background: #1a2429;
+          border: 1px solid #2a3942;
+          border-radius: 8px; padding: 10px 14px;
           font-size: 12px;
-          box-shadow: var(--shadow);
+          box-shadow: 0 4px 16px rgba(0,0,0,0.5);
         }
-        .tooltip-label { font-weight: 600; margin-bottom: 6px; color: var(--text); }
-        .agent-table h3 { font-size: 15px; font-weight: 600; margin-bottom: 16px; }
-        .table-wrap { overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; }
-        th {
-          text-align: left;
-          padding: 10px 14px;
-          font-size: 11px;
-          font-weight: 600;
-          color: var(--text-muted);
-          text-transform: uppercase;
+        .an-tip-lbl { font-weight: 600; margin-bottom: 6px; color: #e9edef; }
+        /* Table */
+        .an-table-box {
+          background: #202c33;
+          border: 1px solid #222d34;
+          border-radius: 10px; padding: 20px;
+        }
+        .an-table-box h3 { font-size: 14px; font-weight: 600; margin-bottom: 16px; }
+        .an-table-wrap { overflow-x: auto; }
+        .an-table { width: 100%; border-collapse: collapse; }
+        .an-table th {
+          text-align: left; padding: 10px 14px;
+          font-size: 11px; font-weight: 600;
+          color: #8696a0; text-transform: uppercase;
           letter-spacing: 0.5px;
-          border-bottom: 1px solid var(--border);
+          border-bottom: 1px solid #222d34;
         }
-        td {
-          padding: 12px 14px;
-          font-size: 13px;
-          border-bottom: 1px solid var(--border);
-          color: var(--text);
+        .an-table td {
+          padding: 12px 14px; font-size: 13px;
+          border-bottom: 1px solid #1a2429; color: #e9edef;
         }
-        tr:last-child td { border-bottom: none; }
-        tr:hover td { background: var(--bg-hover); }
-        .agent-cell { display: flex; align-items: center; gap: 10px; }
-        .agent-av {
-          width: 28px;
-          height: 28px;
-          background: var(--green-dark);
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 12px;
-          font-weight: 700;
-          color: white;
+        .an-table tr:last-child td { border-bottom: none; }
+        .an-table tr:hover td { background: #233138; }
+        .an-agent-cell { display: flex; align-items: center; gap: 10px; }
+        .an-avatar {
+          width: 30px; height: 30px; border-radius: 50%;
+          background: #005c4b;
+          display: flex; align-items: center; justify-content: center;
+          font-size: 12px; font-weight: 700; color: white;
         }
-        .rate-bar {
-          display: flex;
-          align-items: center;
-          gap: 8px;
+        .an-agent-name { font-size: 13px; font-weight: 500; }
+        .an-agent-email { font-size: 11px; color: #8696a0; }
+        .an-badge {
+          display: inline-block;
+          padding: 2px 10px; border-radius: 10px;
+          font-size: 12px; font-weight: 600;
         }
-        .rate-fill {
-          height: 6px;
-          background: var(--green);
-          border-radius: 3px;
-          min-width: 4px;
-          max-width: 80px;
-          transition: width 0.4s ease;
+        .an-badge.open { background: rgba(83,189,235,0.15); color: #53bdeb; }
+        .an-badge.progress { background: rgba(255,169,41,0.15); color: #ffa929; }
+        .an-badge.resolved { background: rgba(0,168,132,0.15); color: #00a884; }
+        .an-rate { display: flex; align-items: center; gap: 8px; }
+        .an-rate-bar {
+          width: 80px; height: 6px;
+          background: #2a3942; border-radius: 3px; overflow: hidden;
         }
-        .rate-bar span { font-size: 12px; color: var(--text-muted); min-width: 30px; }
-        .spin { animation: spin 1s linear infinite; }
+        .an-rate-fill { height: 100%; background: #00a884; border-radius: 3px; }
+        .an-rate span { font-size: 12px; color: #8696a0; min-width: 32px; }
         @keyframes spin { to { transform: rotate(360deg); } }
         @media (max-width: 600px) {
-          .analytics-page { padding: 16px; }
-          .charts-grid { grid-template-columns: 1fr; }
+          .an-page { padding: 16px; }
+          .an-charts { grid-template-columns: 1fr; }
         }
       `}</style>
     </div>
