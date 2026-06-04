@@ -17,6 +17,11 @@ function statusLabel(s) {
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : 'Open'
 }
 
+function cleanPhone(phone) {
+  if (!phone) return ''
+  return phone.split('@')[0]
+}
+
 export default function ChatPage() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -106,6 +111,7 @@ export default function ChatPage() {
   }
 
   const assignedAgentName = conversation?.agents?.name || null
+  const displayPhone = cleanPhone(conversation?.contact?.phone)
 
   return (
     <div className="chat-page fade-in">
@@ -121,8 +127,8 @@ export default function ChatPage() {
             <div className="chat-name">
               {conversation?.contact?.name || conversation?.contact?.phone || 'Unknown Contact'}
             </div>
-            {conversation?.contact?.phone && (
-              <div className="chat-phone">{conversation.contact.phone}</div>
+            {displayPhone && conversation?.contact?.name && (
+              <div className="chat-phone">{displayPhone}</div>
             )}
           </div>
         </div>
@@ -145,7 +151,8 @@ export default function ChatPage() {
                 ) : (
                   agents.map(agent => (
                     <button key={agent.id} className="dropdown-item" onClick={() => handleAgentAssign(agent)}>
-                      {agent.name}
+                      <span style={{fontWeight:500}}>{agent.name}</span>
+                      <span style={{fontSize:'11px', color:'var(--text-muted)'}}>{agent.email}</span>
                     </button>
                   ))
                 )}
