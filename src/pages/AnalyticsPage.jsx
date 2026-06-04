@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from 'react'
-import { getDailyStats, getAgentStats } from '../hooks/useApi'
+import { getDailyStats, getAgentStats, getContactStats } from '../hooks/useApi'
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer
 } from 'recharts'
-import { RefreshCw, TrendingUp, Users, MessageSquare, UserCheck, Clock } from 'lucide-react'
+import { RefreshCw, TrendingUp, Users, MessageSquare, UserCheck, Clock, UserPlus } from 'lucide-react'
 
-function StatCard({ icon: Icon, label, value, color }) {
+function StatCard({ icon: Icon, label, value, sub, color }) {
   return (
     <div className="an-stat">
       <div className="an-stat-icon" style={{ background: `${color}22`, color }}>
@@ -15,6 +15,7 @@ function StatCard({ icon: Icon, label, value, color }) {
       <div>
         <div className="an-stat-val">{value ?? '—'}</div>
         <div className="an-stat-lbl">{label}</div>
+        {sub != null && <div className="an-stat-sub">{sub}</div>}
       </div>
     </div>
   )
@@ -37,6 +38,7 @@ const Tip = ({ active, payload, label }) => {
 export default function AnalyticsPage() {
   const [daily, setDaily] = useState([])
   const [agents, setAgents] = useState([])
+  const [contacts, setContacts] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -44,9 +46,10 @@ export default function AnalyticsPage() {
     setLoading(true)
     setError('')
     try {
-      const [d, a] = await Promise.all([getDailyStats(), getAgentStats()])
+      const [d, a, c] = await Promise.all([getDailyStats(), getAgentStats(), getContactStats()])
       setDaily(Array.isArray(d) ? d : [])
       setAgents(Array.isArray(a) ? a : [])
+      setContacts(c || null)
     } catch {
       setError('Failed to load analytics. Check backend connection.')
     } finally {
@@ -62,7 +65,6 @@ export default function AnalyticsPage() {
   const totalResolved = agents.reduce((s, a) => s + (a.resolved || 0), 0)
   const totalHandled = agents.reduce((s, a) => s + (a.total || 0), 0)
 
-  // Avg response across all agents (weighted)
   const responseTimes = agents.filter(a => a.avgResponse != null).map(a => a.avgResponse)
   const globalAvgResponse = responseTimes.length > 0
     ? Math.round(responseTimes.reduce((s, t) => s + t, 0) / responseTimes.length)
@@ -100,12 +102,19 @@ export default function AnalyticsPage() {
         <StatCard icon={MessageSquare} label="Total Pesan" value={totalMessages} color="#53bdeb" />
         <StatCard icon={TrendingUp} label="Pesan Masuk" value={totalIncoming} color="#00a884" />
         <StatCard icon={TrendingUp} label="Pesan Keluar" value={totalOutgoing} color="#ffa929" />
+        <StatCard
+          icon={UserPlus}
+          label="Total Kontak"
+          value={contacts?.total ?? '—'}
+          sub={contacts?.newToday != null ? `+${contacts.newToday} hari ini` : null}
+          color="#53bdeb"
+        />
         <StatCard icon={UserCheck} label="Resolved" value={totalResolved} color="#00a884" />
-        <StatCard icon={Users} label="Di-assign" value={totalHandled} color="#53bdeb" />
+        <StatCard icon={Users} label="Di-assign" value={totalHandled} color="#8696a0" />
         <StatCard
           icon={Clock}
-          label="Avg Respons (menit)"
-          value={globalAvgResponse != null ? globalAvgResponse : '—'}
+          label="Avg Respons"
+          value={globalAvgResponse != null ? `${globalAvgResponse} mnt` : '—'}
           color="#ffa929"
         />
       </div>
@@ -216,9 +225,12 @@ export default function AnalyticsPage() {
 
       <style>{`
         .an-page {
+          width: 100%;
+          height: 100%;
           padding: 28px 32px;
-          max-width: 1100px;
+          box-sizing: border-box;
           color: #e9edef;
+          overflow-y: auto;
         }
         .an-header {
           display: flex; align-items: flex-start;
@@ -231,6 +243,7 @@ export default function AnalyticsPage() {
           padding: 8px 16px; border-radius: 8px;
           background: #2a3942; color: #e9edef;
           font-size: 13px; font-weight: 500; transition: background 0.15s;
+          white-space: nowrap;
         }
         .an-refresh:hover { background: #374a52; }
         .an-refresh:disabled { opacity: 0.6; }
@@ -242,30 +255,32 @@ export default function AnalyticsPage() {
         }
         .an-cards {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+          grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
           gap: 12px; margin-bottom: 24px;
         }
         .an-stat {
           display: flex; align-items: center; gap: 12px;
-          padding: 16px; background: #202c33;
+          padding: 14px 16px; background: #202c33;
           border: 1px solid #222d34; border-radius: 10px;
         }
         .an-stat-icon {
-          width: 40px; height: 40px; border-radius: 10px;
+          width: 38px; height: 38px; border-radius: 10px;
           display: flex; align-items: center; justify-content: center;
           flex-shrink: 0;
         }
-        .an-stat-val { font-size: 22px; font-weight: 700; line-height: 1; }
-        .an-stat-lbl { font-size: 12px; color: #8696a0; margin-top: 3px; }
+        .an-stat-val { font-size: 20px; font-weight: 700; line-height: 1; }
+        .an-stat-lbl { font-size: 11px; color: #8696a0; margin-top: 3px; }
+        .an-stat-sub { font-size: 11px; color: #00a884; margin-top: 2px; }
         .an-charts {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+          grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
           gap: 16px; margin-bottom: 24px;
         }
         .an-chart-box {
           background: #202c33;
           border: 1px solid #222d34;
           border-radius: 10px; padding: 20px;
+          min-width: 0;
         }
         .an-chart-box h3 { font-size: 14px; font-weight: 600; margin-bottom: 3px; }
         .an-chart-sub { font-size: 12px; color: #8696a0; margin-bottom: 16px; }
@@ -291,6 +306,7 @@ export default function AnalyticsPage() {
           background: #202c33;
           border: 1px solid #222d34;
           border-radius: 10px; padding: 20px;
+          margin-bottom: 28px;
         }
         .an-table-box h3 { font-size: 14px; font-weight: 600; margin-bottom: 16px; }
         .an-table-wrap { overflow-x: auto; }
@@ -311,7 +327,7 @@ export default function AnalyticsPage() {
         .an-agent-cell { display: flex; align-items: center; gap: 10px; }
         .an-avatar {
           width: 30px; height: 30px; border-radius: 50%;
-          background: #005c4b;
+          background: #005c4b; flex-shrink: 0;
           display: flex; align-items: center; justify-content: center;
           font-size: 12px; font-weight: 700; color: white;
         }
@@ -337,6 +353,7 @@ export default function AnalyticsPage() {
         @media (max-width: 600px) {
           .an-page { padding: 16px; }
           .an-charts { grid-template-columns: 1fr; }
+          .an-cards { grid-template-columns: repeat(2, 1fr); }
         }
       `}</style>
     </div>

@@ -16,6 +16,7 @@ export const assignAgent = (id, agent_id) => api.post(`/conversations/${id}/assi
 export const updateStatus = (id, status) => api.patch(`/conversations/${id}/status`, { status }).then(r => r.data)
 export const getDailyStats = () => api.get('/stats/daily').then(r => r.data)
 export const getAgentStats = () => api.get('/stats/agents').then(r => r.data)
+export const getContactStats = () => api.get('/stats/contacts').then(r => r.data)
 export const getAgents = () => api.get('/agents').then(r => r.data)
 export const resetWASession = () => api.post('/wa/reset').then(r => r.data)
 
