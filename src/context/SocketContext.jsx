@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, useRef } from 'react'
 import { io } from 'socket.io-client'
 
-const BACKEND_URL = 'https://cd40e092-62bf-4c10-84d7-6b0ac1f7b021-00-3sh1199zv3jqi.sisko.replit.dev'
+const BACKEND_URL = 'wa-dashboard-backend-production.up.railway.app'
 
 const SocketContext = createContext(null)
 
