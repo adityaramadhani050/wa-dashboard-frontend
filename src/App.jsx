@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { SocketProvider } from './context/SocketContext'
 import Sidebar from './components/Sidebar'
@@ -8,14 +8,18 @@ import InboxPage from './pages/InboxPage'
 import ChatPage from './pages/ChatPage'
 import AnalyticsPage from './pages/AnalyticsPage'
 
-function ProtectedLayout({ children }) {
+// Single persistent shell — SocketProvider mounts once here,
+// never torn down by route changes
+function ProtectedShell() {
   const { user } = useAuth()
   if (!user) return <Navigate to="/login" replace />
   return (
     <SocketProvider>
       <div className="app-layout">
         <Sidebar />
-        <div className="main-content">{children}</div>
+        <div className="main-content">
+          <Outlet />
+        </div>
       </div>
     </SocketProvider>
   )
@@ -26,10 +30,12 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={user ? <Navigate to="/inbox" replace /> : <LoginPage />} />
-      <Route path="/qr" element={<ProtectedLayout><QRSetupPage /></ProtectedLayout>} />
-      <Route path="/inbox" element={<ProtectedLayout><InboxPage /></ProtectedLayout>} />
-      <Route path="/chat/:id" element={<ProtectedLayout><ChatPage /></ProtectedLayout>} />
-      <Route path="/analytics" element={<ProtectedLayout><AnalyticsPage /></ProtectedLayout>} />
+      <Route element={<ProtectedShell />}>
+        <Route path="/qr"        element={<QRSetupPage />} />
+        <Route path="/inbox"     element={<InboxPage />} />
+        <Route path="/chat/:id"  element={<ChatPage />} />
+        <Route path="/analytics" element={<AnalyticsPage />} />
+      </Route>
       <Route path="*" element={<Navigate to={user ? '/inbox' : '/login'} replace />} />
     </Routes>
   )

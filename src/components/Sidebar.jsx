@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useSocket } from '../context/SocketContext'
-import { MessageSquare, BarChart2, QrCode, LogOut, Wifi, WifiOff } from 'lucide-react'
+import { MessageSquare, BarChart2, QrCode, LogOut, Wifi, WifiOff, AlertCircle } from 'lucide-react'
 import clsx from 'clsx'
 
 const navItems = [
@@ -12,12 +12,31 @@ const navItems = [
 
 export default function Sidebar() {
   const { user, logout } = useAuth()
-  const { waConnected } = useSocket()
+  const { waConnected, socketConnected, socketError } = useSocket()
   const navigate = useNavigate()
 
   const handleLogout = () => {
     logout()
     navigate('/login')
+  }
+
+  // Determine what to show in status pill
+  let statusClass = 'disconnected'
+  let statusIcon = <WifiOff size={12} />
+  let statusLabel = 'Disconnected'
+
+  if (socketError) {
+    statusClass = 'error'
+    statusIcon = <AlertCircle size={12} />
+    statusLabel = 'Backend unreachable'
+  } else if (socketConnected && waConnected) {
+    statusClass = 'connected'
+    statusIcon = <Wifi size={12} />
+    statusLabel = 'WA Connected'
+  } else if (socketConnected) {
+    statusClass = 'socket-only'
+    statusIcon = <Wifi size={12} />
+    statusLabel = 'Socket OK'
   }
 
   return (
@@ -31,9 +50,9 @@ export default function Sidebar() {
           </div>
           <span className="sidebar-title">WA Dashboard</span>
         </div>
-        <div className={clsx('wa-status', waConnected ? 'connected' : 'disconnected')}>
-          {waConnected ? <Wifi size={12} /> : <WifiOff size={12} />}
-          <span>{waConnected ? 'Connected' : 'Disconnected'}</span>
+        <div className={clsx('wa-status', statusClass)} title={socketError || undefined}>
+          {statusIcon}
+          <span>{statusLabel}</span>
         </div>
       </div>
 
@@ -112,14 +131,29 @@ export default function Sidebar() {
           border-radius: 20px;
           font-size: 11px;
           font-weight: 600;
+          max-width: 100%;
+          overflow: hidden;
+        }
+        .wa-status span {
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
         }
         .wa-status.connected {
           background: rgba(37,211,102,0.12);
           color: var(--green);
         }
+        .wa-status.socket-only {
+          background: rgba(61,142,248,0.12);
+          color: var(--blue);
+        }
         .wa-status.disconnected {
           background: rgba(255,71,87,0.12);
           color: var(--red);
+        }
+        .wa-status.error {
+          background: rgba(255,165,2,0.12);
+          color: var(--orange);
         }
         .sidebar-nav {
           flex: 1;
