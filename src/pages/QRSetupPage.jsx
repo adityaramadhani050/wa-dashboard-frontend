@@ -1,7 +1,7 @@
 import { useSocket } from '../context/SocketContext'
 import { RefreshCw, CheckCircle, Wifi, WifiOff, AlertTriangle, ServerOff } from 'lucide-react'
 
-const BACKEND_URL = 'https://cd40e092-62bf-4c10-84d7-6b0ac1f7b021-00-3sh1199zv3jqi.sisko.replit.dev'
+const BACKEND_URL = 'wa-dashboard-backend-production.up.railway.app'
 
 export default function QRSetupPage() {
   const { qrCode, waConnected, socketConnected, socketError, setQrCode } = useSocket()
