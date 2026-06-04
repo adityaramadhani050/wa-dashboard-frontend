@@ -5,32 +5,47 @@
 }
 
 :root {
-  --green: #25D366;
-  --green-dark: #128C7E;
-  --green-light: #DCF8C6;
-  --bg: #0f1117;
-  --bg-card: #1a1d27;
-  --bg-hover: #22263a;
-  --border: #2a2d3e;
-  --text: #e8eaf0;
-  --text-muted: #8b8fa8;
-  --text-dim: #5c5f72;
-  --accent: #25D366;
-  --red: #ff4757;
-  --orange: #ffa502;
-  --blue: #3d8ef8;
-  --purple: #8b5cf6;
-  --radius: 12px;
-  --radius-sm: 8px;
-  --sidebar-w: 260px;
-  --shadow: 0 4px 24px rgba(0,0,0,0.4);
+  --wa-bg: #111b21;
+  --wa-header: #202c33;
+  --wa-chat-bg: #0b141a;
+  --wa-input: #2a3942;
+  --wa-border: #222d34;
+  --wa-sent: #005c4b;
+  --wa-received: #202c33;
+  --wa-hover: #1f2c33;
+  --wa-selected: #2a3942;
+  --wa-green: #00a884;
+  --wa-teal: #008069;
+  --wa-text: #e9edef;
+  --wa-text-2: #8696a0;
+  --wa-text-3: #667781;
+  --wa-red: #f15c6d;
+  --wa-blue: #53bdeb;
+  --wa-orange: #ffa929;
+
+  /* legacy aliases */
+  --green: #00a884;
+  --green-dark: #005c4b;
+  --bg: #111b21;
+  --bg-card: #202c33;
+  --bg-hover: #2a3942;
+  --border: #222d34;
+  --text: #e9edef;
+  --text-muted: #8696a0;
+  --text-dim: #667781;
+  --red: #f15c6d;
+  --orange: #ffa929;
+  --blue: #53bdeb;
+  --radius: 8px;
+  --radius-sm: 6px;
+  --shadow: 0 2px 20px rgba(0,0,0,0.6);
 }
 
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  background: var(--bg);
-  color: var(--text);
-  font-size: 14px;
+  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+  background: var(--wa-bg);
+  color: var(--wa-text);
+  font-size: 15px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
@@ -39,38 +54,38 @@ a { color: inherit; text-decoration: none; }
 button { font-family: inherit; cursor: pointer; border: none; background: none; }
 input, textarea, select { font-family: inherit; }
 
-::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+::-webkit-scrollbar-thumb { background: #374045; border-radius: 3px; }
 
-.app-layout {
+.wa-app {
   display: flex;
   height: 100vh;
   overflow: hidden;
+  background: var(--wa-bg);
 }
 
-.main-content {
+.wa-left-panel {
+  flex-shrink: 0;
+  display: flex;
+  overflow: hidden;
+  border-right: 1px solid var(--wa-border);
+}
+
+.wa-right-panel {
+  flex: 1;
+  display: flex;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.wa-full-panel {
   flex: 1;
   overflow-y: auto;
-  overflow-x: hidden;
+  background: var(--wa-bg);
 }
 
-/* Utilities */
-.badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
-  border-radius: 20px;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.3px;
-}
-.badge-open { background: rgba(61,142,248,0.15); color: var(--blue); }
-.badge-in_progress { background: rgba(255,165,2,0.15); color: var(--orange); }
-.badge-resolved { background: rgba(37,211,102,0.15); color: var(--green); }
-
+/* Shared utilities */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -79,55 +94,56 @@ input, textarea, select { font-family: inherit; }
   border-radius: var(--radius-sm);
   font-size: 13px;
   font-weight: 500;
-  transition: all 0.15s ease;
   cursor: pointer;
   border: none;
+  transition: all 0.15s;
 }
-.btn-primary {
-  background: var(--green);
-  color: #fff;
-}
-.btn-primary:hover { background: var(--green-dark); }
-.btn-secondary {
-  background: var(--bg-hover);
-  color: var(--text);
-  border: 1px solid var(--border);
-}
-.btn-secondary:hover { background: var(--border); }
-.btn-danger { background: rgba(255,71,87,0.15); color: var(--red); border: 1px solid rgba(255,71,87,0.2); }
-.btn-danger:hover { background: rgba(255,71,87,0.25); }
+.btn-primary { background: var(--wa-green); color: #fff; }
+.btn-primary:hover { background: var(--wa-teal); }
+.btn-secondary { background: var(--wa-selected); color: var(--wa-text); border: 1px solid var(--wa-border); }
+.btn-secondary:hover { background: #374a52; }
+.btn-danger { background: rgba(241,92,109,0.15); color: var(--wa-red); border: 1px solid rgba(241,92,109,0.2); }
+.btn-danger:hover { background: rgba(241,92,109,0.25); }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.badge-open { background: rgba(83,189,235,0.15); color: var(--wa-blue); }
+.badge-in_progress { background: rgba(255,169,41,0.15); color: var(--wa-orange); }
+.badge-resolved { background: rgba(0,168,132,0.15); color: var(--wa-green); }
+
 .card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
+  background: var(--wa-header);
+  border: 1px solid var(--wa-border);
   border-radius: var(--radius);
   padding: 20px;
 }
 
 input[type="text"], input[type="email"], input[type="password"], select, textarea {
-  background: var(--bg-hover);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  color: var(--text);
-  padding: 10px 12px;
-  font-size: 14px;
+  background: var(--wa-input);
+  border: none;
+  border-radius: 8px;
+  color: var(--wa-text);
+  padding: 10px 16px;
+  font-size: 15px;
   outline: none;
-  transition: border-color 0.15s;
   width: 100%;
 }
-input:focus, select:focus, textarea:focus {
-  border-color: var(--green);
-}
-input::placeholder, textarea::placeholder { color: var(--text-dim); }
-
-select option { background: var(--bg-card); }
+input::placeholder, textarea::placeholder { color: var(--wa-text-3); }
+select option { background: var(--wa-header); }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
-.fade-in { animation: fadeIn 0.2s ease; }
+.fade-in { animation: fadeIn 0.15s ease; }
 
 @keyframes pulse {
   0%, 100% { opacity: 1; }
@@ -135,5 +151,7 @@ select option { background: var(--bg-card); }
 }
 
 @media (max-width: 768px) {
-  :root { --sidebar-w: 64px; }
+  .wa-left-panel { width: 100vw !important; }
+  .wa-app.chat-open .wa-left-panel { display: none; }
+  .wa-app.chat-open .wa-right-panel { flex: 1; }
 }
