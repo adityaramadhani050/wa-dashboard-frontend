@@ -4,7 +4,7 @@ import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer
 } from 'recharts'
-import { RefreshCw, TrendingUp, Users, MessageSquare, UserCheck } from 'lucide-react'
+import { RefreshCw, TrendingUp, Users, MessageSquare, UserCheck, Clock } from 'lucide-react'
 
 function StatCard({ icon: Icon, label, value, color }) {
   return (
@@ -60,7 +60,13 @@ export default function AnalyticsPage() {
   const totalIncoming = daily.reduce((s, d) => s + (d.incoming || 0), 0)
   const totalOutgoing = daily.reduce((s, d) => s + (d.outgoing || 0), 0)
   const totalResolved = agents.reduce((s, a) => s + (a.resolved || 0), 0)
-  const totalAssigned = agents.reduce((s, a) => s + (a.total || 0), 0)
+  const totalHandled = agents.reduce((s, a) => s + (a.total || 0), 0)
+
+  // Avg response across all agents (weighted)
+  const responseTimes = agents.filter(a => a.avgResponse != null).map(a => a.avgResponse)
+  const globalAvgResponse = responseTimes.length > 0
+    ? Math.round(responseTimes.reduce((s, t) => s + t, 0) / responseTimes.length)
+    : null
 
   const chartData = daily.map(d => ({
     date: new Date(d.date).toLocaleDateString('id', { day: 'numeric', month: 'short' }),
@@ -70,7 +76,7 @@ export default function AnalyticsPage() {
 
   const agentChart = agents.map(a => ({
     name: a.name || 'Agent',
-    Total: a.total || 0,
+    Ditangani: a.total || 0,
     Resolved: a.resolved || 0,
   }))
 
@@ -95,12 +101,17 @@ export default function AnalyticsPage() {
         <StatCard icon={TrendingUp} label="Pesan Masuk" value={totalIncoming} color="#00a884" />
         <StatCard icon={TrendingUp} label="Pesan Keluar" value={totalOutgoing} color="#ffa929" />
         <StatCard icon={UserCheck} label="Resolved" value={totalResolved} color="#00a884" />
-        <StatCard icon={Users} label="Di-assign" value={totalAssigned} color="#53bdeb" />
+        <StatCard icon={Users} label="Di-assign" value={totalHandled} color="#53bdeb" />
+        <StatCard
+          icon={Clock}
+          label="Avg Respons (menit)"
+          value={globalAvgResponse != null ? globalAvgResponse : '—'}
+          color="#ffa929"
+        />
       </div>
 
       {/* Charts */}
       <div className="an-charts">
-        {/* Daily messages */}
         <div className="an-chart-box">
           <h3>Aktivitas Pesan (14 Hari)</h3>
           <p className="an-chart-sub">Pesan masuk dan keluar per hari</p>
@@ -123,7 +134,6 @@ export default function AnalyticsPage() {
           )}
         </div>
 
-        {/* Agent performance */}
         <div className="an-chart-box">
           <h3>Performa Agent</h3>
           <p className="an-chart-sub">Percakapan ditangani per agent</p>
@@ -139,7 +149,7 @@ export default function AnalyticsPage() {
                 <YAxis tick={{ fill: '#8696a0', fontSize: 11 }} allowDecimals={false} />
                 <Tooltip content={<Tip />} />
                 <Legend wrapperStyle={{ fontSize: 12, color: '#8696a0' }} />
-                <Bar dataKey="Total" fill="#53bdeb" radius={[4,4,0,0]} />
+                <Bar dataKey="Ditangani" fill="#53bdeb" radius={[4,4,0,0]} />
                 <Bar dataKey="Resolved" fill="#00a884" radius={[4,4,0,0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -160,6 +170,7 @@ export default function AnalyticsPage() {
                   <th>Open</th>
                   <th>In Progress</th>
                   <th>Resolved</th>
+                  <th>Avg Respons</th>
                   <th>Resolution Rate</th>
                 </tr>
               </thead>
@@ -181,6 +192,11 @@ export default function AnalyticsPage() {
                       <td><span className="an-badge open">{a.open || 0}</span></td>
                       <td><span className="an-badge progress">{a.in_progress || 0}</span></td>
                       <td><span className="an-badge resolved">{a.resolved || 0}</span></td>
+                      <td>
+                        <span className="an-response-time">
+                          {a.avgResponse != null ? `${a.avgResponse} mnt` : '—'}
+                        </span>
+                      </td>
                       <td>
                         <div className="an-rate">
                           <div className="an-rate-bar">
@@ -224,10 +240,9 @@ export default function AnalyticsPage() {
           border-radius: 8px; padding: 12px 16px;
           color: #f15c6d; font-size: 13px; margin-bottom: 20px;
         }
-        /* Stat cards */
         .an-cards {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+          grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
           gap: 12px; margin-bottom: 24px;
         }
         .an-stat {
@@ -242,7 +257,6 @@ export default function AnalyticsPage() {
         }
         .an-stat-val { font-size: 22px; font-weight: 700; line-height: 1; }
         .an-stat-lbl { font-size: 12px; color: #8696a0; margin-top: 3px; }
-        /* Charts */
         .an-charts {
           display: grid;
           grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
@@ -265,7 +279,6 @@ export default function AnalyticsPage() {
           align-items: center; justify-content: center;
           color: #8696a0; font-size: 13px;
         }
-        /* Tooltip */
         .an-tip {
           background: #1a2429;
           border: 1px solid #2a3942;
@@ -274,7 +287,6 @@ export default function AnalyticsPage() {
           box-shadow: 0 4px 16px rgba(0,0,0,0.5);
         }
         .an-tip-lbl { font-weight: 600; margin-bottom: 6px; color: #e9edef; }
-        /* Table */
         .an-table-box {
           background: #202c33;
           border: 1px solid #222d34;
@@ -313,6 +325,7 @@ export default function AnalyticsPage() {
         .an-badge.open { background: rgba(83,189,235,0.15); color: #53bdeb; }
         .an-badge.progress { background: rgba(255,169,41,0.15); color: #ffa929; }
         .an-badge.resolved { background: rgba(0,168,132,0.15); color: #00a884; }
+        .an-response-time { font-size: 13px; color: #ffa929; font-weight: 500; }
         .an-rate { display: flex; align-items: center; gap: 8px; }
         .an-rate-bar {
           width: 80px; height: 6px;
