@@ -2,7 +2,7 @@ import axios from 'axios'
 
 // Direct backend URL — the browser calls this directly.
 // The backend must return CORS headers allowing this frontend's origin.
-const BACKEND_URL = 'wa-dashboard-backend-production.up.railway.app'
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://wa-dashboard-backend-production.up.railway.app'
 
 const api = axios.create({
   baseURL: `${BACKEND_URL}/api`,
