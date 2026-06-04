@@ -36,6 +36,7 @@
   --red: #f15c6d;
   --orange: #ffa929;
   --blue: #53bdeb;
+  --purple: #8b5cf6;
   --radius: 8px;
   --radius-sm: 6px;
   --shadow: 0 2px 20px rgba(0,0,0,0.6);
@@ -58,6 +59,7 @@ input, textarea, select { font-family: inherit; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #374045; border-radius: 3px; }
 
+/* ===== App Layout ===== */
 .wa-app {
   display: flex;
   height: 100vh;
@@ -69,7 +71,7 @@ input, textarea, select { font-family: inherit; }
   flex-shrink: 0;
   display: flex;
   overflow: hidden;
-  border-right: 1px solid var(--wa-border);
+  /* height is inherited from flex parent (100vh) */
 }
 
 .wa-right-panel {
@@ -79,13 +81,14 @@ input, textarea, select { font-family: inherit; }
   overflow: hidden;
 }
 
+/* QR / Analytics full-width panel */
 .wa-full-panel {
   flex: 1;
   overflow-y: auto;
   background: var(--wa-bg);
 }
 
-/* Shared utilities */
+/* ===== Shared utilities ===== */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -150,6 +153,7 @@ select option { background: var(--wa-header); }
   50% { opacity: 0.4; }
 }
 
+/* Mobile: show only active panel */
 @media (max-width: 768px) {
   .wa-left-panel { width: 100vw !important; }
   .wa-app.chat-open .wa-left-panel { display: none; }
