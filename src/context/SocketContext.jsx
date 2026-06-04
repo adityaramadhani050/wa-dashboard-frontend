@@ -1,8 +1,6 @@
 import { createContext, useContext, useEffect, useState, useRef } from 'react'
 import { io } from 'socket.io-client'
 
-// Direct backend URL — the browser connects here directly.
-// The backend must allow this frontend's origin in its CORS config.
 const BACKEND_URL = 'https://cd40e092-62bf-4c10-84d7-6b0ac1f7b021-00-3sh1199zv3jqi.sisko.replit.dev'
 
 const SocketContext = createContext(null)
@@ -20,12 +18,10 @@ export function SocketProvider({ children }) {
     console.log('[Socket] Connecting to:', BACKEND_URL)
 
     const s = io(BACKEND_URL, {
-      // polling first — more reliable through proxies/firewalls
-      transports: ['polling', 'websocket'],
+      transports: ['websocket', 'polling'],
+      reconnectionAttempts: 5,
+      reconnectionDelay: 2000,
       withCredentials: false,
-      reconnection: true,
-      reconnectionDelay: 3000,
-      reconnectionAttempts: Infinity,
       timeout: 20000,
     })
 
@@ -40,26 +36,51 @@ export function SocketProvider({ children }) {
     })
 
     s.on('connect_error', (err) => {
-      console.error('[Socket] connect_error:', err.message, err)
+      // Log the full error object for maximum detail
+      console.error('[Socket] connect_error:', {
+        message: err.message,
+        description: err.description,
+        context: err.context,
+        type: err.type,
+        data: err.data,
+        stack: err.stack,
+      })
       setSocketConnected(false)
-      setSocketError(err.message)
+      setSocketError(err.message || 'Unknown connection error')
     })
 
-    s.on('disconnect', (reason) => {
-      console.warn('[Socket] Disconnected — reason:', reason)
+    s.on('disconnect', (reason, details) => {
+      console.warn('[Socket] Disconnected:', {
+        reason,
+        // details available in Socket.io v4.1+
+        message: details?.message,
+        description: details?.description,
+        context: details?.context,
+      })
       setSocketConnected(false)
     })
 
     s.io.on('reconnect_attempt', (n) => {
-      console.log(`[Socket] Reconnect attempt #${n}`)
+      console.log(`[Socket] Reconnect attempt #${n} of 5`)
     })
 
     s.io.on('reconnect', (n) => {
       console.log(`[Socket] Reconnected after ${n} attempt(s)`)
+      setSocketError(null)
+    })
+
+    s.io.on('reconnect_error', (err) => {
+      console.error('[Socket] Reconnect error:', err.message)
+    })
+
+    s.io.on('reconnect_failed', () => {
+      const msg = 'Failed to reconnect after 5 attempts — check backend is running and CORS is enabled'
+      console.error('[Socket] ' + msg)
+      setSocketError(msg)
     })
 
     s.on('qr', (data) => {
-      console.log('[Socket] "qr" event received')
+      console.log('[Socket] "qr" event received, data length:', typeof data === 'string' ? data.length : typeof data)
       setQrCode(data)
       setWaConnected(false)
     })
