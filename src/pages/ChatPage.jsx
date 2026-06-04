@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useSocket } from '../context/SocketContext'
 import { useAuth } from '../context/AuthContext'
 import { getMessages, sendMessage, assignAgent, updateStatus, getConversations, getAgents } from '../hooks/useApi'
-import { Send, ChevronDown, ArrowLeft, MoreVertical } from 'lucide-react'
+import { Send, ChevronDown, ArrowLeft, UserCheck } from 'lucide-react'
 
 const STATUS_OPTIONS = ['open', 'in_progress', 'resolved']
 
@@ -22,15 +22,12 @@ function cleanPhone(phone) {
   return phone.split('@')[0]
 }
 
-// Checkmark icon — WA Web style
 function MessageTick({ status }) {
-  // status: 'sent' | 'delivered' | 'read' | null
   const isRead = status === 'read'
   const isDelivered = status === 'delivered' || isRead
   const color = isRead ? '#53bdeb' : 'rgba(255,255,255,0.5)'
 
   if (isDelivered) {
-    // Double tick
     return (
       <svg width="18" height="12" viewBox="0 0 18 12" fill="none" style={{flexShrink:0}}>
         <path d="M1 6l4 4L13 2" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
@@ -38,8 +35,6 @@ function MessageTick({ status }) {
       </svg>
     )
   }
-
-  // Single tick (sent)
   return (
     <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{flexShrink:0}}>
       <path d="M1 6l3.5 4L11 2" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
@@ -51,6 +46,8 @@ export default function ChatPage({ chatId }) {
   const id = chatId
   const navigate = useNavigate()
   const { user } = useAuth()
+  const isAdmin = user?.role === 'admin'
+
   const [messages, setMessages] = useState([])
   const [conversation, setConversation] = useState(null)
   const [agents, setAgents] = useState([])
@@ -59,7 +56,7 @@ export default function ChatPage({ chatId }) {
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
   const [showStatusMenu, setShowStatusMenu] = useState(false)
-  const [showMoreMenu, setShowMoreMenu] = useState(false)
+  const [showAgentMenu, setShowAgentMenu] = useState(false)
   const bottomRef = useRef(null)
   const { newMessages } = useSocket()
 
@@ -77,8 +74,8 @@ export default function ChatPage({ chatId }) {
 
   useEffect(() => {
     fetchData()
-    getAgents().then(d => setAgents(Array.isArray(d) ? d : [])).catch(() => {})
-  }, [fetchData])
+    if (isAdmin) getAgents().then(d => setAgents(Array.isArray(d) ? d : [])).catch(() => {})
+  }, [fetchData, isAdmin])
 
   useEffect(() => {
     if (newMessages.some(m => String(m.conversationId) === String(id))) fetchData()
@@ -88,7 +85,7 @@ export default function ChatPage({ chatId }) {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  const closeMenus = () => { setShowStatusMenu(false); setShowMoreMenu(false) }
+  const closeMenus = () => { setShowStatusMenu(false); setShowAgentMenu(false) }
 
   const handleSend = async () => {
     if (!text.trim() || sending) return
@@ -118,7 +115,7 @@ export default function ChatPage({ chatId }) {
 
   const name = conversation?.contact?.name || conversation?.contact?.phone || 'Unknown'
   const phone = cleanPhone(conversation?.contact?.phone)
-  const assignedAgent = conversation?.agents?.name
+  const assignedAgent = conversation?.agents
   const status = conversation?.status || 'open'
 
   return (
@@ -131,49 +128,69 @@ export default function ChatPage({ chatId }) {
         <div className="cv-avatar">{name[0].toUpperCase()}</div>
         <div className="cv-contact">
           <div className="cv-name">{name}</div>
-          {phone && name !== phone && <div className="cv-sub">{phone}</div>}
-          {assignedAgent && <div className="cv-sub">Agent: {assignedAgent}</div>}
+          <div className="cv-sub-row">
+            {phone && name !== phone && <span className="cv-phone">{phone}</span>}
+            {/* Assigned agent badge — visible to admin only */}
+            {isAdmin && assignedAgent && (
+              <span className="cv-assigned-badge">
+                <UserCheck size={11} />
+                {assignedAgent.name}
+              </span>
+            )}
+            {isAdmin && !assignedAgent && (
+              <span className="cv-unassigned-badge">Unassigned</span>
+            )}
+          </div>
         </div>
+
         <div className="cv-actions" onClick={e => e.stopPropagation()}>
-          {/* Status */}
+          {/* Assign agent — admin only */}
+          {isAdmin && (
+            <div className="cv-dd">
+              <button
+                className="cv-icon-btn"
+                onClick={() => { setShowAgentMenu(!showAgentMenu); setShowStatusMenu(false) }}
+                title="Assign Agent"
+              >
+                <UserCheck size={18} />
+              </button>
+              {showAgentMenu && (
+                <div className="cv-menu" style={{minWidth:200}}>
+                  <div className="cv-menu-label">Assign Agent</div>
+                  {agents.length === 0
+                    ? <div className="cv-mi muted">No agents available</div>
+                    : agents.map(a => (
+                      <button
+                        key={a.id}
+                        className={`cv-mi ${assignedAgent?.id === a.id ? 'active-agent' : ''}`}
+                        onClick={() => handleAgentAssign(a)}
+                      >
+                        <span>{a.name}</span>
+                        <span className="cv-mi-sub">{a.email}</span>
+                      </button>
+                    ))
+                  }
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Status — visible to everyone */}
           <div className="cv-dd">
             <button
               className={`cv-chip st-${status}`}
-              onClick={() => { setShowStatusMenu(!showStatusMenu); setShowMoreMenu(false) }}
+              onClick={() => { setShowStatusMenu(!showStatusMenu); setShowAgentMenu(false) }}
             >
               {statusLabel(status)}
               <ChevronDown size={12} />
             </button>
             {showStatusMenu && (
-              <div className="cv-menu" style={{minWidth:130}}>
+              <div className="cv-menu" style={{minWidth:140}}>
                 {STATUS_OPTIONS.map(s => (
                   <button key={s} className={`cv-mi si-${s}`} onClick={() => handleStatusChange(s)}>
                     {statusLabel(s)}
                   </button>
                 ))}
-              </div>
-            )}
-          </div>
-          {/* More */}
-          <div className="cv-dd">
-            <button
-              className="cv-icon-btn"
-              onClick={() => { setShowMoreMenu(!showMoreMenu); setShowStatusMenu(false) }}
-            >
-              <MoreVertical size={18} />
-            </button>
-            {showMoreMenu && (
-              <div className="cv-menu" style={{minWidth:200}}>
-                <div className="cv-menu-label">Assign Agent</div>
-                {agents.length === 0
-                  ? <div className="cv-mi muted">No agents available</div>
-                  : agents.map(a => (
-                    <button key={a.id} className="cv-mi" onClick={() => handleAgentAssign(a)}>
-                      <span>{a.name}</span>
-                      <span className="cv-mi-sub">{a.email}</span>
-                    </button>
-                  ))
-                }
               </div>
             )}
           </div>
@@ -237,89 +254,84 @@ export default function ChatPage({ chatId }) {
 
       <style>{`
         .chat-view {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          height: 100vh;
-          min-width: 0;
-          background: #0b141a;
+          flex: 1; display: flex; flex-direction: column;
+          height: 100vh; min-width: 0; background: #0b141a;
         }
         .cv-header {
-          display: flex;
-          align-items: center;
-          gap: 12px;
+          display: flex; align-items: center; gap: 12px;
           padding: 8px 16px;
           background: #202c33;
           border-bottom: 1px solid #222d34;
-          flex-shrink: 0;
-          min-height: 60px;
+          flex-shrink: 0; min-height: 60px;
         }
         .cv-back {
-          display: none;
-          align-items: center; justify-content: center;
-          width: 38px; height: 38px;
-          border-radius: 50%;
-          color: #8696a0;
-          transition: all 0.15s;
+          display: none; align-items: center; justify-content: center;
+          width: 38px; height: 38px; border-radius: 50%;
+          color: #8696a0; transition: all 0.15s;
         }
         .cv-back:hover { background: #2a3942; color: #e9edef; }
         @media (max-width: 768px) { .cv-back { display: flex; } }
         .cv-avatar {
-          width: 42px; height: 42px;
-          border-radius: 50%;
+          width: 42px; height: 42px; border-radius: 50%;
           background: #6b7c85;
           display: flex; align-items: center; justify-content: center;
-          font-size: 18px; font-weight: 500; color: white;
-          flex-shrink: 0;
+          font-size: 18px; font-weight: 500; color: white; flex-shrink: 0;
         }
         .cv-contact { flex: 1; min-width: 0; }
         .cv-name { font-size: 15px; font-weight: 500; color: #e9edef; }
-        .cv-sub { font-size: 12px; color: #8696a0; }
+        .cv-sub-row {
+          display: flex; align-items: center; gap: 8px;
+          flex-wrap: wrap; margin-top: 1px;
+        }
+        .cv-phone { font-size: 12px; color: #8696a0; }
+        .cv-assigned-badge {
+          display: inline-flex; align-items: center; gap: 4px;
+          font-size: 11px; font-weight: 600;
+          padding: 1px 8px; border-radius: 10px;
+          background: rgba(0,168,132,0.15); color: #00a884;
+        }
+        .cv-unassigned-badge {
+          font-size: 11px; font-weight: 500;
+          padding: 1px 8px; border-radius: 10px;
+          background: rgba(255,169,41,0.12); color: #ffa929;
+        }
         .cv-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
         .cv-dd { position: relative; }
         .cv-chip {
           display: flex; align-items: center; gap: 5px;
-          padding: 5px 12px;
-          border-radius: 20px;
-          font-size: 12px; font-weight: 600;
-          transition: opacity 0.15s;
+          padding: 5px 12px; border-radius: 20px;
+          font-size: 12px; font-weight: 600; transition: opacity 0.15s;
         }
         .cv-chip:hover { opacity: 0.8; }
         .cv-chip.st-open { background: rgba(83,189,235,0.15); color: #53bdeb; }
         .cv-chip.st-in_progress { background: rgba(255,169,41,0.15); color: #ffa929; }
         .cv-chip.st-resolved { background: rgba(0,168,132,0.15); color: #00a884; }
         .cv-icon-btn {
-          width: 38px; height: 38px;
-          border-radius: 50%;
+          width: 38px; height: 38px; border-radius: 50%;
           display: flex; align-items: center; justify-content: center;
           color: #8696a0; transition: all 0.15s;
         }
         .cv-icon-btn:hover { background: #2a3942; color: #e9edef; }
         .cv-menu {
-          position: absolute;
-          right: 0; top: calc(100% + 6px);
-          background: #233138;
-          border: 1px solid #2a3942;
-          border-radius: 8px;
-          z-index: 200;
-          box-shadow: 0 4px 24px rgba(0,0,0,0.5);
-          overflow: hidden;
+          position: absolute; right: 0; top: calc(100% + 6px);
+          background: #233138; border: 1px solid #2a3942;
+          border-radius: 8px; z-index: 200;
+          box-shadow: 0 4px 24px rgba(0,0,0,0.5); overflow: hidden;
         }
         .cv-menu-label {
           padding: 8px 16px 4px;
-          font-size: 11px; font-weight: 600;
-          color: #8696a0;
+          font-size: 11px; font-weight: 600; color: #8696a0;
           text-transform: uppercase; letter-spacing: 0.5px;
         }
         .cv-mi {
           display: flex; flex-direction: column;
           width: 100%; text-align: left;
-          padding: 10px 16px;
-          font-size: 14px; color: #e9edef;
+          padding: 10px 16px; font-size: 14px; color: #e9edef;
           transition: background 0.1s;
         }
         .cv-mi:hover { background: #2a3942; }
         .cv-mi.muted { color: #8696a0; cursor: default; }
+        .cv-mi.active-agent { background: rgba(0,168,132,0.1); color: #00a884; }
         .cv-mi-sub { font-size: 11px; color: #8696a0; margin-top: 1px; }
         .si-open { color: #53bdeb !important; }
         .si-in_progress { color: #ffa929 !important; }
@@ -327,39 +339,30 @@ export default function ChatPage({ chatId }) {
         .cv-error {
           background: rgba(241,92,109,0.1);
           border-bottom: 1px solid rgba(241,92,109,0.2);
-          color: #f15c6d;
-          padding: 8px 16px;
-          font-size: 13px;
+          color: #f15c6d; padding: 8px 16px; font-size: 13px;
           display: flex; align-items: center; justify-content: space-between;
           flex-shrink: 0;
         }
-        /* Messages */
         .cv-messages {
           flex: 1; overflow-y: auto;
           padding: 12px 6%;
-          display: flex; flex-direction: column;
-          gap: 2px;
+          display: flex; flex-direction: column; gap: 2px;
           background-color: #0b141a;
           background-image: url("data:image/svg+xml,%3Csvg width='300' height='300' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='0.015'%3E%3Cpath d='M150 0l150 150-150 150L0 150z'/%3E%3C/g%3E%3C/svg%3E");
           background-size: 150px;
         }
         .cv-loading { display: flex; flex-direction: column; gap: 10px; }
         .cv-skel {
-          height: 44px; max-width: 58%;
-          border-radius: 10px;
+          height: 44px; max-width: 58%; border-radius: 10px;
           background: rgba(255,255,255,0.05);
           animation: pulse 1.4s ease infinite;
         }
         .cv-skel.left { align-self: flex-start; }
         .cv-skel.right { align-self: flex-end; }
         .cv-empty {
-          margin: auto;
-          color: #8696a0;
-          font-size: 14px;
-          text-align: center;
-          padding: 32px;
-          background: rgba(0,0,0,0.25);
-          border-radius: 8px;
+          margin: auto; color: #8696a0; font-size: 14px;
+          text-align: center; padding: 32px;
+          background: rgba(0,0,0,0.25); border-radius: 8px;
         }
         .cv-row { display: flex; margin-bottom: 2px; }
         .cv-row.sent { justify-content: flex-end; }
@@ -367,72 +370,34 @@ export default function ChatPage({ chatId }) {
         .cv-bubble {
           max-width: 65%;
           padding: 6px 12px 8px;
-          border-radius: 8px;
-          position: relative;
+          border-radius: 8px; position: relative;
           box-shadow: 0 1px 2px rgba(0,0,0,0.4);
           word-break: break-word;
         }
-        .bsent {
-          background: #005c4b;
-          color: #e9edef;
-          border-bottom-right-radius: 2px;
-        }
-        .brecv {
-          background: #202c33;
-          color: #e9edef;
-          border-bottom-left-radius: 2px;
-        }
-        .cv-bubble p {
-          font-size: 14.2px;
-          line-height: 1.5;
-          white-space: pre-wrap;
-          /* leave room for meta row */
-          padding-right: 0;
-        }
+        .bsent { background: #005c4b; color: #e9edef; border-bottom-right-radius: 2px; }
+        .brecv { background: #202c33; color: #e9edef; border-bottom-left-radius: 2px; }
+        .cv-bubble p { font-size: 14.2px; line-height: 1.5; white-space: pre-wrap; }
         .cv-meta {
-          display: flex;
-          align-items: center;
-          justify-content: flex-end;
-          gap: 4px;
-          margin-top: 3px;
+          display: flex; align-items: center;
+          justify-content: flex-end; gap: 4px; margin-top: 3px;
         }
-        .cv-time {
-          font-size: 11px;
-          color: rgba(255,255,255,0.45);
-          white-space: nowrap;
-        }
-        /* Input */
+        .cv-time { font-size: 11px; color: rgba(255,255,255,0.45); white-space: nowrap; }
         .cv-input-bar {
-          display: flex;
-          align-items: flex-end;
-          gap: 10px;
-          padding: 10px 16px;
-          background: #202c33;
-          flex-shrink: 0;
+          display: flex; align-items: flex-end; gap: 10px;
+          padding: 10px 16px; background: #202c33; flex-shrink: 0;
         }
         .cv-input {
-          flex: 1;
-          background: #2a3942;
-          border: none;
-          border-radius: 8px;
-          color: #e9edef;
-          padding: 10px 16px;
-          font-size: 15px;
-          line-height: 1.4;
-          outline: none;
-          resize: none;
-          max-height: 140px;
-          overflow-y: auto;
+          flex: 1; background: #2a3942; border: none; border-radius: 8px;
+          color: #e9edef; padding: 10px 16px; font-size: 15px;
+          line-height: 1.4; outline: none; resize: none;
+          max-height: 140px; overflow-y: auto;
         }
         .cv-input::placeholder { color: #8696a0; }
         .cv-send-btn {
-          width: 44px; height: 44px;
-          border-radius: 50%;
-          background: #374a52;
-          color: #8696a0;
+          width: 44px; height: 44px; border-radius: 50%;
+          background: #374a52; color: #8696a0;
           display: flex; align-items: center; justify-content: center;
-          transition: all 0.15s;
-          flex-shrink: 0;
+          transition: all 0.15s; flex-shrink: 0;
         }
         .cv-send-btn.ready { background: #00a884; color: white; }
         .cv-send-btn:disabled { opacity: 0.6; }
