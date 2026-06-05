@@ -34,13 +34,13 @@ export default function LoginPage() {
         <div className="lp-brand">
           <div className="lp-brand-icon">R</div>
           <div>
-            <div className="lp-brand-name">Renus<span>Pro</span></div>
+            <div className="lp-brand-name">Renus<span>Pro</span>-Chat</div>
             <div className="lp-brand-sub">PT. RENUS GLOBAL INDONESIA</div>
           </div>
         </div>
 
         <div className="lp-title">Selamat Datang</div>
-        <div className="lp-desc">Masuk untuk mengakses dashboard</div>
+        <div className="lp-desc">Masuk untuk mengakses chat WhatsApp</div>
 
         <form onSubmit={handleSubmit} className="lp-form">
           <div className="lp-field">
