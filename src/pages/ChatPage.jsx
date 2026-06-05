@@ -12,6 +12,22 @@ function formatTime(dateStr) {
   return new Date(dateStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
 
+function formatDateLabel(dateStr) {
+  if (!dateStr) return ''
+  const d = new Date(dateStr)
+  const today = new Date()
+  const yesterday = new Date(today)
+  yesterday.setDate(today.getDate() - 1)
+  if (d.toDateString() === today.toDateString()) return 'Hari ini'
+  if (d.toDateString() === yesterday.toDateString()) return 'Kemarin'
+  return d.toLocaleDateString('id', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+}
+
+function getDateKey(dateStr) {
+  if (!dateStr) return ''
+  return new Date(dateStr).toDateString()
+}
+
 function statusLabel(s) {
   if (s === 'in_progress') return 'In Progress'
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : 'Open'
@@ -38,6 +54,14 @@ function MessageTick({ status }) {
     <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{flexShrink:0}}>
       <path d="M1 6l3.5 4L11 2" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
     </svg>
+  )
+}
+
+function DateSeparator({ label }) {
+  return (
+    <div className="cv-date-sep">
+      <span>{label}</span>
+    </div>
   )
 }
 
@@ -117,6 +141,19 @@ export default function ChatPage({ chatId }) {
   const assignedAgent = conversation?.agents
   const status = conversation?.status || 'open'
 
+  // Build message list with date separators
+  const messageItems = []
+  let lastDateKey = null
+  for (const msg of messages) {
+    const ts = msg.timestamp || msg.createdAt
+    const dk = getDateKey(ts)
+    if (dk && dk !== lastDateKey) {
+      messageItems.push({ type: 'date', key: dk, label: formatDateLabel(ts) })
+      lastDateKey = dk
+    }
+    messageItems.push({ type: 'msg', msg })
+  }
+
   return (
     <div className="cv-root" onClick={closeMenus}>
       {/* Header */}
@@ -186,7 +223,11 @@ export default function ChatPage({ chatId }) {
         ) : messages.length === 0 ? (
           <div className="cv-empty">Belum ada pesan. Sapa dulu! 👋</div>
         ) : (
-          messages.map((msg, i) => {
+          messageItems.map((item, i) => {
+            if (item.type === 'date') {
+              return <DateSeparator key={item.key} label={item.label} />
+            }
+            const msg = item.msg
             const sent = msg.from_me === true || msg.from_me === 1 || msg.fromMe === true
             return (
               <div key={msg.id || i} className={`cv-row ${sent?'sent':'recv'}`}>
@@ -325,6 +366,18 @@ export default function ChatPage({ chatId }) {
         .cv-empty {
           margin: auto; color: #94a3b8; font-size: 14px;
           text-align: center; padding: 32px;
+        }
+        /* Date separator */
+        .cv-date-sep {
+          display: flex; align-items: center; justify-content: center;
+          margin: 10px 0 8px;
+        }
+        .cv-date-sep span {
+          background: #dce8f5;
+          color: #4a6fa5;
+          font-size: 11px; font-weight: 600;
+          padding: 4px 12px; border-radius: 20px;
+          letter-spacing: 0.2px;
         }
         .cv-row { display: flex; margin-bottom: 2px; }
         .cv-row.sent { justify-content: flex-end; }

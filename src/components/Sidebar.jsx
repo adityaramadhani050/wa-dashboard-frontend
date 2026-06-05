@@ -21,14 +21,14 @@ export default function IconBar() {
 
   return (
     <div className="icon-bar">
-      <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:4 }}>
+      <div className="ib-top">
         {/* Logo */}
         <div style={{
-          width:40, height:40, borderRadius:10,
-          background:'#2563eb',
-          display:'flex', alignItems:'center', justifyContent:'center',
-          fontSize:18, fontWeight:700, color:'#fff',
-          marginBottom:12,
+          width: 40, height: 40, borderRadius: 10,
+          background: '#2563eb',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 18, fontWeight: 700, color: '#fff',
+          marginBottom: 12,
         }}>R</div>
 
         {navItems.map(({ path, icon: Icon, label }) => {
@@ -41,9 +41,12 @@ export default function IconBar() {
         })}
       </div>
 
-      <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:6 }}>
-        <div className={`ib-dot ${waConnected ? 'online' : 'offline'}`} title={waConnected ? 'WA Connected' : 'WA Disconnected'} />
-        <div style={{ fontSize:10, color:'#475569', marginBottom:4 }}>
+      <div className="ib-bottom">
+        <div
+          className={`ib-dot ${waConnected ? 'online' : 'offline'}`}
+          title={waConnected ? 'WA Connected' : 'WA Disconnected'}
+        />
+        <div style={{ fontSize: 10, color: '#475569' }}>
           {user?.name?.[0]?.toUpperCase() || 'U'}
         </div>
         <button className="ib-btn logout" onClick={handleLogout} title="Logout">
