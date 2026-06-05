@@ -97,7 +97,6 @@ export default function AnalyticsPage() {
 
       {error && <div className="an-error">{error}</div>}
 
-      {/* Summary cards */}
       <div className="an-cards">
         <StatCard icon={MessageSquare} label="Total Pesan" value={totalMessages} color="#53bdeb" />
         <StatCard icon={TrendingUp} label="Pesan Masuk" value={totalIncoming} color="#00a884" />
@@ -119,7 +118,6 @@ export default function AnalyticsPage() {
         />
       </div>
 
-      {/* Charts */}
       <div className="an-charts">
         <div className="an-chart-box">
           <h3>Aktivitas Pesan (14 Hari)</h3>
@@ -166,7 +164,6 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
-      {/* Agent table */}
       {!loading && agents.length > 0 && (
         <div className="an-table-box">
           <h3>Detail per Agent</h3>
@@ -201,11 +198,7 @@ export default function AnalyticsPage() {
                       <td><span className="an-badge open">{a.open || 0}</span></td>
                       <td><span className="an-badge progress">{a.in_progress || 0}</span></td>
                       <td><span className="an-badge resolved">{a.resolved || 0}</span></td>
-                      <td>
-                        <span className="an-response-time">
-                          {a.avgResponse != null ? `${a.avgResponse} mnt` : '—'}
-                        </span>
-                      </td>
+                      <td><span className="an-response-time">{a.avgResponse != null ? `${a.avgResponse} mnt` : '—'}</span></td>
                       <td>
                         <div className="an-rate">
                           <div className="an-rate-bar">
@@ -225,12 +218,9 @@ export default function AnalyticsPage() {
 
       <style>{`
         .an-page {
+          padding: 28px 32px 40px;
           width: 100%;
-          height: 100%;
-          padding: 28px 32px;
-          box-sizing: border-box;
           color: #e9edef;
-          overflow-y: auto;
         }
         .an-header {
           display: flex; align-items: flex-start;
@@ -243,13 +233,12 @@ export default function AnalyticsPage() {
           padding: 8px 16px; border-radius: 8px;
           background: #2a3942; color: #e9edef;
           font-size: 13px; font-weight: 500; transition: background 0.15s;
-          white-space: nowrap;
+          white-space: nowrap; flex-shrink: 0;
         }
         .an-refresh:hover { background: #374a52; }
         .an-refresh:disabled { opacity: 0.6; }
         .an-error {
-          background: rgba(241,92,109,0.1);
-          border: 1px solid rgba(241,92,109,0.2);
+          background: rgba(241,92,109,0.1); border: 1px solid rgba(241,92,109,0.2);
           border-radius: 8px; padding: 12px 16px;
           color: #f15c6d; font-size: 13px; margin-bottom: 20px;
         }
@@ -265,8 +254,7 @@ export default function AnalyticsPage() {
         }
         .an-stat-icon {
           width: 38px; height: 38px; border-radius: 10px;
-          display: flex; align-items: center; justify-content: center;
-          flex-shrink: 0;
+          display: flex; align-items: center; justify-content: center; flex-shrink: 0;
         }
         .an-stat-val { font-size: 20px; font-weight: 700; line-height: 1; }
         .an-stat-lbl { font-size: 11px; color: #8696a0; margin-top: 3px; }
@@ -277,79 +265,38 @@ export default function AnalyticsPage() {
           gap: 16px; margin-bottom: 24px;
         }
         .an-chart-box {
-          background: #202c33;
-          border: 1px solid #222d34;
-          border-radius: 10px; padding: 20px;
-          min-width: 0;
+          background: #202c33; border: 1px solid #222d34;
+          border-radius: 10px; padding: 20px; min-width: 0;
         }
         .an-chart-box h3 { font-size: 14px; font-weight: 600; margin-bottom: 3px; }
         .an-chart-sub { font-size: 12px; color: #8696a0; margin-bottom: 16px; }
-        .an-skel {
-          height: 220px; background: #2a3942;
-          border-radius: 8px;
-          animation: pulse 1.4s ease infinite;
-        }
-        .an-chart-empty {
-          height: 220px; display: flex;
-          align-items: center; justify-content: center;
-          color: #8696a0; font-size: 13px;
-        }
-        .an-tip {
-          background: #1a2429;
-          border: 1px solid #2a3942;
-          border-radius: 8px; padding: 10px 14px;
-          font-size: 12px;
-          box-shadow: 0 4px 16px rgba(0,0,0,0.5);
-        }
+        .an-skel { height: 220px; background: #2a3942; border-radius: 8px; animation: pulse 1.4s ease infinite; }
+        .an-chart-empty { height: 220px; display: flex; align-items: center; justify-content: center; color: #8696a0; font-size: 13px; }
+        .an-tip { background: #1a2429; border: 1px solid #2a3942; border-radius: 8px; padding: 10px 14px; font-size: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.5); }
         .an-tip-lbl { font-weight: 600; margin-bottom: 6px; color: #e9edef; }
-        .an-table-box {
-          background: #202c33;
-          border: 1px solid #222d34;
-          border-radius: 10px; padding: 20px;
-          margin-bottom: 28px;
-        }
+        .an-table-box { background: #202c33; border: 1px solid #222d34; border-radius: 10px; padding: 20px; margin-bottom: 28px; }
         .an-table-box h3 { font-size: 14px; font-weight: 600; margin-bottom: 16px; }
         .an-table-wrap { overflow-x: auto; }
         .an-table { width: 100%; border-collapse: collapse; }
-        .an-table th {
-          text-align: left; padding: 10px 14px;
-          font-size: 11px; font-weight: 600;
-          color: #8696a0; text-transform: uppercase;
-          letter-spacing: 0.5px;
-          border-bottom: 1px solid #222d34;
-        }
-        .an-table td {
-          padding: 12px 14px; font-size: 13px;
-          border-bottom: 1px solid #1a2429; color: #e9edef;
-        }
+        .an-table th { text-align: left; padding: 10px 14px; font-size: 11px; font-weight: 600; color: #8696a0; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #222d34; }
+        .an-table td { padding: 12px 14px; font-size: 13px; border-bottom: 1px solid #1a2429; color: #e9edef; }
         .an-table tr:last-child td { border-bottom: none; }
         .an-table tr:hover td { background: #233138; }
         .an-agent-cell { display: flex; align-items: center; gap: 10px; }
-        .an-avatar {
-          width: 30px; height: 30px; border-radius: 50%;
-          background: #005c4b; flex-shrink: 0;
-          display: flex; align-items: center; justify-content: center;
-          font-size: 12px; font-weight: 700; color: white;
-        }
+        .an-avatar { width: 30px; height: 30px; border-radius: 50%; background: #005c4b; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: white; }
         .an-agent-name { font-size: 13px; font-weight: 500; }
         .an-agent-email { font-size: 11px; color: #8696a0; }
-        .an-badge {
-          display: inline-block;
-          padding: 2px 10px; border-radius: 10px;
-          font-size: 12px; font-weight: 600;
-        }
+        .an-badge { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 12px; font-weight: 600; }
         .an-badge.open { background: rgba(83,189,235,0.15); color: #53bdeb; }
         .an-badge.progress { background: rgba(255,169,41,0.15); color: #ffa929; }
         .an-badge.resolved { background: rgba(0,168,132,0.15); color: #00a884; }
         .an-response-time { font-size: 13px; color: #ffa929; font-weight: 500; }
         .an-rate { display: flex; align-items: center; gap: 8px; }
-        .an-rate-bar {
-          width: 80px; height: 6px;
-          background: #2a3942; border-radius: 3px; overflow: hidden;
-        }
+        .an-rate-bar { width: 80px; height: 6px; background: #2a3942; border-radius: 3px; overflow: hidden; }
         .an-rate-fill { height: 100%; background: #00a884; border-radius: 3px; }
         .an-rate span { font-size: 12px; color: #8696a0; min-width: 32px; }
         @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
         @media (max-width: 600px) {
           .an-page { padding: 16px; }
           .an-charts { grid-template-columns: 1fr; }

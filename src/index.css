@@ -11,36 +11,45 @@
   --wa-muted: #8696a0;
 }
 
+html, body, #root {
+  height: 100%;
+  overflow: hidden;
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background: var(--wa-bg);
   color: var(--wa-text);
-  height: 100vh;
-  overflow: hidden;
 }
-
-#root { height: 100vh; overflow: hidden; }
 
 button { border: none; background: none; cursor: pointer; font-family: inherit; }
 a { text-decoration: none; color: inherit; }
 
-/* Scrollbar */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #374a52; border-radius: 3px; }
 
-/* Layout */
+/* ─── Root layout ─────────────────────────────────────────── */
 .wa-app {
   display: flex;
-  height: 100vh;
+  flex-direction: row;
+  width: 100%;
+  height: 100%;
   overflow: hidden;
   background: var(--wa-bg);
+}
+
+/* Every direct child of .wa-app must NOT expand beyond 100% height */
+.wa-app > * {
+  min-height: 0;
+  min-width: 0;
 }
 
 .wa-left-panel {
   width: 360px;
   flex-shrink: 0;
   display: flex;
+  flex-direction: column;
   overflow: hidden;
   border-right: 1px solid var(--wa-border);
 }
@@ -48,19 +57,19 @@ a { text-decoration: none; color: inherit; }
 .wa-right-panel {
   flex: 1;
   display: flex;
-  min-width: 0;
+  flex-direction: column;
   overflow: hidden;
 }
 
-/* Full page panels (Analytics, QR) — scrollable */
+/* Full-page panels (Analytics, QR) — scrollable */
 .wa-full-panel {
   flex: 1;
-  min-width: 0;
   overflow-y: auto;
+  overflow-x: hidden;
   background: var(--wa-bg);
 }
 
-/* Icon bar */
+/* ─── Icon bar ────────────────────────────────────────────── */
 .icon-bar {
   width: 72px;
   flex-shrink: 0;
@@ -95,9 +104,7 @@ a { text-decoration: none; color: inherit; }
 
 .ib-status-dot {
   width: 10px; height: 10px; border-radius: 50%;
-  background: #374a52;
-  margin: 4px 0;
-  transition: background 0.3s;
+  background: #374a52; margin: 4px 0; transition: background 0.3s;
 }
 .ib-status-dot.connected { background: var(--wa-green); }
 

@@ -135,17 +135,17 @@ export default function InboxPage() {
 
       <style>{`
         .chat-list {
-          width: 360px;
-          min-width: 300px;
           display: flex;
           flex-direction: column;
-          height: 100%;        /* fill parent flex height, not force 100vh */
+          width: 100%;
+          min-height: 0;        /* izinkan flex item menyusut */
           background: #111b21;
           overflow: hidden;
         }
         .cl-header {
           display: flex; align-items: center; justify-content: space-between;
-          padding: 16px 20px; background: #202c33; flex-shrink: 0;
+          padding: 16px 20px; background: #202c33;
+          flex-shrink: 0;       /* header tidak boleh menyusut */
         }
         .cl-header h2 { font-size: 20px; font-weight: 600; color: #e9edef; }
         .cl-header-right { display: flex; align-items: center; gap: 10px; }
@@ -163,7 +163,8 @@ export default function InboxPage() {
         .cl-search {
           display: flex; align-items: center; gap: 10px;
           margin: 8px 10px; padding: 8px 14px;
-          background: #2a3942; border-radius: 8px; flex-shrink: 0;
+          background: #2a3942; border-radius: 8px;
+          flex-shrink: 0;       /* search bar tidak boleh menyusut */
         }
         .cl-search svg { color: #8696a0; flex-shrink: 0; }
         .cl-search input {
@@ -171,7 +172,11 @@ export default function InboxPage() {
           color: #e9edef; font-size: 14px; width: 100%; padding: 0;
         }
         .cl-search input::placeholder { color: #8696a0; }
-        .cl-list { flex: 1; overflow-y: auto; }
+        .cl-list {
+          flex: 1;
+          min-height: 0;        /* PENTING: izinkan scroll tanpa mendorong header */
+          overflow-y: auto;
+        }
         .cl-skel {
           height: 72px; background: rgba(255,255,255,0.03);
           animation: pulse 1.5s ease infinite;
@@ -221,8 +226,9 @@ export default function InboxPage() {
         }
         .cl-unassigned { font-size: 12px; color: #667781; }
         .cl-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
         @media (max-width: 768px) {
-          .chat-list { width: 100vw; min-width: unset; }
+          .chat-list { width: 100vw; }
         }
       `}</style>
     </div>
