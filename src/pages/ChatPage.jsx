@@ -141,7 +141,6 @@ export default function ChatPage({ chatId }) {
         </div>
 
         <div className="cv-actions" onClick={e => e.stopPropagation()}>
-          {/* Assign agent — admin only */}
           {isAdmin && (
             <div className="cv-dd">
               <button
@@ -172,7 +171,6 @@ export default function ChatPage({ chatId }) {
             </div>
           )}
 
-          {/* Status — everyone */}
           <div className="cv-dd">
             <button
               className={`cv-chip st-${status}`}
@@ -252,7 +250,7 @@ export default function ChatPage({ chatId }) {
           flex: 1;
           display: flex;
           flex-direction: column;
-          height: 100%;       /* fill parent, not force 100vh */
+          min-height: 0;        /* kunci: cegah flex item melar melebihi container */
           min-width: 0;
           background: #0b141a;
           overflow: hidden;
@@ -343,10 +341,11 @@ export default function ChatPage({ chatId }) {
           display: flex; align-items: center; justify-content: space-between;
           flex-shrink: 0;
         }
-        /* Messages area */
         .cv-messages {
-          flex: 1; overflow-y: auto;
-          padding: 16px 20px;      /* fixed px — no more % overflow */
+          flex: 1;
+          min-height: 0;          /* PENTING: izinkan flex item menyusut */
+          overflow-y: auto;
+          padding: 16px 20px;
           display: flex; flex-direction: column; gap: 2px;
           background-color: #0b141a;
           background-image: url("data:image/svg+xml,%3Csvg width='300' height='300' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='0.015'%3E%3Cpath d='M150 0l150 150-150 150L0 150z'/%3E%3C/g%3E%3C/svg%3E");
@@ -365,7 +364,6 @@ export default function ChatPage({ chatId }) {
           text-align: center; padding: 32px;
           background: rgba(0,0,0,0.25); border-radius: 8px;
         }
-        /* Bubbles */
         .cv-row { display: flex; margin-bottom: 2px; }
         .cv-row.sent { justify-content: flex-end; }
         .cv-row.recv { justify-content: flex-start; }
@@ -384,7 +382,6 @@ export default function ChatPage({ chatId }) {
           justify-content: flex-end; gap: 4px; margin-top: 3px;
         }
         .cv-time { font-size: 11px; color: rgba(255,255,255,0.45); white-space: nowrap; }
-        /* Input */
         .cv-input-bar {
           display: flex; align-items: flex-end; gap: 10px;
           padding: 10px 16px; background: #202c33; flex-shrink: 0;
@@ -404,6 +401,7 @@ export default function ChatPage({ chatId }) {
         }
         .cv-send-btn.ready { background: #00a884; color: white; }
         .cv-send-btn:disabled { opacity: 0.6; }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
       `}</style>
     </div>
   )
