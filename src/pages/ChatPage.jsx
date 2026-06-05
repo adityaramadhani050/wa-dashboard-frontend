@@ -2,8 +2,8 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSocket } from '../context/SocketContext'
 import { useAuth } from '../context/AuthContext'
-import { getMessages, sendMessage, assignAgent, updateStatus, getConversations, getAgents } from '../hooks/useApi'
-import { Send, ChevronDown, ArrowLeft, UserCheck } from 'lucide-react'
+import { getMessages, sendMessage, sendMedia, assignAgent, updateStatus, getConversations, getAgents } from '../hooks/useApi'
+import { Send, ChevronDown, ArrowLeft, UserCheck, Paperclip, X, FileText, Play } from 'lucide-react'
 
 const STATUS_OPTIONS = ['open', 'in_progress', 'resolved']
 
@@ -65,6 +65,82 @@ function DateSeparator({ label }) {
   )
 }
 
+function MediaContent({ msg, sent, onImageClick }) {
+  const { media_type, media_url, media_filename, body } = msg
+  const caption = body && !body.startsWith('[') ? body : null
+
+  if (!media_url && !media_type) {
+    return <p>{msg.body || msg.content || msg.text}</p>
+  }
+
+  if (media_type === 'image') {
+    return (
+      <div className="cv-media-wrap">
+        <img
+          src={media_url}
+          className="cv-media-img"
+          alt="image"
+          onClick={() => onImageClick(media_url)}
+        />
+        {caption && <p className="cv-media-caption">{caption}</p>}
+      </div>
+    )
+  }
+
+  if (media_type === 'video') {
+    return (
+      <div className="cv-media-wrap">
+        <video src={media_url} controls className="cv-media-video" />
+        {caption && <p className="cv-media-caption">{caption}</p>}
+      </div>
+    )
+  }
+
+  if (media_type === 'audio') {
+    return (
+      <div className="cv-media-audio-wrap">
+        <audio src={media_url} controls className="cv-media-audio" />
+      </div>
+    )
+  }
+
+  if (media_type === 'document') {
+    return (
+      <a
+        href={media_url}
+        target="_blank"
+        rel="noreferrer"
+        download={media_filename}
+        className={`cv-media-doc ${sent ? 'sent' : 'recv'}`}
+      >
+        <div className="cv-media-doc-icon"><FileText size={22} /></div>
+        <div className="cv-media-doc-info">
+          <span className="cv-media-doc-name">{media_filename || 'Download file'}</span>
+          <span className="cv-media-doc-sub">Tap untuk unduh</span>
+        </div>
+      </a>
+    )
+  }
+
+  // Fallback: media tanpa URL (belum didownload)
+  return (
+    <div className="cv-media-placeholder">
+      <Paperclip size={16} />
+      <span>{media_filename || body || '[media]'}</span>
+    </div>
+  )
+}
+
+function ImageLightbox({ url, onClose }) {
+  if (!url) return null
+  return (
+    <div className="cv-lightbox" onClick={onClose}>
+      <button className="cv-lightbox-close" onClick={onClose}><X size={24} /></button>
+      <img src={url} className="cv-lightbox-img" onClick={e => e.stopPropagation()} alt="preview" />
+    </div>
+  )
+}
+
 export default function ChatPage({ chatId }) {
   const id = chatId
   const navigate = useNavigate()
@@ -80,7 +156,10 @@ export default function ChatPage({ chatId }) {
   const [error, setError] = useState('')
   const [showStatusMenu, setShowStatusMenu] = useState(false)
   const [showAgentMenu, setShowAgentMenu] = useState(false)
+  const [selectedFile, setSelectedFile] = useState(null) // { file, previewUrl, type }
+  const [lightboxUrl, setLightboxUrl] = useState(null)
   const bottomRef = useRef(null)
+  const fileInputRef = useRef(null)
   const { newMessages } = useSocket()
 
   const fetchData = useCallback(async () => {
@@ -124,8 +203,36 @@ export default function ChatPage({ chatId }) {
     finally { setSending(false) }
   }
 
+  const handleFileSelect = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const isImage = file.type.startsWith('image/')
+    const isVideo = file.type.startsWith('video/')
+    const previewUrl = (isImage || isVideo) ? URL.createObjectURL(file) : null
+    setSelectedFile({ file, previewUrl, type: isImage ? 'image' : isVideo ? 'video' : 'document' })
+    e.target.value = ''
+  }
+
+  const handleSendMedia = async () => {
+    if (!selectedFile || sending) return
+    setSending(true)
+    const f = selectedFile
+    setSelectedFile(null)
+    try {
+      await sendMedia(id, f.file, text.trim() || undefined)
+      setText('')
+      await fetchData()
+    } catch (e) {
+      setError(e?.response?.data?.error || 'Gagal mengirim file.')
+      setSelectedFile(f)
+    } finally { setSending(false) }
+  }
+
   const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() }
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      selectedFile ? handleSendMedia() : handleSend()
+    }
   }
 
   const handleStatusChange = async (status) => {
@@ -159,6 +266,9 @@ export default function ChatPage({ chatId }) {
 
   return (
     <div className="cv-root" onClick={closeMenus}>
+      {/* Lightbox */}
+      <ImageLightbox url={lightboxUrl} onClose={() => setLightboxUrl(null)} />
+
       {/* Header */}
       <div className="cv-header" onClick={e => e.stopPropagation()}>
         <button className="cv-back" onClick={() => navigate('/inbox')}><ArrowLeft size={20} /></button>
@@ -237,10 +347,15 @@ export default function ChatPage({ chatId }) {
             }
             const msg = item.msg
             const sent = msg.from_me === true || msg.from_me === 1 || msg.fromMe === true
+            const hasMedia = !!msg.media_type
             return (
               <div key={msg.id || i} className={`cv-row ${sent?'sent':'recv'}`}>
-                <div className={`cv-bubble ${sent?'bsent':'brecv'}`}>
-                  <p>{msg.body || msg.content || msg.text}</p>
+                <div className={`cv-bubble ${sent?'bsent':'brecv'} ${hasMedia?'media':''}`}>
+                  {hasMedia ? (
+                    <MediaContent msg={msg} sent={sent} onImageClick={setLightboxUrl} />
+                  ) : (
+                    <p>{msg.body || msg.content || msg.text}</p>
+                  )}
                   <div className="cv-meta">
                     <span className="cv-time">{formatTime(msg.timestamp || msg.createdAt)}</span>
                     {sent && <MessageTick status={msg.status} />}
@@ -253,18 +368,63 @@ export default function ChatPage({ chatId }) {
         <div ref={bottomRef} />
       </div>
 
+      {/* File preview bar */}
+      {selectedFile && (
+        <div className="cv-file-preview" onClick={e => e.stopPropagation()}>
+          <div className="cv-file-preview-content">
+            {selectedFile.type === 'image' && (
+              <img src={selectedFile.previewUrl} className="cv-file-thumb" alt="preview" />
+            )}
+            {selectedFile.type === 'video' && (
+              <div className="cv-file-thumb cv-file-video-thumb">
+                <Play size={20} color="white" />
+              </div>
+            )}
+            {selectedFile.type === 'document' && (
+              <div className="cv-file-thumb cv-file-doc-thumb">
+                <FileText size={20} color="#2563eb" />
+              </div>
+            )}
+            <span className="cv-file-name">{selectedFile.file.name}</span>
+          </div>
+          <button className="cv-file-remove" onClick={() => setSelectedFile(null)}>
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
       {/* Input */}
-      <div className="cv-input-bar">
+      <div className="cv-input-bar" onClick={e => e.stopPropagation()}>
+        <input
+          type="file"
+          ref={fileInputRef}
+          style={{ display: 'none' }}
+          accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.rar,.txt"
+          onChange={handleFileSelect}
+        />
+        <button
+          className="cv-attach-btn"
+          onClick={() => fileInputRef.current?.click()}
+          title="Lampirkan file"
+        >
+          <Paperclip size={20} />
+        </button>
         <textarea
           className="cv-input"
-          placeholder="Ketik pesan..."
+          placeholder={selectedFile ? 'Tambah keterangan (opsional)...' : 'Ketik pesan...'}
           value={text}
           onChange={e => setText(e.target.value)}
           onKeyDown={handleKeyDown}
           rows={1}
         />
-        <button className={`cv-send ${text.trim()?'ready':''}`} onClick={handleSend} disabled={!text.trim()||sending}>
-          <Send size={19} />
+        <button
+          className={`cv-send ${(text.trim() || selectedFile) ? 'ready' : ''}`}
+          onClick={selectedFile ? handleSendMedia : handleSend}
+          disabled={(!text.trim() && !selectedFile) || sending}
+        >
+          {sending
+            ? <div className="cv-sending-dot" />
+            : <Send size={19} />}
         </button>
       </div>
 
@@ -276,8 +436,7 @@ export default function ChatPage({ chatId }) {
         }
         .cv-header {
           display: flex; align-items: center; gap: 10px;
-          padding: 10px 16px;
-          background: #fff;
+          padding: 10px 16px; background: #fff;
           border-bottom: 1px solid #e2e8f0;
           flex-shrink: 0; min-height: 60px;
           box-shadow: 0 1px 4px rgba(0,0,0,0.04);
@@ -301,8 +460,7 @@ export default function ChatPage({ chatId }) {
         .cv-phone { font-size: 12px; color: #94a3b8; }
         .cv-assigned {
           display: inline-flex; align-items: center; gap: 3px;
-          font-size: 11px; font-weight: 600;
-          padding: 1px 7px; border-radius: 10px;
+          font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 10px;
           background: rgba(16,185,129,0.1); color: #10b981;
         }
         .cv-unassigned {
@@ -316,15 +474,14 @@ export default function ChatPage({ chatId }) {
           padding: 6px 12px; border-radius: 8px;
           font-size: 13px; font-weight: 600;
           color: #475569; background: #f1f5f9;
-          border: 1px solid #e2e8f0;
-          transition: all 0.15s;
+          border: 1px solid #e2e8f0; transition: all 0.15s;
         }
         .cv-assign-btn:hover { background: #e2e8f0; color: #1e293b; }
         .cv-chip {
           display: flex; align-items: center; gap: 4px;
           padding: 5px 10px; border-radius: 20px;
-          font-size: 12px; font-weight: 600; transition: opacity 0.15s;
-          border: 1.5px solid transparent;
+          font-size: 12px; font-weight: 600;
+          border: 1.5px solid transparent; transition: opacity 0.15s;
         }
         .cv-chip:hover { opacity: 0.8; }
         .cv-chip.st-open { background: rgba(37,99,235,0.08); color: #2563eb; border-color: rgba(37,99,235,0.2); }
@@ -337,15 +494,12 @@ export default function ChatPage({ chatId }) {
           box-shadow: 0 8px 24px rgba(0,0,0,0.1); overflow: hidden;
         }
         .cv-menu-lbl {
-          padding: 8px 14px 4px;
-          font-size: 10px; font-weight: 700; color: #94a3b8;
-          text-transform: uppercase; letter-spacing: 0.5px;
+          padding: 8px 14px 4px; font-size: 10px; font-weight: 700;
+          color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;
         }
         .cv-mi {
-          display: flex; flex-direction: column;
-          width: 100%; text-align: left;
-          padding: 9px 14px; font-size: 13px; color: #1e293b;
-          transition: background 0.1s;
+          display: flex; flex-direction: column; width: 100%; text-align: left;
+          padding: 9px 14px; font-size: 13px; color: #1e293b; transition: background 0.1s;
         }
         .cv-mi:hover { background: #f8fafc; }
         .cv-mi.muted { color: #94a3b8; cursor: default; }
@@ -360,6 +514,7 @@ export default function ChatPage({ chatId }) {
           display: flex; align-items: center; justify-content: space-between;
           flex-shrink: 0;
         }
+        /* Messages */
         .cv-messages {
           flex: 1; min-height: 0; overflow-y: auto;
           padding: 16px 20px;
@@ -373,20 +528,15 @@ export default function ChatPage({ chatId }) {
         }
         .cv-skel.left { align-self: flex-start; }
         .cv-skel.right { align-self: flex-end; }
-        .cv-empty {
-          margin: auto; color: #94a3b8; font-size: 14px;
-          text-align: center; padding: 32px;
-        }
-        .cv-date-sep {
-          display: flex; align-items: center; justify-content: center;
-          margin: 10px 0 8px;
-        }
+        .cv-empty { margin: auto; color: #94a3b8; font-size: 14px; text-align: center; padding: 32px; }
+        /* Date separator */
+        .cv-date-sep { display: flex; align-items: center; justify-content: center; margin: 10px 0 8px; }
         .cv-date-sep span {
           background: #dce8f5; color: #4a6fa5;
           font-size: 11px; font-weight: 600;
-          padding: 4px 12px; border-radius: 20px;
-          letter-spacing: 0.2px;
+          padding: 4px 12px; border-radius: 20px; letter-spacing: 0.2px;
         }
+        /* Bubbles */
         .cv-row { display: flex; margin-bottom: 2px; }
         .cv-row.sent { justify-content: flex-end; }
         .cv-row.recv { justify-content: flex-start; }
@@ -396,25 +546,90 @@ export default function ChatPage({ chatId }) {
           box-shadow: 0 1px 3px rgba(0,0,0,0.08);
           word-break: break-word;
         }
+        .cv-bubble.media { padding: 4px 4px 6px; }
         .bsent { background: #2563eb; color: #fff; border-bottom-right-radius: 4px; }
         .brecv { background: #fff; color: #1e293b; border-bottom-left-radius: 4px; border: 1px solid #e2e8f0; }
         .cv-bubble p { font-size: 14px; line-height: 1.5; white-space: pre-wrap; }
-        .cv-meta { display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: 3px; }
+        .cv-meta { display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: 3px; padding: 0 4px; }
         .cv-time { font-size: 10px; color: rgba(255,255,255,0.6); white-space: nowrap; }
         .brecv .cv-time { color: #94a3b8; }
-        .cv-input-bar {
-          display: flex; align-items: flex-end; gap: 10px;
-          padding: 10px 14px;
-          background: #fff; border-top: 1px solid #e2e8f0;
-          flex-shrink: 0;
+        /* Media */
+        .cv-media-wrap { min-width: 180px; }
+        .cv-media-img {
+          width: 100%; max-width: 280px; border-radius: 8px;
+          display: block; cursor: pointer; object-fit: cover;
+          transition: opacity 0.15s;
         }
+        .cv-media-img:hover { opacity: 0.92; }
+        .cv-media-video {
+          width: 100%; max-width: 280px; border-radius: 8px; display: block;
+        }
+        .cv-media-audio-wrap { padding: 4px 0; }
+        .cv-media-audio { width: 220px; height: 36px; }
+        .cv-media-caption { font-size: 13px; padding: 6px 4px 0; line-height: 1.4; }
+        .cv-media-doc {
+          display: flex; align-items: center; gap: 10px;
+          padding: 10px; border-radius: 8px; text-decoration: none;
+          min-width: 180px;
+        }
+        .cv-media-doc.sent { background: rgba(255,255,255,0.12); color: #fff; }
+        .cv-media-doc.recv { background: #f0f4f8; color: #1e293b; }
+        .cv-media-doc-icon { flex-shrink: 0; }
+        .cv-media-doc-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+        .cv-media-doc-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .cv-media-doc-sub { font-size: 11px; opacity: 0.7; }
+        .cv-media-placeholder {
+          display: flex; align-items: center; gap: 6px;
+          font-size: 13px; opacity: 0.7; padding: 4px;
+        }
+        /* File preview bar */
+        .cv-file-preview {
+          display: flex; align-items: center; justify-content: space-between;
+          padding: 8px 14px; background: #eff6ff;
+          border-top: 1px solid #bfdbfe; flex-shrink: 0;
+        }
+        .cv-file-preview-content { display: flex; align-items: center; gap: 10px; min-width: 0; }
+        .cv-file-thumb {
+          width: 44px; height: 44px; border-radius: 6px;
+          object-fit: cover; flex-shrink: 0;
+        }
+        .cv-file-video-thumb {
+          background: #1e293b; display: flex;
+          align-items: center; justify-content: center;
+        }
+        .cv-file-doc-thumb {
+          background: #eff6ff; border: 1px solid #bfdbfe;
+          display: flex; align-items: center; justify-content: center;
+        }
+        .cv-file-name {
+          font-size: 13px; font-weight: 500; color: #1e293b;
+          white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+          max-width: 200px;
+        }
+        .cv-file-remove {
+          width: 28px; height: 28px; border-radius: 6px;
+          display: flex; align-items: center; justify-content: center;
+          color: #94a3b8; flex-shrink: 0;
+        }
+        .cv-file-remove:hover { background: #dbeafe; color: #2563eb; }
+        /* Input */
+        .cv-input-bar {
+          display: flex; align-items: flex-end; gap: 8px;
+          padding: 10px 14px; background: #fff;
+          border-top: 1px solid #e2e8f0; flex-shrink: 0;
+        }
+        .cv-attach-btn {
+          width: 42px; height: 42px; border-radius: 10px;
+          display: flex; align-items: center; justify-content: center;
+          color: #94a3b8; transition: all 0.15s; flex-shrink: 0;
+        }
+        .cv-attach-btn:hover { background: #f1f5f9; color: #2563eb; }
         .cv-input {
           flex: 1; background: #f8fafc;
           border: 1.5px solid #e2e8f0; border-radius: 10px;
           color: #1e293b; padding: 10px 14px; font-size: 14px;
           line-height: 1.4; outline: none; resize: none;
-          max-height: 130px; overflow-y: auto;
-          transition: border-color 0.15s;
+          max-height: 130px; overflow-y: auto; transition: border-color 0.15s;
         }
         .cv-input:focus { border-color: #2563eb; }
         .cv-input::placeholder { color: #94a3b8; }
@@ -426,6 +641,32 @@ export default function ChatPage({ chatId }) {
         }
         .cv-send.ready { background: #2563eb; color: white; }
         .cv-send:disabled { opacity: 0.5; }
+        .cv-sending-dot {
+          width: 16px; height: 16px; border-radius: 50%;
+          border: 2px solid rgba(255,255,255,0.4);
+          border-top-color: white;
+          animation: spin 0.7s linear infinite;
+        }
+        /* Lightbox */
+        .cv-lightbox {
+          position: fixed; inset: 0; z-index: 1000;
+          background: rgba(0,0,0,0.88);
+          display: flex; align-items: center; justify-content: center;
+        }
+        .cv-lightbox-close {
+          position: absolute; top: 16px; right: 16px;
+          width: 40px; height: 40px; border-radius: 50%;
+          background: rgba(255,255,255,0.15);
+          display: flex; align-items: center; justify-content: center;
+          color: white; transition: background 0.15s;
+        }
+        .cv-lightbox-close:hover { background: rgba(255,255,255,0.25); }
+        .cv-lightbox-img {
+          max-width: 90vw; max-height: 90vh;
+          border-radius: 8px; object-fit: contain;
+          box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
       `}</style>
     </div>
