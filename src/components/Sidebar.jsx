@@ -8,14 +8,15 @@ export default function IconBar() {
   const { waConnected } = useSocket()
   const navigate = useNavigate()
   const location = useLocation()
+  const isAdmin = user?.role === 'admin'
 
   const handleLogout = () => { logout(); navigate('/login') }
 
   const navItems = [
-    { path: '/inbox', icon: MessageSquare, label: 'Chats' },
-    { path: '/analytics', icon: BarChart2, label: 'Analytics' },
-    { path: '/qr', icon: QrCode, label: 'QR Setup' },
-  ]
+    { path: '/inbox', icon: MessageSquare, label: 'Chats', adminOnly: false },
+    { path: '/analytics', icon: BarChart2, label: 'Analytics', adminOnly: true },
+    { path: '/qr', icon: QrCode, label: 'QR Setup', adminOnly: true },
+  ].filter(item => !item.adminOnly || isAdmin)
 
   return (
     <div className="icon-bar">
@@ -68,37 +69,22 @@ export default function IconBar() {
           gap: 4px;
         }
         .ib-user-avatar {
-          width: 40px;
-          height: 40px;
-          border-radius: 50%;
+          width: 40px; height: 40px; border-radius: 50%;
           background: #6b7c85;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 16px;
-          font-weight: 600;
-          color: white;
-          cursor: default;
-          margin-bottom: 4px;
+          display: flex; align-items: center; justify-content: center;
+          font-size: 16px; font-weight: 600; color: white;
+          cursor: default; margin-bottom: 4px;
         }
         .ib-btn {
-          width: 48px;
-          height: 48px;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: #8696a0;
-          transition: all 0.15s;
+          width: 48px; height: 48px; border-radius: 50%;
+          display: flex; align-items: center; justify-content: center;
+          color: #8696a0; transition: all 0.15s;
         }
         .ib-btn:hover { background: #2a3942; color: #e9edef; }
         .ib-btn.active { color: #00a884; }
         .ib-btn.logout:hover { color: #f15c6d; background: rgba(241,92,109,0.1); }
         .ib-dot {
-          width: 8px;
-          height: 8px;
-          border-radius: 50%;
-          margin-bottom: 4px;
+          width: 8px; height: 8px; border-radius: 50%; margin-bottom: 4px;
         }
         .ib-dot.online { background: #00a884; box-shadow: 0 0 8px rgba(0,168,132,0.6); }
         .ib-dot.offline { background: #667781; }
