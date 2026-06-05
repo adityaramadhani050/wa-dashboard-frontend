@@ -20,9 +20,9 @@ function timeStr(dateStr) {
 }
 
 function statusColor(s) {
-  if (s === 'resolved') return '#00a884'
-  if (s === 'in_progress') return '#ffa929'
-  return '#53bdeb'
+  if (s === 'resolved') return '#10b981'
+  if (s === 'in_progress') return '#f59e0b'
+  return '#2563eb'
 }
 
 export default function InboxPage() {
@@ -59,24 +59,22 @@ export default function InboxPage() {
   })
 
   return (
-    <div className="chat-list">
+    <div className="cl-root">
       <div className="cl-header">
-        <h2>Chats</h2>
-        <div className="cl-header-right">
-          {user?.role && (
-            <span className="cl-role">{isAdmin ? 'Admin' : user.name || 'Agent'}</span>
-          )}
-          <button className="cl-icon-btn" onClick={fetch} title="Refresh">
-            <RefreshCw size={17} />
-          </button>
+        <div>
+          <h2>Pesan</h2>
+          {user?.role && <span className="cl-role">{isAdmin ? 'Admin' : user.name || 'Agent'}</span>}
         </div>
+        <button className="cl-icon-btn" onClick={fetch} title="Refresh">
+          <RefreshCw size={16} />
+        </button>
       </div>
 
       <div className="cl-search">
         <Search size={15} />
         <input
           type="text"
-          placeholder="Search or start new chat"
+          placeholder="Cari percakapan..."
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
@@ -84,19 +82,19 @@ export default function InboxPage() {
 
       <div className="cl-list">
         {loading ? (
-          [...Array(8)].map((_, i) => (
+          [...Array(6)].map((_, i) => (
             <div key={i} className="cl-skel" style={{ animationDelay: `${i * 0.06}s` }} />
           ))
         ) : filtered.length === 0 ? (
           <div className="cl-empty">
-            {search ? 'No results found' : user?.role === 'agent' ? 'No conversations assigned to you' : 'No conversations yet'}
+            {search ? 'Tidak ditemukan' : user?.role === 'agent' ? 'Belum ada percakapan yang di-assign' : 'Belum ada percakapan'}
           </div>
         ) : (
           filtered.map(conv => {
             const isActive = String(conv.id) === String(activeChatId)
             const name = conv.contact?.name || conv.contact?.phone || 'Unknown'
             const initial = name[0].toUpperCase()
-            const preview = conv.lastMessage || 'No messages yet'
+            const preview = conv.lastMessage || 'Belum ada pesan'
             const assignedAgent = conv.agents
 
             return (
@@ -115,14 +113,11 @@ export default function InboxPage() {
                     <span className="cl-preview">{preview}</span>
                     <div className="cl-badges">
                       {isAdmin && assignedAgent && (
-                        <span className="cl-agent-badge" title={`Assigned to ${assignedAgent.name}`}>
-                          <UserCheck size={10} />
-                          {assignedAgent.name}
+                        <span className="cl-agent-badge">
+                          <UserCheck size={9} />{assignedAgent.name}
                         </span>
                       )}
-                      {isAdmin && !assignedAgent && (
-                        <span className="cl-unassigned">—</span>
-                      )}
+                      {isAdmin && !assignedAgent && <span className="cl-unassigned">—</span>}
                       <span className="cl-dot" style={{ background: statusColor(conv.status) }} />
                     </div>
                   </div>
@@ -134,102 +129,87 @@ export default function InboxPage() {
       </div>
 
       <style>{`
-        .chat-list {
-          display: flex;
-          flex-direction: column;
-          width: 100%;
-          min-height: 0;        /* izinkan flex item menyusut */
-          background: #111b21;
-          overflow: hidden;
+        .cl-root {
+          display: flex; flex-direction: column;
+          width: 100%; min-height: 0;
+          background: #fff; overflow: hidden;
         }
         .cl-header {
           display: flex; align-items: center; justify-content: space-between;
-          padding: 16px 20px; background: #202c33;
-          flex-shrink: 0;       /* header tidak boleh menyusut */
+          padding: 16px 18px 12px;
+          border-bottom: 1px solid #e2e8f0;
+          flex-shrink: 0;
         }
-        .cl-header h2 { font-size: 20px; font-weight: 600; color: #e9edef; }
-        .cl-header-right { display: flex; align-items: center; gap: 10px; }
+        .cl-header h2 { font-size: 17px; font-weight: 700; color: #1e293b; }
         .cl-role {
+          display: inline-block;
           font-size: 11px; font-weight: 600;
-          padding: 2px 10px; border-radius: 12px;
-          background: rgba(0,168,132,0.15); color: #00a884;
+          padding: 2px 8px; border-radius: 20px;
+          background: rgba(37,99,235,0.08); color: #2563eb;
+          margin-top: 2px;
         }
         .cl-icon-btn {
-          width: 34px; height: 34px; border-radius: 50%;
+          width: 32px; height: 32px; border-radius: 8px;
           display: flex; align-items: center; justify-content: center;
-          color: #8696a0; transition: all 0.15s;
+          color: #94a3b8; transition: all 0.15s;
         }
-        .cl-icon-btn:hover { background: #2a3942; color: #e9edef; }
+        .cl-icon-btn:hover { background: #f1f5f9; color: #475569; }
         .cl-search {
-          display: flex; align-items: center; gap: 10px;
-          margin: 8px 10px; padding: 8px 14px;
-          background: #2a3942; border-radius: 8px;
-          flex-shrink: 0;       /* search bar tidak boleh menyusut */
+          display: flex; align-items: center; gap: 8px;
+          margin: 8px 12px; padding: 8px 12px;
+          background: #f8fafc; border: 1px solid #e2e8f0;
+          border-radius: 8px; flex-shrink: 0;
         }
-        .cl-search svg { color: #8696a0; flex-shrink: 0; }
+        .cl-search svg { color: #94a3b8; flex-shrink: 0; }
         .cl-search input {
           background: none; border: none; outline: none;
-          color: #e9edef; font-size: 14px; width: 100%; padding: 0;
+          color: #1e293b; font-size: 13px; width: 100%;
         }
-        .cl-search input::placeholder { color: #8696a0; }
-        .cl-list {
-          flex: 1;
-          min-height: 0;        /* PENTING: izinkan scroll tanpa mendorong header */
-          overflow-y: auto;
-        }
+        .cl-search input::placeholder { color: #94a3b8; }
+        .cl-list { flex: 1; min-height: 0; overflow-y: auto; }
         .cl-skel {
-          height: 72px; background: rgba(255,255,255,0.03);
-          animation: pulse 1.5s ease infinite;
-          border-bottom: 1px solid rgba(34,45,52,0.4);
+          height: 68px; margin: 4px 12px; border-radius: 10px;
+          background: #f1f5f9; animation: pulse 1.4s ease infinite;
         }
         .cl-empty {
-          text-align: center; padding: 60px 20px;
-          color: #8696a0; font-size: 14px; line-height: 1.6;
+          text-align: center; padding: 48px 20px;
+          color: #94a3b8; font-size: 13px;
         }
         .cl-item {
-          display: flex; align-items: center; gap: 14px;
-          padding: 13px 20px; cursor: pointer;
-          border-bottom: 1px solid rgba(34,45,52,0.6);
+          display: flex; align-items: center; gap: 12px;
+          padding: 12px 16px; cursor: pointer;
+          border-bottom: 1px solid #f1f5f9;
           transition: background 0.1s;
         }
-        .cl-item:hover { background: #1f2c33; }
-        .cl-item.active { background: #2a3942; }
+        .cl-item:hover { background: #f8fafc; }
+        .cl-item.active { background: rgba(37,99,235,0.06); border-left: 3px solid #2563eb; }
         .cl-avatar {
-          width: 49px; height: 49px; border-radius: 50%;
-          background: #6b7c85;
+          width: 44px; height: 44px; border-radius: 50%;
+          background: linear-gradient(135deg,#2563eb,#7c3aed);
           display: flex; align-items: center; justify-content: center;
-          font-size: 20px; font-weight: 400; color: white; flex-shrink: 0;
+          font-size: 17px; font-weight: 600; color: white; flex-shrink: 0;
         }
         .cl-info { flex: 1; min-width: 0; }
         .cl-row {
           display: flex; align-items: center;
-          justify-content: space-between; gap: 8px; margin-bottom: 4px;
+          justify-content: space-between; gap: 6px; margin-bottom: 3px;
         }
         .cl-row:last-child { margin-bottom: 0; }
-        .cl-name {
-          font-size: 15px; font-weight: 400; color: #e9edef;
-          white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1;
-        }
-        .cl-time { font-size: 12px; color: #8696a0; flex-shrink: 0; }
-        .cl-preview {
-          font-size: 13px; color: #8696a0;
-          white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1;
-        }
-        .cl-badges { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+        .cl-name { font-size: 14px; font-weight: 600; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
+        .cl-time { font-size: 11px; color: #94a3b8; flex-shrink: 0; }
+        .cl-preview { font-size: 12px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
+        .cl-badges { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
         .cl-agent-badge {
           display: inline-flex; align-items: center; gap: 3px;
           font-size: 10px; font-weight: 600;
           padding: 1px 6px; border-radius: 8px;
-          background: rgba(0,168,132,0.15); color: #00a884;
-          white-space: nowrap; max-width: 80px;
-          overflow: hidden; text-overflow: ellipsis;
+          background: rgba(16,185,129,0.1); color: #10b981;
+          max-width: 72px; overflow: hidden; text-overflow: ellipsis;
         }
-        .cl-unassigned { font-size: 12px; color: #667781; }
-        .cl-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .cl-unassigned { font-size: 12px; color: #cbd5e1; }
+        .cl-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
-        @media (max-width: 768px) {
-          .chat-list { width: 100vw; }
-        }
+        @media (max-width: 768px) { .cl-root { width: 100vw; } }
       `}</style>
     </div>
   )
