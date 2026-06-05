@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useSocket } from '../context/SocketContext'
 import { useAuth } from '../context/AuthContext'
 import { getMessages, sendMessage, sendMedia, assignAgent, updateStatus, getConversations, getAgents } from '../hooks/useApi'
-import { Send, ChevronDown, ArrowLeft, UserCheck, Paperclip, X, FileText, Play } from 'lucide-react'
+import { Send, ChevronDown, ArrowLeft, UserCheck, Paperclip, X, FileText, Play, Download, Check, Image, Film } from 'lucide-react'
 
 const STATUS_OPTIONS = ['open', 'in_progress', 'resolved']
 
@@ -65,6 +65,137 @@ function DateSeparator({ label }) {
   )
 }
 
+// Image with error fallback
+function ImgMedia({ url, filename, caption, sent, onImageClick }) {
+  const [error, setError] = useState(false)
+  const [loaded, setLoaded] = useState(false)
+
+  if (!url || error) {
+    return (
+      <a
+        href={url || '#'}
+        target="_blank"
+        rel="noreferrer"
+        className={`cv-media-broken ${sent ? 'sent' : 'recv'}`}
+      >
+        <Image size={28} strokeWidth={1.5} />
+        <div className="cv-media-broken-info">
+          <span>Foto</span>
+          <span className="cv-media-broken-sub">Tap untuk buka</span>
+        </div>
+        <Download size={16} className="cv-media-broken-dl" />
+      </a>
+    )
+  }
+
+  return (
+    <div className="cv-media-wrap">
+      {!loaded && (
+        <div className="cv-media-skeleton">
+          <div className="cv-media-skel-inner" />
+        </div>
+      )}
+      <img
+        src={url}
+        className="cv-media-img"
+        alt="foto"
+        style={{ display: loaded ? 'block' : 'none' }}
+        onLoad={() => setLoaded(true)}
+        onError={() => setError(true)}
+        onClick={() => onImageClick(url)}
+      />
+      {caption && <p className="cv-media-caption">{caption}</p>}
+    </div>
+  )
+}
+
+// Video with error fallback
+function VideoMedia({ url, filename, caption, sent }) {
+  const [error, setError] = useState(false)
+
+  if (!url || error) {
+    return (
+      <a
+        href={url || '#'}
+        target="_blank"
+        rel="noreferrer"
+        className={`cv-media-broken ${sent ? 'sent' : 'recv'}`}
+      >
+        <Film size={28} strokeWidth={1.5} />
+        <div className="cv-media-broken-info">
+          <span>Video</span>
+          <span className="cv-media-broken-sub">Tap untuk buka</span>
+        </div>
+        <Download size={16} className="cv-media-broken-dl" />
+      </a>
+    )
+  }
+
+  return (
+    <div className="cv-media-wrap">
+      <video
+        src={url}
+        controls
+        className="cv-media-video"
+        onError={() => setError(true)}
+      />
+      {caption && <p className="cv-media-caption">{caption}</p>}
+    </div>
+  )
+}
+
+// Document with download animation
+function DocMedia({ url, filename, sent }) {
+  const [dlStatus, setDlStatus] = useState('idle') // idle | downloading | done
+
+  const handleClick = () => {
+    if (dlStatus !== 'idle') return
+    setDlStatus('downloading')
+    setTimeout(() => setDlStatus('done'), 2200)
+  }
+
+  const ext = filename?.split('.').pop()?.toUpperCase() || 'FILE'
+
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noreferrer"
+      download={filename}
+      className={`cv-media-doc ${sent ? 'sent' : 'recv'}`}
+      onClick={handleClick}
+    >
+      <div className="cv-media-doc-icon-wrap">
+        {dlStatus === 'idle' && (
+          <div className="cv-media-doc-icon">
+            <FileText size={22} />
+            <span className="cv-media-doc-ext">{ext}</span>
+          </div>
+        )}
+        {dlStatus === 'downloading' && (
+          <div className="cv-media-doc-icon dl-active">
+            <div className="cv-dl-ring" />
+            <Download size={14} className="cv-dl-icon" />
+          </div>
+        )}
+        {dlStatus === 'done' && (
+          <div className="cv-media-doc-icon dl-done">
+            <Check size={20} />
+          </div>
+        )}
+      </div>
+      <div className="cv-media-doc-info">
+        <span className="cv-media-doc-name">{filename || 'Download file'}</span>
+        <span className="cv-media-doc-sub">
+          {dlStatus === 'idle' && 'Tap untuk unduh'}
+          {dlStatus === 'downloading' && 'Mengunduh...'}
+          {dlStatus === 'done' && 'Terunduh ✓'}
+        </span>
+      </div>
+    </a>
+  )
+}
+
 function MediaContent({ msg, sent, onImageClick }) {
   const { media_type, media_url, media_filename, body } = msg
   const caption = body && !body.startsWith('[') ? body : null
@@ -74,26 +205,11 @@ function MediaContent({ msg, sent, onImageClick }) {
   }
 
   if (media_type === 'image') {
-    return (
-      <div className="cv-media-wrap">
-        <img
-          src={media_url}
-          className="cv-media-img"
-          alt="image"
-          onClick={() => onImageClick(media_url)}
-        />
-        {caption && <p className="cv-media-caption">{caption}</p>}
-      </div>
-    )
+    return <ImgMedia url={media_url} filename={media_filename} caption={caption} sent={sent} onImageClick={onImageClick} />
   }
 
   if (media_type === 'video') {
-    return (
-      <div className="cv-media-wrap">
-        <video src={media_url} controls className="cv-media-video" />
-        {caption && <p className="cv-media-caption">{caption}</p>}
-      </div>
-    )
+    return <VideoMedia url={media_url} filename={media_filename} caption={caption} sent={sent} />
   }
 
   if (media_type === 'audio') {
@@ -105,24 +221,9 @@ function MediaContent({ msg, sent, onImageClick }) {
   }
 
   if (media_type === 'document') {
-    return (
-      <a
-        href={media_url}
-        target="_blank"
-        rel="noreferrer"
-        download={media_filename}
-        className={`cv-media-doc ${sent ? 'sent' : 'recv'}`}
-      >
-        <div className="cv-media-doc-icon"><FileText size={22} /></div>
-        <div className="cv-media-doc-info">
-          <span className="cv-media-doc-name">{media_filename || 'Download file'}</span>
-          <span className="cv-media-doc-sub">Tap untuk unduh</span>
-        </div>
-      </a>
-    )
+    return <DocMedia url={media_url} filename={media_filename} sent={sent} />
   }
 
-  // Fallback: media tanpa URL (belum didownload)
   return (
     <div className="cv-media-placeholder">
       <Paperclip size={16} />
@@ -156,7 +257,7 @@ export default function ChatPage({ chatId }) {
   const [error, setError] = useState('')
   const [showStatusMenu, setShowStatusMenu] = useState(false)
   const [showAgentMenu, setShowAgentMenu] = useState(false)
-  const [selectedFile, setSelectedFile] = useState(null) // { file, previewUrl, type }
+  const [selectedFile, setSelectedFile] = useState(null)
   const [lightboxUrl, setLightboxUrl] = useState(null)
   const bottomRef = useRef(null)
   const fileInputRef = useRef(null)
@@ -266,7 +367,6 @@ export default function ChatPage({ chatId }) {
 
   return (
     <div className="cv-root" onClick={closeMenus}>
-      {/* Lightbox */}
       <ImageLightbox url={lightboxUrl} onClose={() => setLightboxUrl(null)} />
 
       {/* Header */}
@@ -553,31 +653,94 @@ export default function ChatPage({ chatId }) {
         .cv-meta { display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: 3px; padding: 0 4px; }
         .cv-time { font-size: 10px; color: rgba(255,255,255,0.6); white-space: nowrap; }
         .brecv .cv-time { color: #94a3b8; }
-        /* Media */
+        /* Media base */
         .cv-media-wrap { min-width: 180px; }
+        /* Image */
+        .cv-media-skeleton {
+          width: 240px; height: 160px; border-radius: 8px;
+          background: rgba(0,0,0,0.08); overflow: hidden;
+        }
+        .cv-media-skel-inner {
+          width: 100%; height: 100%;
+          background: linear-gradient(90deg,transparent 25%,rgba(255,255,255,0.3) 50%,transparent 75%);
+          background-size: 200% 100%;
+          animation: shimmer 1.4s infinite;
+        }
         .cv-media-img {
           width: 100%; max-width: 280px; border-radius: 8px;
-          display: block; cursor: pointer; object-fit: cover;
+          display: block; cursor: zoom-in; object-fit: cover;
           transition: opacity 0.15s;
         }
         .cv-media-img:hover { opacity: 0.92; }
+        /* Video */
         .cv-media-video {
           width: 100%; max-width: 280px; border-radius: 8px; display: block;
         }
+        /* Audio */
         .cv-media-audio-wrap { padding: 4px 0; }
         .cv-media-audio { width: 220px; height: 36px; }
+        /* Caption */
         .cv-media-caption { font-size: 13px; padding: 6px 4px 0; line-height: 1.4; }
-        .cv-media-doc {
+        /* Broken media fallback */
+        .cv-media-broken {
           display: flex; align-items: center; gap: 10px;
-          padding: 10px; border-radius: 8px; text-decoration: none;
-          min-width: 180px;
+          padding: 12px 14px; border-radius: 10px; text-decoration: none;
+          min-width: 180px; transition: opacity 0.15s;
         }
-        .cv-media-doc.sent { background: rgba(255,255,255,0.12); color: #fff; }
-        .cv-media-doc.recv { background: #f0f4f8; color: #1e293b; }
-        .cv-media-doc-icon { flex-shrink: 0; }
-        .cv-media-doc-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-        .cv-media-doc-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .cv-media-doc-sub { font-size: 11px; opacity: 0.7; }
+        .cv-media-broken:hover { opacity: 0.85; }
+        .cv-media-broken.sent { background: rgba(255,255,255,0.15); color: rgba(255,255,255,0.9); }
+        .cv-media-broken.recv { background: #f0f4f8; color: #475569; border: 1px solid #e2e8f0; }
+        .cv-media-broken-info { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+        .cv-media-broken-info span { font-size: 13px; font-weight: 600; }
+        .cv-media-broken-sub { font-size: 11px; opacity: 0.65; font-weight: 400 !important; }
+        .cv-media-broken-dl { opacity: 0.6; flex-shrink: 0; }
+        /* Document */
+        .cv-media-doc {
+          display: flex; align-items: center; gap: 12px;
+          padding: 12px 14px; border-radius: 10px; text-decoration: none;
+          min-width: 200px; transition: opacity 0.15s; cursor: pointer;
+        }
+        .cv-media-doc:hover { opacity: 0.88; }
+        .cv-media-doc.sent { background: rgba(255,255,255,0.15); color: #fff; }
+        .cv-media-doc.recv { background: #f0f4f8; color: #1e293b; border: 1px solid #e2e8f0; }
+        .cv-media-doc-icon-wrap { flex-shrink: 0; }
+        .cv-media-doc-icon {
+          width: 42px; height: 42px; border-radius: 10px;
+          display: flex; flex-direction: column; align-items: center; justify-content: center;
+          gap: 1px; position: relative;
+        }
+        .bsent .cv-media-doc-icon { background: rgba(255,255,255,0.18); color: #fff; }
+        .brecv .cv-media-doc-icon { background: #dbeafe; color: #2563eb; }
+        .cv-media-doc-ext {
+          font-size: 8px; font-weight: 800; letter-spacing: 0.3px;
+          text-transform: uppercase; line-height: 1;
+        }
+        .cv-media-doc-icon.dl-active {
+          position: relative;
+        }
+        .bsent .cv-media-doc-icon.dl-active { background: rgba(255,255,255,0.18); color: #fff; }
+        .brecv .cv-media-doc-icon.dl-active { background: #dbeafe; color: #2563eb; }
+        .cv-dl-ring {
+          position: absolute; inset: 3px;
+          border-radius: 50%;
+          border: 2.5px solid transparent;
+          border-top-color: currentColor;
+          animation: spin 0.8s linear infinite;
+        }
+        .cv-dl-icon { position: relative; z-index: 1; }
+        .cv-media-doc-icon.dl-done {
+          animation: popIn 0.3s ease;
+        }
+        .bsent .cv-media-doc-icon.dl-done { background: rgba(16,185,129,0.25); color: #6ee7b7; }
+        .brecv .cv-media-doc-icon.dl-done { background: rgba(16,185,129,0.12); color: #10b981; }
+        .cv-media-doc-info { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
+        .cv-media-doc-name {
+          font-size: 13px; font-weight: 600;
+          white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+          max-width: 180px;
+        }
+        .cv-media-doc-sub { font-size: 11px; opacity: 0.65; }
+        /* Placeholder */
         .cv-media-placeholder {
           display: flex; align-items: center; gap: 6px;
           font-size: 13px; opacity: 0.7; padding: 4px;
@@ -668,6 +831,8 @@ export default function ChatPage({ chatId }) {
         }
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+        @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+        @keyframes popIn { 0%{transform:scale(0.6);opacity:0} 70%{transform:scale(1.15)} 100%{transform:scale(1);opacity:1} }
       `}</style>
     </div>
   )
