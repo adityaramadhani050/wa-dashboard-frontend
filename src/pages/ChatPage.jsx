@@ -97,7 +97,11 @@ export default function ChatPage({ chatId }) {
 
   useEffect(() => {
     fetchData()
-    if (isAdmin) getAgents().then(d => setAgents(Array.isArray(d) ? d : [])).catch(() => {})
+    if (isAdmin) {
+      getAgents()
+        .then(d => setAgents(Array.isArray(d) ? d.filter(a => a.role === 'agent') : []))
+        .catch(() => {})
+    }
   }, [fetchData, isAdmin])
 
   useEffect(() => {
@@ -141,7 +145,6 @@ export default function ChatPage({ chatId }) {
   const assignedAgent = conversation?.agents
   const status = conversation?.status || 'open'
 
-  // Build message list with date separators
   const messageItems = []
   let lastDateKey = null
   for (const msg of messages) {
@@ -173,17 +176,22 @@ export default function ChatPage({ chatId }) {
         <div className="cv-actions" onClick={e => e.stopPropagation()}>
           {isAdmin && (
             <div className="cv-dd">
-              <button className="cv-icon-btn" onClick={() => { setShowAgentMenu(!showAgentMenu); setShowStatusMenu(false) }} title="Assign Agent">
-                <UserCheck size={17} />
+              <button
+                className="cv-assign-btn"
+                onClick={() => { setShowAgentMenu(!showAgentMenu); setShowStatusMenu(false) }}
+              >
+                <UserCheck size={15} />
+                Assign
               </button>
               {showAgentMenu && (
                 <div className="cv-menu" style={{minWidth:200}}>
-                  <div className="cv-menu-lbl">Assign Agent</div>
+                  <div className="cv-menu-lbl">Assign ke Agent</div>
                   {agents.length === 0
                     ? <div className="cv-mi muted">Tidak ada agent</div>
                     : agents.map(a => (
                       <button key={a.id} className={`cv-mi${assignedAgent?.id === a.id ? ' active' : ''}`} onClick={() => handleAgentAssign(a)}>
-                        <span>{a.name}</span><span className="cv-mi-sub">{a.email}</span>
+                        <span>{a.name}</span>
+                        <span className="cv-mi-sub">{a.username ? `@${a.username}` : a.email}</span>
                       </button>
                     ))
                   }
@@ -303,6 +311,15 @@ export default function ChatPage({ chatId }) {
         }
         .cv-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
         .cv-dd { position: relative; }
+        .cv-assign-btn {
+          display: flex; align-items: center; gap: 5px;
+          padding: 6px 12px; border-radius: 8px;
+          font-size: 13px; font-weight: 600;
+          color: #475569; background: #f1f5f9;
+          border: 1px solid #e2e8f0;
+          transition: all 0.15s;
+        }
+        .cv-assign-btn:hover { background: #e2e8f0; color: #1e293b; }
         .cv-chip {
           display: flex; align-items: center; gap: 4px;
           padding: 5px 10px; border-radius: 20px;
@@ -313,12 +330,6 @@ export default function ChatPage({ chatId }) {
         .cv-chip.st-open { background: rgba(37,99,235,0.08); color: #2563eb; border-color: rgba(37,99,235,0.2); }
         .cv-chip.st-in_progress { background: rgba(245,158,11,0.08); color: #f59e0b; border-color: rgba(245,158,11,0.2); }
         .cv-chip.st-resolved { background: rgba(16,185,129,0.08); color: #10b981; border-color: rgba(16,185,129,0.2); }
-        .cv-icon-btn {
-          width: 36px; height: 36px; border-radius: 8px;
-          display: flex; align-items: center; justify-content: center;
-          color: #64748b; transition: all 0.15s;
-        }
-        .cv-icon-btn:hover { background: #f1f5f9; color: #1e293b; }
         .cv-menu {
           position: absolute; right: 0; top: calc(100% + 6px);
           background: #fff; border: 1px solid #e2e8f0;
@@ -349,7 +360,6 @@ export default function ChatPage({ chatId }) {
           display: flex; align-items: center; justify-content: space-between;
           flex-shrink: 0;
         }
-        /* Messages */
         .cv-messages {
           flex: 1; min-height: 0; overflow-y: auto;
           padding: 16px 20px;
@@ -367,14 +377,12 @@ export default function ChatPage({ chatId }) {
           margin: auto; color: #94a3b8; font-size: 14px;
           text-align: center; padding: 32px;
         }
-        /* Date separator */
         .cv-date-sep {
           display: flex; align-items: center; justify-content: center;
           margin: 10px 0 8px;
         }
         .cv-date-sep span {
-          background: #dce8f5;
-          color: #4a6fa5;
+          background: #dce8f5; color: #4a6fa5;
           font-size: 11px; font-weight: 600;
           padding: 4px 12px; border-radius: 20px;
           letter-spacing: 0.2px;
@@ -394,7 +402,6 @@ export default function ChatPage({ chatId }) {
         .cv-meta { display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: 3px; }
         .cv-time { font-size: 10px; color: rgba(255,255,255,0.6); white-space: nowrap; }
         .brecv .cv-time { color: #94a3b8; }
-        /* Input */
         .cv-input-bar {
           display: flex; align-items: flex-end; gap: 10px;
           padding: 10px 14px;
