@@ -3,7 +3,7 @@ import { useNavigate, useMatch } from 'react-router-dom'
 import { useSocket } from '../context/SocketContext'
 import { useAuth } from '../context/AuthContext'
 import { getConversations } from '../hooks/useApi'
-import { Search, RefreshCw } from 'lucide-react'
+import { Search, RefreshCw, UserCheck } from 'lucide-react'
 
 function timeStr(dateStr) {
   if (!dateStr) return ''
@@ -96,6 +96,10 @@ export default function InboxPage() {
             const initial = name[0].toUpperCase()
             const preview = conv.lastMessage || 'Belum ada pesan'
             const assignedAgent = conv.agents
+            // Truncate agent name to max 10 chars
+            const agentLabel = assignedAgent?.name?.length > 10
+              ? assignedAgent.name.slice(0, 10) + '…'
+              : assignedAgent?.name
 
             return (
               <div
@@ -113,7 +117,9 @@ export default function InboxPage() {
                     <span className="cl-preview">{preview}</span>
                     <div className="cl-badges">
                       {isAdmin && assignedAgent && (
-                        <span className="cl-agent-badge">{assignedAgent.name}</span>
+                        <span className="cl-agent-badge" title={assignedAgent.name}>
+                          <UserCheck size={9} />{agentLabel}
+                        </span>
                       )}
                       {isAdmin && !assignedAgent && <span className="cl-unassigned">—</span>}
                       <span className="cl-dot" style={{ background: statusColor(conv.status) }} />
@@ -198,11 +204,11 @@ export default function InboxPage() {
         .cl-preview { font-size: 12px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
         .cl-badges { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
         .cl-agent-badge {
-          display: inline-flex; align-items: center;
+          display: inline-flex; align-items: center; gap: 3px;
           font-size: 10px; font-weight: 600;
           padding: 1px 6px; border-radius: 8px;
           background: rgba(16,185,129,0.1); color: #10b981;
-          max-width: 72px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+          white-space: nowrap;
         }
         .cl-unassigned { font-size: 12px; color: #cbd5e1; }
         .cl-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
