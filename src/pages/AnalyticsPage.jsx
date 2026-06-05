@@ -13,7 +13,7 @@ function fmtDate(d) {
 function StatCard({ icon: Icon, label, value, sub, color }) {
   return (
     <div className="an-stat">
-      <div className="an-stat-icon" style={{ background: `${color}22`, color }}>
+      <div className="an-stat-icon" style={{ background: `${color}18`, color }}>
         <Icon size={18} />
       </div>
       <div className="an-stat-body">
@@ -40,7 +40,6 @@ const Tip = ({ active, payload, label }) => {
 }
 
 export default function AnalyticsPage() {
-  // Default date range: last 14 days
   const defaultTo = fmtDate(new Date())
   const defaultFrom = fmtDate(new Date(Date.now() - 13 * 86400000))
 
@@ -137,23 +136,23 @@ export default function AnalyticsPage() {
 
       {/* Summary cards */}
       <div className="an-cards">
-        <StatCard icon={MessageSquare} label="Total Pesan" value={totalMessages} color="#53bdeb" />
-        <StatCard icon={TrendingUp} label="Pesan Masuk" value={totalIncoming} color="#00a884" />
-        <StatCard icon={TrendingUp} label="Pesan Keluar" value={totalOutgoing} color="#ffa929" />
+        <StatCard icon={MessageSquare} label="Total Pesan" value={totalMessages} color="#2563eb" />
+        <StatCard icon={TrendingUp} label="Pesan Masuk" value={totalIncoming} color="#2563eb" />
+        <StatCard icon={TrendingUp} label="Pesan Keluar" value={totalOutgoing} color="#f59e0b" />
         <StatCard
           icon={UserPlus}
           label="Total Kontak"
           value={contacts?.total ?? '—'}
           sub={contacts?.newToday != null ? `+${contacts.newToday} hari ini` : null}
-          color="#53bdeb"
+          color="#2563eb"
         />
-        <StatCard icon={UserCheck} label="Resolved" value={totalResolved} color="#00a884" />
-        <StatCard icon={Users} label="Di-assign" value={totalHandled} color="#8696a0" />
+        <StatCard icon={UserCheck} label="Resolved" value={totalResolved} color="#10b981" />
+        <StatCard icon={Users} label="Di-assign" value={totalHandled} color="#6366f1" />
         <StatCard
           icon={Clock}
           label="Avg Respons"
           value={globalAvgResponse != null ? `${globalAvgResponse} mnt` : '—'}
-          color="#ffa929"
+          color="#f59e0b"
         />
       </div>
 
@@ -167,14 +166,14 @@ export default function AnalyticsPage() {
           ) : (
             <ResponsiveContainer width="100%" height={220}>
               <LineChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#222d34" />
-                <XAxis dataKey="date" tick={{ fill: '#8696a0', fontSize: 11 }} />
-                <YAxis tick={{ fill: '#8696a0', fontSize: 11 }} allowDecimals={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="date" tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} allowDecimals={false} />
                 <Tooltip content={<Tip />} />
-                <Legend wrapperStyle={{ fontSize: 12, color: '#8696a0' }} />
-                <Line type="monotone" dataKey="Masuk" stroke="#00a884" strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="Keluar" stroke="#ffa929" strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="Kontak Baru" stroke="#53bdeb" strokeWidth={2} dot={false} strokeDasharray="4 4" />
+                <Legend wrapperStyle={{ fontSize: 12, color: '#64748b' }} />
+                <Line type="monotone" dataKey="Masuk" stroke="#2563eb" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="Keluar" stroke="#f59e0b" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="Kontak Baru" stroke="#10b981" strokeWidth={2} dot={false} strokeDasharray="4 4" />
               </LineChart>
             </ResponsiveContainer>
           )}
@@ -188,13 +187,13 @@ export default function AnalyticsPage() {
           ) : (
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={agentChart} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#222d34" />
-                <XAxis dataKey="name" tick={{ fill: '#8696a0', fontSize: 11 }} />
-                <YAxis tick={{ fill: '#8696a0', fontSize: 11 }} allowDecimals={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} allowDecimals={false} />
                 <Tooltip content={<Tip />} />
-                <Legend wrapperStyle={{ fontSize: 12, color: '#8696a0' }} />
-                <Bar dataKey="Ditangani" fill="#53bdeb" radius={[4,4,0,0]} />
-                <Bar dataKey="Resolved" fill="#00a884" radius={[4,4,0,0]} />
+                <Legend wrapperStyle={{ fontSize: 12, color: '#64748b' }} />
+                <Bar dataKey="Ditangani" fill="#2563eb" radius={[4,4,0,0]} />
+                <Bar dataKey="Resolved" fill="#10b981" radius={[4,4,0,0]} />
               </BarChart>
             </ResponsiveContainer>
           )}
@@ -249,68 +248,71 @@ export default function AnalyticsPage() {
       )}
 
       <style>{`
-        .an-page { padding: 24px 24px 40px; width: 100%; color: #e9edef; }
+        .an-page { padding: 24px 24px 40px; width: 100%; color: var(--text, #1e293b); }
 
         /* Header */
         .an-header {
           display: flex; align-items: flex-start;
           justify-content: space-between; gap: 12px; margin-bottom: 16px;
         }
-        .an-header h1 { font-size: 20px; font-weight: 600; margin-bottom: 3px; }
-        .an-header p { font-size: 13px; color: #8696a0; }
+        .an-header h1 { font-size: 20px; font-weight: 700; margin-bottom: 3px; color: #1e293b; }
+        .an-header p { font-size: 13px; color: #64748b; }
         .an-refresh {
           display: flex; align-items: center; gap: 6px;
           padding: 8px 14px; border-radius: 8px;
-          background: #2a3942; color: #e9edef;
+          background: #ffffff; color: #475569;
+          border: 1px solid #e2e8f0;
           font-size: 13px; font-weight: 500;
           white-space: nowrap; flex-shrink: 0;
+          box-shadow: 0 1px 2px rgba(0,0,0,0.05);
         }
-        .an-refresh:hover { background: #374a52; }
+        .an-refresh:hover { background: #f8fafc; border-color: #cbd5e1; }
         .an-refresh:disabled { opacity: 0.6; }
 
         /* Date filter */
         .an-filter {
           display: flex; align-items: center; flex-wrap: wrap; gap: 10px;
-          padding: 12px 16px; background: #202c33;
-          border: 1px solid #222d34; border-radius: 10px;
+          padding: 12px 16px; background: #ffffff;
+          border: 1px solid #e2e8f0; border-radius: 10px;
           margin-bottom: 20px;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }
-        .an-filter-icon { color: #8696a0; flex-shrink: 0; }
+        .an-filter-icon { color: #94a3b8; flex-shrink: 0; }
         .an-presets { display: flex; gap: 6px; flex-wrap: wrap; }
         .an-presets button {
           padding: 4px 12px; border-radius: 16px;
-          background: #2a3942; color: #8696a0;
-          font-size: 12px; font-weight: 500; transition: all 0.15s;
+          background: #f0f4f8; color: #475569;
+          font-size: 12px; font-weight: 500;
+          border: 1px solid #e2e8f0; transition: all 0.15s;
         }
-        .an-presets button:hover { background: #374a52; color: #e9edef; }
+        .an-presets button:hover { background: #e0e7ff; color: #2563eb; border-color: #c7d2fe; }
         .an-date-range {
           display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-left: auto;
         }
-        .an-date-range span { font-size: 12px; color: #8696a0; }
+        .an-date-range span { font-size: 12px; color: #94a3b8; }
         .an-date-range input[type="date"] {
-          background: #2a3942; border: 1px solid #374a52; border-radius: 6px;
-          color: #e9edef; padding: 5px 10px; font-size: 13px;
+          background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px;
+          color: #1e293b; padding: 5px 10px; font-size: 13px;
           outline: none; cursor: pointer;
         }
-        .an-date-range input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.6); cursor: pointer; }
+        .an-date-range input[type="date"]:focus { border-color: #2563eb; }
         .an-apply {
           padding: 6px 14px; border-radius: 6px;
-          background: #00a884; color: white;
+          background: #2563eb; color: white;
           font-size: 13px; font-weight: 600; transition: opacity 0.15s;
         }
-        .an-apply:hover { opacity: 0.85; }
+        .an-apply:hover { background: #1d4ed8; }
         .an-apply:disabled { opacity: 0.5; }
 
         .an-error {
-          background: rgba(241,92,109,0.1); border: 1px solid rgba(241,92,109,0.2);
+          background: #fef2f2; border: 1px solid #fecaca;
           border-radius: 8px; padding: 12px 16px;
-          color: #f15c6d; font-size: 13px; margin-bottom: 20px;
+          color: #dc2626; font-size: 13px; margin-bottom: 20px;
         }
 
-        /* Stat cards — full width grid */
+        /* Stat cards */
         .an-cards {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(0, 1fr));
           gap: 10px; margin-bottom: 20px;
         }
         @media (min-width: 1200px) { .an-cards { grid-template-columns: repeat(7, 1fr); } }
@@ -319,18 +321,19 @@ export default function AnalyticsPage() {
 
         .an-stat {
           display: flex; align-items: center; gap: 10px;
-          padding: 14px 12px; background: #202c33;
-          border: 1px solid #222d34; border-radius: 10px;
+          padding: 14px 12px; background: #ffffff;
+          border: 1px solid #e2e8f0; border-radius: 10px;
           min-width: 0;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }
         .an-stat-icon {
           width: 36px; height: 36px; border-radius: 8px; flex-shrink: 0;
           display: flex; align-items: center; justify-content: center;
         }
         .an-stat-body { min-width: 0; }
-        .an-stat-val { font-size: 18px; font-weight: 700; line-height: 1; }
-        .an-stat-lbl { font-size: 11px; color: #8696a0; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .an-stat-sub { font-size: 11px; color: #00a884; margin-top: 2px; }
+        .an-stat-val { font-size: 18px; font-weight: 700; line-height: 1; color: #1e293b; }
+        .an-stat-lbl { font-size: 11px; color: #64748b; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .an-stat-sub { font-size: 11px; color: #10b981; margin-top: 2px; }
 
         /* Charts */
         .an-charts {
@@ -339,38 +342,39 @@ export default function AnalyticsPage() {
           gap: 14px; margin-bottom: 20px;
         }
         .an-chart-box {
-          background: #202c33; border: 1px solid #222d34;
+          background: #ffffff; border: 1px solid #e2e8f0;
           border-radius: 10px; padding: 18px; min-width: 0;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }
-        .an-chart-box h3 { font-size: 14px; font-weight: 600; margin-bottom: 3px; }
-        .an-chart-sub { font-size: 12px; color: #8696a0; margin-bottom: 14px; }
-        .an-skel { height: 220px; background: #2a3942; border-radius: 8px; animation: pulse 1.4s ease infinite; }
-        .an-chart-empty { height: 220px; display: flex; align-items: center; justify-content: center; color: #8696a0; font-size: 13px; }
-        .an-tip { background: #1a2429; border: 1px solid #2a3942; border-radius: 8px; padding: 10px 14px; font-size: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.5); }
-        .an-tip-lbl { font-weight: 600; margin-bottom: 6px; color: #e9edef; }
+        .an-chart-box h3 { font-size: 14px; font-weight: 600; margin-bottom: 3px; color: #1e293b; }
+        .an-chart-sub { font-size: 12px; color: #94a3b8; margin-bottom: 14px; }
+        .an-skel { height: 220px; background: #f0f4f8; border-radius: 8px; animation: pulse 1.4s ease infinite; }
+        .an-chart-empty { height: 220px; display: flex; align-items: center; justify-content: center; color: #94a3b8; font-size: 13px; }
+        .an-tip { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; font-size: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
+        .an-tip-lbl { font-weight: 600; margin-bottom: 6px; color: #1e293b; }
 
         /* Table */
-        .an-table-box { background: #202c33; border: 1px solid #222d34; border-radius: 10px; padding: 18px; margin-bottom: 28px; }
-        .an-table-box h3 { font-size: 14px; font-weight: 600; margin-bottom: 14px; }
+        .an-table-box { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px; margin-bottom: 28px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .an-table-box h3 { font-size: 14px; font-weight: 600; margin-bottom: 14px; color: #1e293b; }
         .an-table-wrap { overflow-x: auto; }
         .an-table { width: 100%; border-collapse: collapse; }
-        .an-table th { text-align: left; padding: 8px 12px; font-size: 11px; font-weight: 600; color: #8696a0; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #222d34; }
-        .an-table td { padding: 10px 12px; font-size: 13px; border-bottom: 1px solid #1a2429; color: #e9edef; }
+        .an-table th { text-align: left; padding: 8px 12px; font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #e2e8f0; }
+        .an-table td { padding: 10px 12px; font-size: 13px; border-bottom: 1px solid #f0f4f8; color: #1e293b; }
         .an-table tr:last-child td { border-bottom: none; }
-        .an-table tr:hover td { background: #233138; }
+        .an-table tr:hover td { background: #f8fafc; }
         .an-agent-cell { display: flex; align-items: center; gap: 8px; }
-        .an-avatar { width: 28px; height: 28px; border-radius: 50%; background: #005c4b; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: white; }
-        .an-agent-name { font-size: 13px; font-weight: 500; }
-        .an-agent-email { font-size: 11px; color: #8696a0; }
+        .an-avatar { width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg,#2563eb,#7c3aed); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: white; }
+        .an-agent-name { font-size: 13px; font-weight: 500; color: #1e293b; }
+        .an-agent-email { font-size: 11px; color: #94a3b8; }
         .an-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; }
-        .an-badge.open { background: rgba(83,189,235,0.15); color: #53bdeb; }
-        .an-badge.progress { background: rgba(255,169,41,0.15); color: #ffa929; }
-        .an-badge.resolved { background: rgba(0,168,132,0.15); color: #00a884; }
-        .an-resp { font-size: 13px; color: #ffa929; font-weight: 500; }
+        .an-badge.open { background: #eff6ff; color: #2563eb; }
+        .an-badge.progress { background: #fffbeb; color: #d97706; }
+        .an-badge.resolved { background: #f0fdf4; color: #10b981; }
+        .an-resp { font-size: 13px; color: #d97706; font-weight: 500; }
         .an-rate { display: flex; align-items: center; gap: 6px; }
-        .an-rate-bar { width: 60px; height: 5px; background: #2a3942; border-radius: 3px; overflow: hidden; }
-        .an-rate-fill { height: 100%; background: #00a884; border-radius: 3px; }
-        .an-rate span { font-size: 12px; color: #8696a0; min-width: 28px; }
+        .an-rate-bar { width: 60px; height: 5px; background: #e2e8f0; border-radius: 3px; overflow: hidden; }
+        .an-rate-fill { height: 100%; background: #2563eb; border-radius: 3px; }
+        .an-rate span { font-size: 12px; color: #64748b; min-width: 28px; }
 
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
