@@ -52,11 +52,11 @@ a { text-decoration: none; color: inherit; }
   overflow: hidden;
 }
 
+/* Full page panels (Analytics, QR) — scrollable */
 .wa-full-panel {
   flex: 1;
-  display: flex;
   min-width: 0;
-  overflow: hidden;
+  overflow-y: auto;
   background: var(--wa-bg);
 }
 
