@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { getAgents, createAgent, updateAgent, deleteAgent } from '../hooks/useApi'
 import { Plus, Pencil, Trash2, X, Eye, EyeOff, Users } from 'lucide-react'
 
-const EMPTY_FORM = { name: '', email: '', role: 'agent', password: '', confirmPassword: '' }
+const EMPTY_FORM = { name: '', username: '', email: '', role: 'agent', password: '', confirmPassword: '' }
 
 function Modal({ title, onClose, children }) {
   return (
@@ -26,7 +26,7 @@ function AgentForm({ initial, onSave, onClose, loading, error, isEdit }) {
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    if (!form.name || !form.email) return
+    if (!form.name || !form.username) return
     if (!isEdit && !form.password) return
     if (form.password && form.password !== form.confirmPassword) return
     onSave(form)
@@ -37,12 +37,22 @@ function AgentForm({ initial, onSave, onClose, loading, error, isEdit }) {
   return (
     <form onSubmit={handleSubmit} className="am-form">
       <div className="am-field">
-        <label>Nama <span className="req">*</span></label>
+        <label>Nama Lengkap <span className="req">*</span></label>
         <input value={form.name} onChange={e => set('name', e.target.value)} placeholder="Nama lengkap" required />
       </div>
       <div className="am-field">
-        <label>Email <span className="req">*</span></label>
-        <input type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder="email@company.com" required />
+        <label>Username <span className="req">*</span></label>
+        <input
+          value={form.username}
+          onChange={e => set('username', e.target.value.toLowerCase().replace(/\s/g, ''))}
+          placeholder="contoh: johndoe"
+          required
+        />
+        <span className="am-hint">Huruf kecil, tanpa spasi</span>
+      </div>
+      <div className="am-field">
+        <label>Email <span style={{fontSize:11,color:'#94a3b8'}}>(opsional)</span></label>
+        <input type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder="email@company.com" />
       </div>
       <div className="am-field">
         <label>Role</label>
@@ -83,11 +93,7 @@ function AgentForm({ initial, onSave, onClose, loading, error, isEdit }) {
       {error && <div className="am-form-err">{error}</div>}
       <div className="am-form-actions">
         <button type="button" className="am-btn secondary" onClick={onClose}>Batal</button>
-        <button
-          type="submit"
-          className="am-btn primary"
-          disabled={loading || pwMismatch}
-        >
+        <button type="submit" className="am-btn primary" disabled={loading || pwMismatch}>
           {loading ? 'Menyimpan...' : isEdit ? 'Simpan Perubahan' : 'Buat Agent'}
         </button>
       </div>
@@ -115,7 +121,13 @@ export default function AgentManagementPage() {
   const handleCreate = async (form) => {
     setSaving(true); setFormError('')
     try {
-      const agent = await createAgent({ name: form.name, email: form.email, role: form.role, password: form.password })
+      const agent = await createAgent({
+        name: form.name,
+        username: form.username,
+        email: form.email || undefined,
+        role: form.role,
+        password: form.password,
+      })
       setAgents(prev => [agent, ...prev])
       setModal(null)
     } catch (e) { setFormError(e.response?.data?.error || 'Gagal membuat agent') }
@@ -125,7 +137,7 @@ export default function AgentManagementPage() {
   const handleUpdate = async (form) => {
     setSaving(true); setFormError('')
     try {
-      const payload = { name: form.name, email: form.email, role: form.role }
+      const payload = { name: form.name, username: form.username, email: form.email, role: form.role }
       if (form.password) payload.password = form.password
       const updated = await updateAgent(modal.agent.id, payload)
       setAgents(prev => prev.map(a => a.id === updated.id ? updated : a))
@@ -176,6 +188,7 @@ export default function AgentManagementPage() {
               <thead>
                 <tr>
                   <th>Nama</th>
+                  <th>Username</th>
                   <th>Email</th>
                   <th>Role</th>
                   <th>Dibuat</th>
@@ -191,7 +204,8 @@ export default function AgentManagementPage() {
                         <span>{a.name}</span>
                       </div>
                     </td>
-                    <td className="am-email">{a.email}</td>
+                    <td><span className="am-username">@{a.username || '—'}</span></td>
+                    <td className="am-email">{a.email || <span style={{color:'#cbd5e1'}}>-</span>}</td>
                     <td>{roleBadge(a.role)}</td>
                     <td className="am-date">
                       {a.created_at ? new Date(a.created_at).toLocaleDateString('id', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
@@ -222,14 +236,12 @@ export default function AgentManagementPage() {
         )}
       </div>
 
-      {/* Create modal */}
       {modal === 'create' && (
         <Modal title="Tambah Agent Baru" onClose={() => setModal(null)}>
           <AgentForm onSave={handleCreate} onClose={() => setModal(null)} loading={saving} error={formError} isEdit={false} />
         </Modal>
       )}
 
-      {/* Edit modal */}
       {modal?.agent && (
         <Modal title="Edit Agent" onClose={() => setModal(null)}>
           <AgentForm
@@ -243,7 +255,6 @@ export default function AgentManagementPage() {
         </Modal>
       )}
 
-      {/* Delete confirm */}
       {deleteTarget && (
         <Modal title="Hapus Agent" onClose={() => setDeleteTarget(null)}>
           <div className="am-confirm">
@@ -267,8 +278,6 @@ export default function AgentManagementPage() {
         }
         .am-header h1 { font-size: 20px; font-weight: 700; margin-bottom: 3px; color: #1e293b; }
         .am-header p { font-size: 13px; color: #64748b; }
-
-        /* Buttons */
         .am-btn {
           display: inline-flex; align-items: center; gap: 6px;
           padding: 8px 16px; border-radius: 8px;
@@ -282,8 +291,6 @@ export default function AgentManagementPage() {
         .am-btn.danger { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
         .am-btn.danger:hover { background: #fee2e2; }
         .am-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-
-        /* Table */
         .am-table-box { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
         .am-table-wrap { overflow-x: auto; }
         .am-table { width: 100%; border-collapse: collapse; }
@@ -298,89 +305,46 @@ export default function AgentManagementPage() {
           display: flex; align-items: center; justify-content: center;
           font-size: 13px; font-weight: 700; color: white;
         }
+        .am-username { font-size: 13px; color: #2563eb; font-weight: 500; font-family: monospace; }
         .am-email { color: #64748b; font-size: 13px; }
         .am-date { color: #94a3b8; font-size: 12px; }
-        .am-role {
-          display: inline-block; padding: 2px 10px; border-radius: 10px;
-          font-size: 12px; font-weight: 600;
-        }
+        .am-role { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 12px; font-weight: 600; }
         .am-role.admin { background: #fffbeb; color: #d97706; }
         .am-role.agent { background: #eff6ff; color: #2563eb; }
         .am-actions { display: flex; gap: 6px; }
-        .am-icon-btn {
-          width: 32px; height: 32px; border-radius: 6px;
-          display: flex; align-items: center; justify-content: center;
-          transition: all 0.15s;
-        }
+        .am-icon-btn { width: 32px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
         .am-icon-btn.edit { color: #94a3b8; }
         .am-icon-btn.edit:hover { background: #eff6ff; color: #2563eb; }
         .am-icon-btn.del { color: #94a3b8; }
         .am-icon-btn.del:hover { background: #fef2f2; color: #dc2626; }
-
         .am-loading { padding: 16px; display: flex; flex-direction: column; gap: 8px; }
         .am-skel { height: 56px; background: #f0f4f8; border-radius: 8px; animation: pulse 1.4s ease infinite; }
         .am-empty { padding: 60px 20px; text-align: center; color: #94a3b8; font-size: 14px; display: flex; flex-direction: column; align-items: center; }
-
-        /* Modal overlay */
-        .am-overlay {
-          position: fixed; inset: 0; z-index: 500;
-          background: rgba(15,23,42,0.5);
-          display: flex; align-items: center; justify-content: center;
-          padding: 20px;
-        }
-        .am-modal {
-          background: #ffffff; border: 1px solid #e2e8f0;
-          border-radius: 12px; width: 100%; max-width: 440px;
-          box-shadow: 0 20px 60px rgba(0,0,0,0.15);
-          overflow: hidden;
-        }
-        .am-modal-header {
-          display: flex; align-items: center; justify-content: space-between;
-          padding: 16px 20px; border-bottom: 1px solid #e2e8f0;
-          background: #f8fafc;
-        }
+        .am-overlay { position: fixed; inset: 0; z-index: 500; background: rgba(15,23,42,0.5); display: flex; align-items: center; justify-content: center; padding: 20px; }
+        .am-modal { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; width: 100%; max-width: 440px; box-shadow: 0 20px 60px rgba(0,0,0,0.15); overflow: hidden; }
+        .am-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid #e2e8f0; background: #f8fafc; }
         .am-modal-header h3 { font-size: 15px; font-weight: 600; color: #1e293b; }
-        .am-close {
-          width: 30px; height: 30px; border-radius: 6px;
-          display: flex; align-items: center; justify-content: center;
-          color: #94a3b8; transition: all 0.15s;
-        }
+        .am-close { width: 30px; height: 30px; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #94a3b8; transition: all 0.15s; }
         .am-close:hover { background: #e2e8f0; color: #475569; }
-
-        /* Form */
         .am-form { padding: 20px; display: flex; flex-direction: column; gap: 14px; }
         .am-field { display: flex; flex-direction: column; gap: 5px; }
         .am-field label { font-size: 12px; color: #475569; font-weight: 600; }
-        .am-field input, .am-field select {
-          background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 7px;
-          color: #1e293b; padding: 10px 14px; font-size: 14px; outline: none;
-          transition: border-color 0.15s;
-        }
+        .am-field input, .am-field select { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 7px; color: #1e293b; padding: 10px 14px; font-size: 14px; outline: none; transition: border-color 0.15s; }
         .am-field input:focus, .am-field select:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
         .am-field input::placeholder { color: #cbd5e1; }
         .req { color: #dc2626; }
         .am-pw-wrap { position: relative; }
         .am-pw-wrap input { width: 100%; padding-right: 40px; }
-        .am-pw-eye {
-          position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
-          color: #94a3b8; padding: 4px;
-        }
+        .am-pw-eye { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; padding: 4px; }
         .am-pw-eye:hover { color: #475569; }
-        .am-hint { font-size: 11px; margin-top: 3px; }
+        .am-hint { font-size: 11px; color: #94a3b8; margin-top: 2px; }
         .am-hint.err { color: #dc2626; }
-        .am-form-err {
-          padding: 10px 14px;
-          background: #fef2f2; border: 1px solid #fecaca;
-          border-radius: 7px; color: #dc2626; font-size: 13px;
-        }
+        .am-form-err { padding: 10px 14px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 7px; color: #dc2626; font-size: 13px; }
         .am-form-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
-
-        /* Delete confirm */
         .am-confirm { padding: 20px; }
         .am-confirm p { font-size: 14px; color: #1e293b; margin-bottom: 6px; }
         .am-confirm-sub { font-size: 13px; color: #64748b; }
         .am-confirm .am-form-actions { margin-top: 20px; }
-
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
       `}</style>
     </div>

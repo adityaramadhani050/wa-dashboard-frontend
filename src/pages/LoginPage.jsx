@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { Eye, EyeOff, LogIn } from 'lucide-react'
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [showPw, setShowPw] = useState(false)
   const [error, setError] = useState('')
@@ -15,10 +15,10 @@ export default function LoginPage() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
-    if (!email || !password) { setError('Email dan password wajib diisi'); return }
+    if (!username || !password) { setError('Username dan password wajib diisi'); return }
     setLoading(true)
     try {
-      await login(email, password)
+      await login(username, password)
       navigate('/inbox')
     } catch (err) {
       setError(err.response?.data?.error || 'Login gagal. Coba lagi.')
@@ -46,10 +46,11 @@ export default function LoginPage() {
           <div className="lp-field">
             <label>USERNAME</label>
             <input
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
+              type="text"
+              value={username}
+              onChange={e => setUsername(e.target.value)}
               placeholder="Masukkan username"
+              autoComplete="username"
               autoFocus
             />
           </div>
@@ -61,6 +62,7 @@ export default function LoginPage() {
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 placeholder="Masukkan password"
+                autoComplete="current-password"
               />
               <button type="button" className="lp-pw-eye" onClick={() => setShowPw(s => !s)}>
                 {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -93,7 +95,6 @@ export default function LoginPage() {
           padding: 36px 32px;
           box-shadow: 0 24px 64px rgba(0,0,0,0.5);
         }
-        /* Brand */
         .lp-brand {
           display: flex; align-items: center; gap: 12px;
           margin-bottom: 28px;
@@ -110,7 +111,6 @@ export default function LoginPage() {
         .lp-brand-sub { font-size: 10px; color: #64748b; margin-top: 3px; letter-spacing: 0.5px; }
         .lp-title { font-size: 20px; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
         .lp-desc { font-size: 13px; color: #64748b; margin-bottom: 24px; }
-        /* Form */
         .lp-form { display: flex; flex-direction: column; gap: 16px; }
         .lp-field { display: flex; flex-direction: column; gap: 6px; }
         .lp-field label {

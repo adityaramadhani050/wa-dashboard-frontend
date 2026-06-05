@@ -19,8 +19,8 @@ function loadUser() {
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(loadUser)
 
-  const login = async (email, password) => {
-    const { data } = await api.post('/auth/login', { email, password })
+  const login = async (username, password) => {
+    const { data } = await api.post('/auth/login', { username, password })
     const userData = data.user
     localStorage.setItem('wa_user', JSON.stringify(userData))
     setUser(userData)
