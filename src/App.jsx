@@ -7,18 +7,14 @@ import QRSetupPage from './pages/QRSetupPage'
 import InboxPage from './pages/InboxPage'
 import ChatPage from './pages/ChatPage'
 import AnalyticsPage from './pages/AnalyticsPage'
+import AgentManagementPage from './pages/AgentManagementPage'
 
 function WelcomeView() {
   return (
     <div style={{
-      flex: 1,
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      background: '#0b141a',
-      color: '#8696a0',
-      gap: 20,
+      flex: 1, display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center',
+      background: '#0b141a', color: '#8696a0', gap: 20,
       borderLeft: '1px solid #222d34',
     }}>
       <svg viewBox="0 0 24 24" fill="#8696a0" width="80" height="80" style={{opacity:0.2}}>
@@ -37,11 +33,17 @@ function ProtectedShell() {
   const matchChat = useMatch('/chat/:id')
   const matchQR = useMatch('/qr')
   const matchAnalytics = useMatch('/analytics')
+  const matchAgents = useMatch('/agents')
 
   if (!user) return <Navigate to="/login" replace />
 
+  // Redirect agent away from admin-only pages
+  if (user.role !== 'admin' && (matchQR || matchAnalytics || matchAgents)) {
+    return <Navigate to="/inbox" replace />
+  }
+
   const chatId = matchChat?.params?.id
-  const isFullPage = matchQR || matchAnalytics
+  const isFullPage = matchQR || matchAnalytics || matchAgents
 
   return (
     <SocketProvider>
@@ -49,7 +51,9 @@ function ProtectedShell() {
         <IconBar />
         {isFullPage ? (
           <div className="wa-full-panel">
-            {matchQR ? <QRSetupPage /> : <AnalyticsPage />}
+            {matchQR && <QRSetupPage />}
+            {matchAnalytics && <AnalyticsPage />}
+            {matchAgents && <AgentManagementPage />}
           </div>
         ) : (
           <>

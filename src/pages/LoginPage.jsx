@@ -13,13 +13,13 @@ export default function LoginPage() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
-    if (!email || !password) { setError('Please fill in all fields'); return }
+    if (!email || !password) { setError('Email dan password wajib diisi'); return }
     setLoading(true)
     try {
-      await login(email)
+      await login(email, password)
       navigate('/inbox')
     } catch (err) {
-      setError(err.response?.data?.error || 'Email not found. Contact admin.')
+      setError(err.response?.data?.error || 'Login gagal. Coba lagi.')
     } finally {
       setLoading(false)
     }
@@ -60,14 +60,14 @@ export default function LoginPage() {
           </div>
           {error && <div className="lp-error">{error}</div>}
           <button type="submit" className="lp-submit" disabled={loading}>
-            {loading ? 'Signing in…' : 'Sign in'}
+            {loading ? 'Masuk...' : 'Masuk'}
           </button>
         </form>
       </div>
 
       <style>{`
         .lp-root {
-          min-height: 100vh;
+          min-height: 100%;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -82,10 +82,7 @@ export default function LoginPage() {
           padding: 40px 36px;
           box-shadow: 0 8px 40px rgba(0,0,0,0.5);
         }
-        .lp-logo {
-          text-align: center;
-          margin-bottom: 32px;
-        }
+        .lp-logo { text-align: center; margin-bottom: 32px; }
         .lp-logo-icon {
           width: 68px; height: 68px;
           background: #00a884;
@@ -100,14 +97,9 @@ export default function LoginPage() {
         .lp-field { display: flex; flex-direction: column; gap: 6px; }
         .lp-field label { font-size: 13px; color: #8696a0; font-weight: 500; }
         .lp-field input {
-          background: #2a3942;
-          border: none;
-          border-radius: 8px;
-          color: #e9edef;
-          padding: 12px 16px;
-          font-size: 15px;
-          outline: none;
-          transition: box-shadow 0.15s;
+          background: #2a3942; border: none; border-radius: 8px;
+          color: #e9edef; padding: 12px 16px; font-size: 15px;
+          outline: none; transition: box-shadow 0.15s;
         }
         .lp-field input:focus { box-shadow: 0 0 0 2px rgba(0,168,132,0.4); }
         .lp-field input::placeholder { color: #667781; }
@@ -115,21 +107,13 @@ export default function LoginPage() {
           padding: 10px 14px;
           background: rgba(241,92,109,0.12);
           border: 1px solid rgba(241,92,109,0.2);
-          border-radius: 8px;
-          color: #f15c6d;
-          font-size: 13px;
+          border-radius: 8px; color: #f15c6d; font-size: 13px;
         }
         .lp-submit {
-          background: #00a884;
-          color: white;
-          border: none;
-          border-radius: 8px;
-          padding: 13px;
-          font-size: 15px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: background 0.15s;
-          margin-top: 4px;
+          background: #00a884; color: white;
+          border-radius: 8px; padding: 13px;
+          font-size: 15px; font-weight: 600;
+          transition: background 0.15s; margin-top: 4px;
         }
         .lp-submit:hover { background: #008069; }
         .lp-submit:disabled { opacity: 0.6; cursor: not-allowed; }

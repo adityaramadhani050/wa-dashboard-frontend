@@ -1,7 +1,7 @@
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useSocket } from '../context/SocketContext'
-import { MessageSquare, BarChart2, QrCode, LogOut } from 'lucide-react'
+import { MessageSquare, BarChart2, QrCode, LogOut, Users } from 'lucide-react'
 
 export default function IconBar() {
   const { user, logout } = useAuth()
@@ -15,6 +15,7 @@ export default function IconBar() {
   const navItems = [
     { path: '/inbox', icon: MessageSquare, label: 'Chats', adminOnly: false },
     { path: '/analytics', icon: BarChart2, label: 'Analytics', adminOnly: true },
+    { path: '/agents', icon: Users, label: 'Manajemen Agent', adminOnly: true },
     { path: '/qr', icon: QrCode, label: 'QR Setup', adminOnly: true },
   ].filter(item => !item.adminOnly || isAdmin)
 
@@ -51,22 +52,17 @@ export default function IconBar() {
 
       <style>{`
         .icon-bar {
-          width: 72px;
-          min-width: 72px;
+          width: 72px; min-width: 72px;
           background: #202c33;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: space-between;
+          display: flex; flex-direction: column;
+          align-items: center; justify-content: space-between;
           padding: 14px 0;
           border-right: 1px solid #222d34;
           flex-shrink: 0;
         }
         .ib-top, .ib-nav, .ib-bottom {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 4px;
+          display: flex; flex-direction: column;
+          align-items: center; gap: 4px;
         }
         .ib-user-avatar {
           width: 40px; height: 40px; border-radius: 50%;
@@ -83,9 +79,7 @@ export default function IconBar() {
         .ib-btn:hover { background: #2a3942; color: #e9edef; }
         .ib-btn.active { color: #00a884; }
         .ib-btn.logout:hover { color: #f15c6d; background: rgba(241,92,109,0.1); }
-        .ib-dot {
-          width: 8px; height: 8px; border-radius: 50%; margin-bottom: 4px;
-        }
+        .ib-dot { width: 8px; height: 8px; border-radius: 50%; margin-bottom: 4px; }
         .ib-dot.online { background: #00a884; box-shadow: 0 0 8px rgba(0,168,132,0.6); }
         .ib-dot.offline { background: #667781; }
       `}</style>

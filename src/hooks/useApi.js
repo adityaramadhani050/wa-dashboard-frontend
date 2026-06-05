@@ -18,6 +18,9 @@ export const getDailyStats = (from, to) => api.get('/stats/daily', { params: { f
 export const getAgentStats = () => api.get('/stats/agents').then(r => r.data)
 export const getContactStats = () => api.get('/stats/contacts').then(r => r.data)
 export const getAgents = () => api.get('/agents').then(r => r.data)
+export const createAgent = (payload) => api.post('/agents', payload).then(r => r.data)
+export const updateAgent = (id, payload) => api.put(`/agents/${id}`, payload).then(r => r.data)
+export const deleteAgent = (id) => api.delete(`/agents/${id}`).then(r => r.data)
 export const resetWASession = () => api.post('/wa/reset').then(r => r.data)
 
 export default api
