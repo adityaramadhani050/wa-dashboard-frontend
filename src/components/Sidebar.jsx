@@ -22,13 +22,12 @@ export default function IconBar() {
   return (
     <div className="icon-bar">
       <div className="ib-top">
-        {/* Logo */}
         <div style={{
-          width: 36, height: 36, borderRadius: 10,
-          background: '#4a82c4',
+          width: 34, height: 34, borderRadius: 10,
+          background: '#3563e9',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 16, fontWeight: 800, color: '#fff',
-          marginBottom: 14, letterSpacing: '-0.5px',
+          fontSize: 15, fontWeight: 800, color: '#fff',
+          marginBottom: 16, flexShrink: 0,
         }}>R</div>
 
         {navItems.map(({ path, icon: Icon, label }) => {

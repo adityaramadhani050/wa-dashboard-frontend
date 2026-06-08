@@ -5,6 +5,13 @@ import { useAuth } from '../context/AuthContext'
 import { getConversations } from '../hooks/useApi'
 import { Search, RefreshCw, UserCheck } from 'lucide-react'
 
+const TABS = [
+  { id: 'all', label: 'Semua' },
+  { id: 'open', label: 'Aktif' },
+  { id: 'in_progress', label: 'Diproses' },
+  { id: 'resolved', label: 'Selesai' },
+]
+
 function timeStr(dateStr) {
   if (!dateStr) return ''
   const d = new Date(dateStr)
@@ -19,16 +26,11 @@ function timeStr(dateStr) {
   return d.toLocaleDateString([], { day: 'numeric', month: 'short' })
 }
 
-function statusColor(s) {
-  if (s === 'resolved') return '#2da882'
-  if (s === 'in_progress') return '#d49228'
-  return '#4a82c4'
-}
-
 export default function InboxPage() {
   const [conversations, setConversations] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [activeTab, setActiveTab] = useState('all')
   const { newMessages } = useSocket()
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
@@ -49,37 +51,50 @@ export default function InboxPage() {
   useEffect(() => { if (newMessages.length > 0) fetch() }, [newMessages, fetch])
 
   const filtered = conversations.filter(c => {
-    if (!search) return true
+    const matchesTab = activeTab === 'all' || c.status === activeTab
     const q = search.toLowerCase()
-    return (
+    const matchesSearch = !search ||
       c.contact?.name?.toLowerCase().includes(q) ||
       c.contact?.phone?.includes(q) ||
       c.lastMessage?.toLowerCase().includes(q)
-    )
+    return matchesTab && matchesSearch
   })
 
   return (
     <div className="cl-root">
+      {/* Header */}
       <div className="cl-header">
-        <div>
-          <h2>Pesan</h2>
-          {user?.role && <span className="cl-role">{isAdmin ? 'Admin' : user.name || 'Agent'}</span>}
+        <div className="cl-header-top">
+          <h2>Chats</h2>
+          <button className="cl-icon-btn" onClick={fetch} title="Refresh">
+            <RefreshCw size={15} />
+          </button>
         </div>
-        <button className="cl-icon-btn" onClick={fetch} title="Refresh">
-          <RefreshCw size={15} />
-        </button>
+        {/* Search */}
+        <div className="cl-search">
+          <Search size={14} />
+          <input
+            type="text"
+            placeholder="Cari percakapan..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+        </div>
+        {/* Tabs */}
+        <div className="cl-tabs">
+          {TABS.map(tab => (
+            <button
+              key={tab.id}
+              className={`cl-tab${activeTab === tab.id ? ' active' : ''}`}
+              onClick={() => setActiveTab(tab.id)}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="cl-search">
-        <Search size={14} />
-        <input
-          type="text"
-          placeholder="Cari percakapan..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-        />
-      </div>
-
+      {/* List */}
       <div className="cl-list">
         {loading ? (
           [...Array(6)].map((_, i) => (
@@ -87,7 +102,7 @@ export default function InboxPage() {
           ))
         ) : filtered.length === 0 ? (
           <div className="cl-empty">
-            {search ? 'Tidak ditemukan' : user?.role === 'agent' ? 'Belum ada percakapan yang di-assign' : 'Belum ada percakapan'}
+            {search ? 'Tidak ditemukan' : 'Belum ada percakapan'}
           </div>
         ) : (
           filtered.map(conv => {
@@ -96,8 +111,8 @@ export default function InboxPage() {
             const initial = name[0].toUpperCase()
             const preview = conv.lastMessage || 'Belum ada pesan'
             const assignedAgent = conv.agents
-            const agentLabel = assignedAgent?.name?.length > 10
-              ? assignedAgent.name.slice(0, 10) + '…'
+            const agentLabel = assignedAgent?.name?.length > 12
+              ? assignedAgent.name.slice(0, 12) + '…'
               : assignedAgent?.name
 
             return (
@@ -114,15 +129,11 @@ export default function InboxPage() {
                   </div>
                   <div className="cl-row">
                     <span className="cl-preview">{preview}</span>
-                    <div className="cl-badges">
-                      {isAdmin && assignedAgent && (
-                        <span className="cl-agent-badge" title={assignedAgent.name}>
-                          <UserCheck size={9} />{agentLabel}
-                        </span>
-                      )}
-                      {isAdmin && !assignedAgent && <span className="cl-unassigned">—</span>}
-                      <span className="cl-dot" style={{ background: statusColor(conv.status) }} />
-                    </div>
+                    {isAdmin && assignedAgent && (
+                      <span className="cl-agent-badge" title={assignedAgent.name}>
+                        <UserCheck size={9} />{agentLabel}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -134,64 +145,90 @@ export default function InboxPage() {
       <style>{`
         .cl-root {
           display: flex; flex-direction: column;
-          width: 100%; min-height: 0;
+          width: 100%; height: 100%;
           background: #fff; overflow: hidden;
         }
         .cl-header {
-          display: flex; align-items: center; justify-content: space-between;
-          padding: 18px 18px 12px;
-          border-bottom: 1px solid #e0e8f2;
+          padding: 18px 16px 0;
+          border-bottom: 1px solid #e4eaf5;
           flex-shrink: 0;
         }
-        .cl-header h2 { font-size: 16px; font-weight: 700; color: #1d2d42; }
-        .cl-role {
-          display: inline-block;
-          font-size: 10px; font-weight: 600;
-          padding: 2px 8px; border-radius: 20px;
-          background: rgba(74,130,196,0.08); color: #4a82c4;
-          margin-top: 3px;
+        .cl-header-top {
+          display: flex; align-items: center; justify-content: space-between;
+          margin-bottom: 12px;
         }
+        .cl-header-top h2 { font-size: 18px; font-weight: 700; color: #1a2540; }
         .cl-icon-btn {
           width: 32px; height: 32px; border-radius: 8px;
           display: flex; align-items: center; justify-content: center;
-          color: #a0b3c8; transition: all 0.15s;
+          color: #a8b8d0; transition: all 0.15s;
         }
-        .cl-icon-btn:hover { background: #f2f5f9; color: #52607a; }
+        .cl-icon-btn:hover { background: #f0f3fa; color: #4f607a; }
         .cl-search {
           display: flex; align-items: center; gap: 8px;
-          margin: 10px 12px; padding: 8px 12px;
-          background: #f7f9fc; border: 1px solid #e0e8f2;
-          border-radius: 8px; flex-shrink: 0;
+          padding: 8px 12px; margin-bottom: 12px;
+          background: #f7f9fd; border: 1px solid #e4eaf5;
+          border-radius: 10px;
         }
-        .cl-search svg { color: #a0b3c8; flex-shrink: 0; }
+        .cl-search svg { color: #a8b8d0; flex-shrink: 0; }
         .cl-search input {
           background: none; border: none; outline: none;
-          color: #1d2d42; font-size: 13px; width: 100%;
+          color: #1a2540; font-size: 13px; width: 100%;
         }
         .cl-search input::placeholder { color: #b8c8d8; }
+        .cl-tabs {
+          display: flex; gap: 2px;
+          overflow-x: auto;
+          padding-bottom: 0;
+        }
+        .cl-tabs::-webkit-scrollbar { display: none; }
+        .cl-tab {
+          padding: 8px 14px;
+          font-size: 13px; font-weight: 500;
+          color: #8a9bb8; border-radius: 0;
+          border-bottom: 2px solid transparent;
+          transition: all 0.15s; white-space: nowrap;
+          margin-bottom: -1px;
+        }
+        .cl-tab:hover { color: #3563e9; }
+        .cl-tab.active {
+          color: #3563e9; font-weight: 600;
+          border-bottom-color: #3563e9;
+        }
         .cl-list { flex: 1; min-height: 0; overflow-y: auto; }
         .cl-skel {
-          height: 66px; margin: 4px 12px; border-radius: 10px;
-          background: #f2f5f9; animation: pulse 1.4s ease infinite;
+          height: 64px; margin: 4px 12px; border-radius: 10px;
+          background: #f0f3fa; animation: pulse 1.4s ease infinite;
         }
         .cl-empty {
           text-align: center; padding: 48px 20px;
-          color: #a0b3c8; font-size: 13px;
+          color: #a8b8d0; font-size: 13px;
         }
         .cl-item {
           display: flex; align-items: center; gap: 12px;
           padding: 12px 16px; cursor: pointer;
-          border-bottom: 1px solid #f2f5f9;
+          border-bottom: 1px solid #f4f6fb;
           transition: background 0.1s;
         }
-        .cl-item:hover { background: #f7f9fc; }
-        .cl-item.active { background: rgba(74,130,196,0.06); border-left: 3px solid #4a82c4; }
+        .cl-item:hover { background: #f7f9fd; }
+        .cl-item.active {
+          background: #3563e9;
+        }
+        .cl-item.active .cl-name { color: #fff; }
+        .cl-item.active .cl-time { color: rgba(255,255,255,0.7); }
+        .cl-item.active .cl-preview { color: rgba(255,255,255,0.75); }
+        .cl-item.active .cl-agent-badge {
+          background: rgba(255,255,255,0.18); color: #fff;
+        }
         .cl-avatar {
           width: 42px; height: 42px; border-radius: 50%;
-          background: #d8e7f5;
-          color: #4a82c4;
+          background: #dce8fb;
+          color: #3563e9;
           display: flex; align-items: center; justify-content: center;
           font-size: 16px; font-weight: 700; flex-shrink: 0;
+        }
+        .cl-item.active .cl-avatar {
+          background: rgba(255,255,255,0.22); color: #fff;
         }
         .cl-info { flex: 1; min-width: 0; }
         .cl-row {
@@ -199,19 +236,16 @@ export default function InboxPage() {
           justify-content: space-between; gap: 6px; margin-bottom: 3px;
         }
         .cl-row:last-child { margin-bottom: 0; }
-        .cl-name { font-size: 14px; font-weight: 600; color: #1d2d42; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
-        .cl-time { font-size: 11px; color: #a0b3c8; flex-shrink: 0; }
-        .cl-preview { font-size: 12px; color: #8fa2b8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
-        .cl-badges { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+        .cl-name { font-size: 14px; font-weight: 600; color: #1a2540; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
+        .cl-time { font-size: 11px; color: #a8b8d0; flex-shrink: 0; }
+        .cl-preview { font-size: 12px; color: #8a9bb8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
         .cl-agent-badge {
           display: inline-flex; align-items: center; gap: 3px;
           font-size: 10px; font-weight: 600;
-          padding: 1px 6px; border-radius: 8px;
-          background: rgba(45,168,130,0.1); color: #2da882;
-          white-space: nowrap;
+          padding: 2px 7px; border-radius: 20px;
+          background: rgba(39,168,122,0.1); color: #27a87a;
+          white-space: nowrap; flex-shrink: 0;
         }
-        .cl-unassigned { font-size: 12px; color: #c8d6e8; }
-        .cl-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
         @media (max-width: 768px) { .cl-root { width: 100vw; } }
       `}</style>
