@@ -272,7 +272,7 @@ export default function ChatPage({ chatId }) {
           {isAdmin && (
             <div className="cv-dd">
               <button className="cv-assign-btn" onClick={() => { setShowAgentMenu(!showAgentMenu); setShowStatusMenu(false) }}>
-                <UserCheck size={14} />Assign
+                <UserCheck size={15} /><span className="cv-btn-label">Assign</span>
               </button>
               {showAgentMenu && (
                 <div className="cv-menu" style={{minWidth:200}}>
@@ -292,7 +292,7 @@ export default function ChatPage({ chatId }) {
           )}
           <div className="cv-dd">
             <button className={`cv-status-btn st-${status}`} onClick={() => { setShowStatusMenu(!showStatusMenu); setShowAgentMenu(false) }}>
-              <span className="cv-status-dot" />{statusLabel(status)}<ChevronDown size={12} />
+              <span className="cv-status-dot" /><span className="cv-btn-label">{statusLabel(status)}</span><ChevronDown size={12} />
             </button>
             {showStatusMenu && (
               <div className="cv-menu" style={{minWidth:140}}>
@@ -386,7 +386,7 @@ export default function ChatPage({ chatId }) {
         >
           {sending
             ? <div className="cv-sending-dot" />
-            : <><span>Send message</span><Send size={15} /></>}
+            : <><span className="cv-send-label">Send message</span><Send size={15} /></>}
         </button>
       </div>
 
@@ -415,8 +415,8 @@ export default function ChatPage({ chatId }) {
           display: flex; align-items: center; justify-content: center;
           font-size: 15px; font-weight: 700; flex-shrink: 0;
         }
-        .cv-contact { flex: 1; min-width: 0; }
-        .cv-name { font-size: 14px; font-weight: 600; color: #1a2540; }
+        .cv-contact { flex: 1; min-width: 0; overflow: hidden; }
+        .cv-name { font-size: 14px; font-weight: 600; color: #1a2540; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .cv-sub { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 1px; }
         .cv-phone { font-size: 12px; color: #a8b8d0; }
         .cv-assigned {
@@ -428,7 +428,7 @@ export default function ChatPage({ chatId }) {
           font-size: 11px; padding: 1px 7px; border-radius: 10px;
           background: rgba(208,139,40,0.1); color: #d08b28;
         }
-        .cv-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+        .cv-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
         .cv-dd { position: relative; }
         .cv-assign-btn {
           display: flex; align-items: center; gap: 5px;
@@ -531,7 +531,7 @@ export default function ChatPage({ chatId }) {
         .cv-file-name { font-size: 13px; font-weight: 500; color: #1a2540; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
         .cv-file-remove { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #a8b8d0; }
         .cv-file-remove:hover { background: #dce8fb; color: #3563e9; }
-        /* Input bar - single row */
+        /* Input bar */
         .cv-input-bar {
           display: flex; align-items: flex-end; gap: 10px;
           padding: 12px 16px; background: #fff;
@@ -572,6 +572,17 @@ export default function ChatPage({ chatId }) {
         .cv-lightbox-close { position: absolute; top: 16px; right: 16px; width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center; color: white; }
         .cv-lightbox-close:hover { background: rgba(255,255,255,0.25); }
         .cv-lightbox-img { max-width: 90vw; max-height: 90vh; border-radius: 8px; object-fit: contain; }
+        /* Mobile adjustments */
+        @media (max-width: 768px) {
+          .cv-header { padding: 10px 12px; gap: 8px; min-height: 56px; }
+          .cv-messages { padding: 12px; }
+          .cv-bubble { max-width: 78%; }
+          .cv-btn-label { display: none; }
+          .cv-assign-btn { padding: 8px 10px; }
+          .cv-status-btn { padding: 8px 10px; gap: 4px; }
+          .cv-send-label { display: none; }
+          .cv-send-btn { padding: 0; width: 42px; height: 42px; justify-content: center; border-radius: 10px; }
+        }
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
         @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }

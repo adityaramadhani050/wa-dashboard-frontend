@@ -22,7 +22,8 @@ export default function IconBar() {
   return (
     <div className="icon-bar">
       <div className="ib-top">
-        <div style={{
+        {/* ib-logo class hides this on mobile */}
+        <div className="ib-logo" style={{
           width: 34, height: 34, borderRadius: 10,
           background: '#3563e9',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
