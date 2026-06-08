@@ -139,29 +139,31 @@ a { text-decoration: none; color: inherit; }
     flex-direction: column;
   }
 
-  /* Bottom navigation bar */
+  /* Bottom navigation bar — all items centered in one row */
   .icon-bar {
     order: 99;
     width: 100%;
     height: 58px;
     flex-direction: row;
-    justify-content: space-evenly;
+    justify-content: center;
     align-items: center;
-    padding: 0 4px;
+    gap: 4px;
+    padding: 0 12px;
     border-right: none;
     border-top: 1.5px solid var(--border);
     flex-shrink: 0;
   }
 
-  .ib-top { flex-direction: row; gap: 0; }
-  .ib-bottom { flex-direction: row; gap: 0; }
+  /* Both groups become inline rows, gap handled by parent */
+  .ib-top { flex-direction: row; gap: 4px; }
+  .ib-bottom { flex-direction: row; gap: 4px; }
 
-  /* Hide logo, dot and user chip on mobile */
+  /* Hide logo, status dot and user chip */
   .ib-logo,
   .ib-dot,
   .ib-user-chip { display: none !important; }
 
-  /* Remove left-bar indicator on mobile, use a subtle bottom dot instead */
+  /* Remove left-bar indicator on mobile */
   .ib-btn.active::before { display: none; }
   .ib-btn { border-radius: 10px; }
 
