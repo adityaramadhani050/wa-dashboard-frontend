@@ -12,11 +12,11 @@ export function SocketProvider({ children }) {
   const [socketError, setSocketError] = useState(null)
   const [qrCode, setQrCode] = useState(null)
   const [newMessages, setNewMessages] = useState([])
+  const [statusUpdates, setStatusUpdates] = useState([])
   const socketRef = useRef(null)
 
   useEffect(() => {
     const s = io(BACKEND_URL, {
-      // Force WebSocket only — no polling fallback
       transports: ['websocket'],
       reconnectionAttempts: 10,
       reconnectionDelay: 1000,
@@ -69,6 +69,10 @@ export function SocketProvider({ children }) {
       setNewMessages(prev => [...prev.slice(-99), data])
     })
 
+    s.on('message_status', (data) => {
+      setStatusUpdates(prev => [...prev.slice(-99), data])
+    })
+
     return () => s.disconnect()
   }, [])
 
@@ -79,6 +83,7 @@ export function SocketProvider({ children }) {
       socket, socketConnected, socketError,
       waConnected, qrCode, setQrCode,
       newMessages, clearNewMessages,
+      statusUpdates,
     }}>
       {children}
     </SocketContext.Provider>

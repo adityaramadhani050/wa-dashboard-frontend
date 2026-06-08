@@ -4,7 +4,7 @@ import { useSocket } from '../context/SocketContext'
 import { useAuth } from '../context/AuthContext'
 import { getMessages, sendMessage, sendMedia, assignAgent, updateStatus, getConversations, getAgents } from '../hooks/useApi'
 import { supabase } from '../lib/supabase'
-import { Send, ChevronDown, ArrowLeft, UserCheck, Paperclip, X, FileText, Play, Download, Check, Image, Film } from 'lucide-react'
+import { Send, ChevronDown, ArrowLeft, UserCheck, Paperclip, X, FileText, Play, Download, Check, Image, Film, Clock } from 'lucide-react'
 
 const STATUS_OPTIONS = ['open', 'in_progress', 'resolved']
 
@@ -63,7 +63,7 @@ function DateSeparator({ label }) {
   return <div className="cv-date-sep"><span>{label}</span></div>
 }
 
-function ImgMedia({ url, filename, caption, sent, onImageClick }) {
+function ImgMedia({ url, caption, sent, onImageClick }) {
   const [error, setError] = useState(false)
   const [loaded, setLoaded] = useState(false)
   if (!url || error) {
@@ -130,7 +130,7 @@ function MediaContent({ msg, sent, onImageClick }) {
   const { media_type, media_url, media_filename, body } = msg
   const caption = body && !body.startsWith('[') ? body : null
   if (!media_url && !media_type) return <p>{msg.body || msg.content || msg.text}</p>
-  if (media_type === 'image') return <ImgMedia url={media_url} filename={media_filename} caption={caption} sent={sent} onImageClick={onImageClick} />
+  if (media_type === 'image') return <ImgMedia url={media_url} caption={caption} sent={sent} onImageClick={onImageClick} />
   if (media_type === 'video') return <VideoMedia url={media_url} caption={caption} sent={sent} />
   if (media_type === 'audio') return <div className="cv-media-audio-wrap"><audio src={media_url} controls className="cv-media-audio" /></div>
   if (media_type === 'document') return <DocMedia url={media_url} filename={media_filename} sent={sent} />
@@ -166,9 +166,8 @@ export default function ChatPage({ chatId }) {
   const [lightboxUrl, setLightboxUrl] = useState(null)
   const bottomRef = useRef(null)
   const fileInputRef = useRef(null)
-  const { newMessages } = useSocket()
+  const { newMessages, statusUpdates } = useSocket()
 
-  // Fetch initial data (messages + conversation info)
   const fetchData = useCallback(async () => {
     try {
       const agentId = user?.role === 'agent' ? user.id : null
@@ -186,37 +185,40 @@ export default function ChatPage({ chatId }) {
     if (isAdmin) getAgents().then(d => setAgents(Array.isArray(d) ? d.filter(a => a.role === 'agent') : [])).catch(() => {})
   }, [fetchData, isAdmin])
 
-  // Supabase Realtime — subscribe to new messages for this conversation
+  // Supabase Realtime — new messages for this conversation
   useEffect(() => {
     if (!supabase || !id) return
     const channel = supabase
       .channel(`messages:conv:${id}`)
       .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'messages',
+        event: 'INSERT', schema: 'public', table: 'messages',
         filter: `conversation_id=eq.${id}`,
       }, ({ new: msg }) => {
         if (!msg?.id) return
-        setMessages(prev =>
-          prev.some(m => String(m.id) === String(msg.id)) ? prev : [...prev, msg]
-        )
+        setMessages(prev => prev.some(m => String(m.id) === String(msg.id)) ? prev : [...prev, msg])
       })
       .subscribe()
     return () => supabase.removeChannel(channel)
   }, [id])
 
-  // Socket.io new_message — append, do NOT re-fetch all messages
+  // Socket.io new_message — append without re-fetch
   useEffect(() => {
     const relevant = newMessages.filter(m => String(m.conversationId) === String(id))
     if (!relevant.length) return
     relevant.forEach(({ message }) => {
       if (!message?.id) return
-      setMessages(prev =>
-        prev.some(m => String(m.id) === String(message.id)) ? prev : [...prev, message]
-      )
+      setMessages(prev => prev.some(m => String(m.id) === String(message.id)) ? prev : [...prev, message])
     })
   }, [newMessages, id])
+
+  // Socket.io message_status — update tick without reload
+  useEffect(() => {
+    if (!statusUpdates.length) return
+    setMessages(prev => prev.map(msg => {
+      const update = statusUpdates.find(u => String(u.messageId) === String(msg.id))
+      return update ? { ...msg, status: update.status } : msg
+    }))
+  }, [statusUpdates])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -224,31 +226,25 @@ export default function ChatPage({ chatId }) {
 
   const closeMenus = () => { setShowStatusMenu(false); setShowAgentMenu(false) }
 
-  // Optimistic send: message appears instantly, replaced with real data on success
   const handleSend = async () => {
     if (!text.trim() || sending) return
     const msg = text.trim()
     setText('')
     setSending(true)
-
     const tempId = `tmp-${Date.now()}`
     setMessages(prev => [...prev, {
       id: tempId, body: msg, from_me: true,
       timestamp: new Date().toISOString(), status: 'sending',
     }])
-
     try {
       await sendMessage(id, msg)
-      // Silently refresh to replace optimistic with real saved message
       const fresh = await getMessages(id)
       if (Array.isArray(fresh)) setMessages(fresh)
     } catch (e) {
       setError(e?.response?.data?.error || 'Gagal mengirim.')
       setMessages(prev => prev.filter(m => m.id !== tempId))
       setText(msg)
-    } finally {
-      setSending(false)
-    }
+    } finally { setSending(false) }
   }
 
   const handleFileSelect = (e) => {
@@ -305,7 +301,6 @@ export default function ChatPage({ chatId }) {
     <div className="cv-root" onClick={closeMenus}>
       <ImageLightbox url={lightboxUrl} onClose={() => setLightboxUrl(null)} />
 
-      {/* Header */}
       <div className="cv-header" onClick={e => e.stopPropagation()}>
         <button className="cv-back" onClick={() => navigate('/inbox')}><ArrowLeft size={20} /></button>
         <div className="cv-avatar">{name[0].toUpperCase()}</div>
@@ -360,7 +355,6 @@ export default function ChatPage({ chatId }) {
         </div>
       )}
 
-      {/* Messages */}
       <div className="cv-messages">
         {loading ? (
           <div className="cv-loading">
@@ -385,9 +379,10 @@ export default function ChatPage({ chatId }) {
                     : <p>{msg.body || msg.content || msg.text}</p>
                   }
                   <div className="cv-meta">
-                    <span className="cv-time">
-                      {isSending ? '⏳' : formatTime(msg.timestamp || msg.createdAt)}
-                    </span>
+                    {isSending
+                      ? <Clock size={11} style={{color:'rgba(255,255,255,0.5)',flexShrink:0}} />
+                      : <span className="cv-time">{formatTime(msg.timestamp || msg.createdAt)}</span>
+                    }
                     {sent && !isSending && <MessageTick status={msg.status} />}
                   </div>
                 </div>
@@ -398,7 +393,6 @@ export default function ChatPage({ chatId }) {
         <div ref={bottomRef} />
       </div>
 
-      {/* File preview */}
       {selectedFile && (
         <div className="cv-file-preview" onClick={e => e.stopPropagation()}>
           <div className="cv-file-preview-content">
@@ -411,7 +405,6 @@ export default function ChatPage({ chatId }) {
         </div>
       )}
 
-      {/* Input bar */}
       <div className="cv-input-bar" onClick={e => e.stopPropagation()}>
         <input type="file" ref={fileInputRef} style={{ display: 'none' }}
           accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.rar,.txt"
@@ -439,30 +432,12 @@ export default function ChatPage({ chatId }) {
       </div>
 
       <style>{`
-        .cv-root {
-          flex: 1; display: flex; flex-direction: column;
-          min-height: 0; min-width: 0;
-          background: #f0f3fa; overflow: hidden;
-        }
-        .cv-header {
-          display: flex; align-items: center; gap: 12px;
-          padding: 12px 20px; background: #fff;
-          border-bottom: 1px solid #e4eaf5;
-          flex-shrink: 0; min-height: 64px;
-        }
-        .cv-back {
-          display: none; width: 36px; height: 36px; border-radius: 8px;
-          align-items: center; justify-content: center;
-          color: #8a9bb8; flex-shrink: 0;
-        }
+        .cv-root { flex: 1; display: flex; flex-direction: column; min-height: 0; min-width: 0; background: #f0f3fa; overflow: hidden; }
+        .cv-header { display: flex; align-items: center; gap: 12px; padding: 12px 20px; background: #fff; border-bottom: 1px solid #e4eaf5; flex-shrink: 0; min-height: 64px; }
+        .cv-back { display: none; width: 36px; height: 36px; border-radius: 8px; align-items: center; justify-content: center; color: #8a9bb8; flex-shrink: 0; }
         .cv-back:hover { background: #f0f3fa; }
         @media (max-width: 768px) { .cv-back { display: flex; } }
-        .cv-avatar {
-          width: 40px; height: 40px; border-radius: 50%;
-          background: #dce8fb; color: #3563e9;
-          display: flex; align-items: center; justify-content: center;
-          font-size: 15px; font-weight: 700; flex-shrink: 0;
-        }
+        .cv-avatar { width: 40px; height: 40px; border-radius: 50%; background: #dce8fb; color: #3563e9; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700; flex-shrink: 0; }
         .cv-contact { flex: 1; min-width: 0; overflow: hidden; }
         .cv-name { font-size: 14px; font-weight: 600; color: #1a2540; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .cv-sub { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 1px; }
