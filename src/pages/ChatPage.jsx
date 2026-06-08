@@ -41,7 +41,7 @@ function cleanPhone(phone) {
 function MessageTick({ status }) {
   const isRead = status === 'read'
   const isDelivered = status === 'delivered' || isRead
-  const color = isRead ? '#60a5fa' : 'rgba(255,255,255,0.6)'
+  const color = isRead ? '#93c5e8' : 'rgba(255,255,255,0.55)'
   if (isDelivered) {
     return (
       <svg width="18" height="12" viewBox="0 0 18 12" fill="none" style={{flexShrink:0}}>
@@ -65,19 +65,13 @@ function DateSeparator({ label }) {
   )
 }
 
-// Image with error fallback
 function ImgMedia({ url, filename, caption, sent, onImageClick }) {
   const [error, setError] = useState(false)
   const [loaded, setLoaded] = useState(false)
 
   if (!url || error) {
     return (
-      <a
-        href={url || '#'}
-        target="_blank"
-        rel="noreferrer"
-        className={`cv-media-broken ${sent ? 'sent' : 'recv'}`}
-      >
+      <a href={url || '#'} target="_blank" rel="noreferrer" className={`cv-media-broken ${sent ? 'sent' : 'recv'}`}>
         <Image size={28} strokeWidth={1.5} />
         <div className="cv-media-broken-info">
           <span>Foto</span>
@@ -91,17 +85,12 @@ function ImgMedia({ url, filename, caption, sent, onImageClick }) {
   return (
     <div className="cv-media-wrap">
       {!loaded && (
-        <div className="cv-media-skeleton">
-          <div className="cv-media-skel-inner" />
-        </div>
+        <div className="cv-media-skeleton"><div className="cv-media-skel-inner" /></div>
       )}
       <img
-        src={url}
-        className="cv-media-img"
-        alt="foto"
+        src={url} className="cv-media-img" alt="foto"
         style={{ display: loaded ? 'block' : 'none' }}
-        onLoad={() => setLoaded(true)}
-        onError={() => setError(true)}
+        onLoad={() => setLoaded(true)} onError={() => setError(true)}
         onClick={() => onImageClick(url)}
       />
       {caption && <p className="cv-media-caption">{caption}</p>}
@@ -109,18 +98,12 @@ function ImgMedia({ url, filename, caption, sent, onImageClick }) {
   )
 }
 
-// Video with error fallback
 function VideoMedia({ url, filename, caption, sent }) {
   const [error, setError] = useState(false)
 
   if (!url || error) {
     return (
-      <a
-        href={url || '#'}
-        target="_blank"
-        rel="noreferrer"
-        className={`cv-media-broken ${sent ? 'sent' : 'recv'}`}
-      >
+      <a href={url || '#'} target="_blank" rel="noreferrer" className={`cv-media-broken ${sent ? 'sent' : 'recv'}`}>
         <Film size={28} strokeWidth={1.5} />
         <div className="cv-media-broken-info">
           <span>Video</span>
@@ -133,20 +116,14 @@ function VideoMedia({ url, filename, caption, sent }) {
 
   return (
     <div className="cv-media-wrap">
-      <video
-        src={url}
-        controls
-        className="cv-media-video"
-        onError={() => setError(true)}
-      />
+      <video src={url} controls className="cv-media-video" onError={() => setError(true)} />
       {caption && <p className="cv-media-caption">{caption}</p>}
     </div>
   )
 }
 
-// Document with download animation
 function DocMedia({ url, filename, sent }) {
-  const [dlStatus, setDlStatus] = useState('idle') // idle | downloading | done
+  const [dlStatus, setDlStatus] = useState('idle')
 
   const handleClick = () => {
     if (dlStatus !== 'idle') return
@@ -158,10 +135,7 @@ function DocMedia({ url, filename, sent }) {
 
   return (
     <a
-      href={url}
-      target="_blank"
-      rel="noreferrer"
-      download={filename}
+      href={url} target="_blank" rel="noreferrer" download={filename}
       className={`cv-media-doc ${sent ? 'sent' : 'recv'}`}
       onClick={handleClick}
     >
@@ -179,9 +153,7 @@ function DocMedia({ url, filename, sent }) {
           </div>
         )}
         {dlStatus === 'done' && (
-          <div className="cv-media-doc-icon dl-done">
-            <Check size={20} />
-          </div>
+          <div className="cv-media-doc-icon dl-done"><Check size={20} /></div>
         )}
       </div>
       <div className="cv-media-doc-info">
@@ -200,18 +172,10 @@ function MediaContent({ msg, sent, onImageClick }) {
   const { media_type, media_url, media_filename, body } = msg
   const caption = body && !body.startsWith('[') ? body : null
 
-  if (!media_url && !media_type) {
-    return <p>{msg.body || msg.content || msg.text}</p>
-  }
+  if (!media_url && !media_type) return <p>{msg.body || msg.content || msg.text}</p>
 
-  if (media_type === 'image') {
-    return <ImgMedia url={media_url} filename={media_filename} caption={caption} sent={sent} onImageClick={onImageClick} />
-  }
-
-  if (media_type === 'video') {
-    return <VideoMedia url={media_url} filename={media_filename} caption={caption} sent={sent} />
-  }
-
+  if (media_type === 'image') return <ImgMedia url={media_url} filename={media_filename} caption={caption} sent={sent} onImageClick={onImageClick} />
+  if (media_type === 'video') return <VideoMedia url={media_url} filename={media_filename} caption={caption} sent={sent} />
   if (media_type === 'audio') {
     return (
       <div className="cv-media-audio-wrap">
@@ -219,10 +183,7 @@ function MediaContent({ msg, sent, onImageClick }) {
       </div>
     )
   }
-
-  if (media_type === 'document') {
-    return <DocMedia url={media_url} filename={media_filename} sent={sent} />
-  }
+  if (media_type === 'document') return <DocMedia url={media_url} filename={media_filename} sent={sent} />
 
   return (
     <div className="cv-media-placeholder">
@@ -278,9 +239,7 @@ export default function ChatPage({ chatId }) {
   useEffect(() => {
     fetchData()
     if (isAdmin) {
-      getAgents()
-        .then(d => setAgents(Array.isArray(d) ? d.filter(a => a.role === 'agent') : []))
-        .catch(() => {})
+      getAgents().then(d => setAgents(Array.isArray(d) ? d.filter(a => a.role === 'agent') : [])).catch(() => {})
     }
   }, [fetchData, isAdmin])
 
@@ -386,10 +345,7 @@ export default function ChatPage({ chatId }) {
         <div className="cv-actions" onClick={e => e.stopPropagation()}>
           {isAdmin && (
             <div className="cv-dd">
-              <button
-                className="cv-assign-btn"
-                onClick={() => { setShowAgentMenu(!showAgentMenu); setShowStatusMenu(false) }}
-              >
+              <button className="cv-assign-btn" onClick={() => { setShowAgentMenu(!showAgentMenu); setShowStatusMenu(false) }}>
                 <UserCheck size={15} />
                 Assign
               </button>
@@ -442,9 +398,7 @@ export default function ChatPage({ chatId }) {
           <div className="cv-empty">Belum ada pesan. Sapa dulu! 👋</div>
         ) : (
           messageItems.map((item, i) => {
-            if (item.type === 'date') {
-              return <DateSeparator key={item.key} label={item.label} />
-            }
+            if (item.type === 'date') return <DateSeparator key={item.key} label={item.label} />
             const msg = item.msg
             const sent = msg.from_me === true || msg.from_me === 1 || msg.fromMe === true
             const hasMedia = !!msg.media_type
@@ -476,20 +430,14 @@ export default function ChatPage({ chatId }) {
               <img src={selectedFile.previewUrl} className="cv-file-thumb" alt="preview" />
             )}
             {selectedFile.type === 'video' && (
-              <div className="cv-file-thumb cv-file-video-thumb">
-                <Play size={20} color="white" />
-              </div>
+              <div className="cv-file-thumb cv-file-video-thumb"><Play size={20} color="white" /></div>
             )}
             {selectedFile.type === 'document' && (
-              <div className="cv-file-thumb cv-file-doc-thumb">
-                <FileText size={20} color="#2563eb" />
-              </div>
+              <div className="cv-file-thumb cv-file-doc-thumb"><FileText size={20} color="#4a82c4" /></div>
             )}
             <span className="cv-file-name">{selectedFile.file.name}</span>
           </div>
-          <button className="cv-file-remove" onClick={() => setSelectedFile(null)}>
-            <X size={16} />
-          </button>
+          <button className="cv-file-remove" onClick={() => setSelectedFile(null)}><X size={16} /></button>
         </div>
       )}
 
@@ -502,11 +450,7 @@ export default function ChatPage({ chatId }) {
           accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.rar,.txt"
           onChange={handleFileSelect}
         />
-        <button
-          className="cv-attach-btn"
-          onClick={() => fileInputRef.current?.click()}
-          title="Lampirkan file"
-        >
+        <button className="cv-attach-btn" onClick={() => fileInputRef.current?.click()} title="Lampirkan file">
           <Paperclip size={20} />
         </button>
         <textarea
@@ -522,9 +466,7 @@ export default function ChatPage({ chatId }) {
           onClick={selectedFile ? handleSendMedia : handleSend}
           disabled={(!text.trim() && !selectedFile) || sending}
         >
-          {sending
-            ? <div className="cv-sending-dot" />
-            : <Send size={19} />}
+          {sending ? <div className="cv-sending-dot" /> : <Send size={19} />}
         </button>
       </div>
 
@@ -532,40 +474,41 @@ export default function ChatPage({ chatId }) {
         .cv-root {
           flex: 1; display: flex; flex-direction: column;
           min-height: 0; min-width: 0;
-          background: #f8fafc; overflow: hidden;
+          background: #f7f9fc; overflow: hidden;
         }
         .cv-header {
           display: flex; align-items: center; gap: 10px;
           padding: 10px 16px; background: #fff;
-          border-bottom: 1px solid #e2e8f0;
+          border-bottom: 1px solid #e0e8f2;
           flex-shrink: 0; min-height: 60px;
-          box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+          box-shadow: 0 1px 3px rgba(0,0,0,0.03);
         }
         .cv-back {
           display: none; width: 36px; height: 36px; border-radius: 8px;
           align-items: center; justify-content: center;
-          color: #64748b; transition: all 0.15s; flex-shrink: 0;
+          color: #8fa2b8; transition: all 0.15s; flex-shrink: 0;
         }
-        .cv-back:hover { background: #f1f5f9; }
+        .cv-back:hover { background: #f2f5f9; }
         @media (max-width: 768px) { .cv-back { display: flex; } }
         .cv-avatar {
           width: 40px; height: 40px; border-radius: 50%;
-          background: linear-gradient(135deg,#2563eb,#7c3aed);
+          background: #d8e7f5;
+          color: #4a82c4;
           display: flex; align-items: center; justify-content: center;
-          font-size: 16px; font-weight: 600; color: white; flex-shrink: 0;
+          font-size: 15px; font-weight: 700; flex-shrink: 0;
         }
         .cv-contact { flex: 1; min-width: 0; }
-        .cv-name { font-size: 14px; font-weight: 600; color: #1e293b; }
+        .cv-name { font-size: 14px; font-weight: 600; color: #1d2d42; }
         .cv-sub { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 1px; }
-        .cv-phone { font-size: 12px; color: #94a3b8; }
+        .cv-phone { font-size: 12px; color: #a0b3c8; }
         .cv-assigned {
           display: inline-flex; align-items: center; gap: 3px;
           font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 10px;
-          background: rgba(16,185,129,0.1); color: #10b981;
+          background: rgba(45,168,130,0.1); color: #2da882;
         }
         .cv-unassigned {
           font-size: 11px; padding: 1px 7px; border-radius: 10px;
-          background: rgba(245,158,11,0.1); color: #f59e0b;
+          background: rgba(212,146,40,0.1); color: #d49228;
         }
         .cv-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
         .cv-dd { position: relative; }
@@ -573,10 +516,10 @@ export default function ChatPage({ chatId }) {
           display: flex; align-items: center; gap: 5px;
           padding: 6px 12px; border-radius: 8px;
           font-size: 13px; font-weight: 600;
-          color: #475569; background: #f1f5f9;
-          border: 1px solid #e2e8f0; transition: all 0.15s;
+          color: #52607a; background: #f2f5f9;
+          border: 1px solid #e0e8f2; transition: all 0.15s;
         }
-        .cv-assign-btn:hover { background: #e2e8f0; color: #1e293b; }
+        .cv-assign-btn:hover { background: #e8eef8; color: #1d2d42; }
         .cv-chip {
           display: flex; align-items: center; gap: 4px;
           padding: 5px 10px; border-radius: 20px;
@@ -584,85 +527,80 @@ export default function ChatPage({ chatId }) {
           border: 1.5px solid transparent; transition: opacity 0.15s;
         }
         .cv-chip:hover { opacity: 0.8; }
-        .cv-chip.st-open { background: rgba(37,99,235,0.08); color: #2563eb; border-color: rgba(37,99,235,0.2); }
-        .cv-chip.st-in_progress { background: rgba(245,158,11,0.08); color: #f59e0b; border-color: rgba(245,158,11,0.2); }
-        .cv-chip.st-resolved { background: rgba(16,185,129,0.08); color: #10b981; border-color: rgba(16,185,129,0.2); }
+        .cv-chip.st-open { background: rgba(74,130,196,0.08); color: #4a82c4; border-color: rgba(74,130,196,0.2); }
+        .cv-chip.st-in_progress { background: rgba(212,146,40,0.08); color: #d49228; border-color: rgba(212,146,40,0.2); }
+        .cv-chip.st-resolved { background: rgba(45,168,130,0.08); color: #2da882; border-color: rgba(45,168,130,0.2); }
         .cv-menu {
           position: absolute; right: 0; top: calc(100% + 6px);
-          background: #fff; border: 1px solid #e2e8f0;
+          background: #fff; border: 1px solid #e0e8f2;
           border-radius: 10px; z-index: 200;
-          box-shadow: 0 8px 24px rgba(0,0,0,0.1); overflow: hidden;
+          box-shadow: 0 6px 20px rgba(0,0,0,0.08); overflow: hidden;
         }
         .cv-menu-lbl {
           padding: 8px 14px 4px; font-size: 10px; font-weight: 700;
-          color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;
+          color: #a0b3c8; text-transform: uppercase; letter-spacing: 0.5px;
         }
         .cv-mi {
           display: flex; flex-direction: column; width: 100%; text-align: left;
-          padding: 9px 14px; font-size: 13px; color: #1e293b; transition: background 0.1s;
+          padding: 9px 14px; font-size: 13px; color: #1d2d42; transition: background 0.1s;
         }
-        .cv-mi:hover { background: #f8fafc; }
-        .cv-mi.muted { color: #94a3b8; cursor: default; }
-        .cv-mi.active { background: rgba(16,185,129,0.06); color: #10b981; }
-        .cv-mi-sub { font-size: 11px; color: #94a3b8; margin-top: 1px; }
-        .si-open { color: #2563eb !important; }
-        .si-in_progress { color: #f59e0b !important; }
-        .si-resolved { color: #10b981 !important; }
+        .cv-mi:hover { background: #f7f9fc; }
+        .cv-mi.muted { color: #a0b3c8; cursor: default; }
+        .cv-mi.active { background: rgba(45,168,130,0.06); color: #2da882; }
+        .cv-mi-sub { font-size: 11px; color: #a0b3c8; margin-top: 1px; }
+        .si-open { color: #4a82c4 !important; }
+        .si-in_progress { color: #d49228 !important; }
+        .si-resolved { color: #2da882 !important; }
         .cv-error {
-          background: rgba(239,68,68,0.06); border-bottom: 1px solid rgba(239,68,68,0.15);
-          color: #ef4444; padding: 8px 16px; font-size: 13px;
+          background: rgba(224,82,82,0.05); border-bottom: 1px solid rgba(224,82,82,0.12);
+          color: #c44; padding: 8px 16px; font-size: 13px;
           display: flex; align-items: center; justify-content: space-between;
           flex-shrink: 0;
         }
-        /* Messages */
         .cv-messages {
           flex: 1; min-height: 0; overflow-y: auto;
           padding: 16px 20px;
           display: flex; flex-direction: column; gap: 2px;
-          background: #f0f4f8;
+          background: #f2f5f9;
         }
         .cv-loading { display: flex; flex-direction: column; gap: 8px; }
         .cv-skel {
           height: 42px; max-width: 55%; border-radius: 10px;
-          background: rgba(0,0,0,0.06); animation: pulse 1.4s ease infinite;
+          background: rgba(0,0,0,0.05); animation: pulse 1.4s ease infinite;
         }
         .cv-skel.left { align-self: flex-start; }
         .cv-skel.right { align-self: flex-end; }
-        .cv-empty { margin: auto; color: #94a3b8; font-size: 14px; text-align: center; padding: 32px; }
-        /* Date separator */
+        .cv-empty { margin: auto; color: #a0b3c8; font-size: 14px; text-align: center; padding: 32px; }
         .cv-date-sep { display: flex; align-items: center; justify-content: center; margin: 10px 0 8px; }
         .cv-date-sep span {
-          background: #dce8f5; color: #4a6fa5;
+          background: #dce8f4; color: #6a8fb5;
           font-size: 11px; font-weight: 600;
           padding: 4px 12px; border-radius: 20px; letter-spacing: 0.2px;
         }
-        /* Bubbles */
         .cv-row { display: flex; margin-bottom: 2px; }
         .cv-row.sent { justify-content: flex-end; }
         .cv-row.recv { justify-content: flex-start; }
         .cv-bubble {
           max-width: 65%; padding: 8px 12px 6px;
-          border-radius: 12px;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+          border-radius: 14px;
+          box-shadow: 0 1px 2px rgba(0,0,0,0.06);
           word-break: break-word;
         }
         .cv-bubble.media { padding: 4px 4px 6px; }
-        .bsent { background: #2563eb; color: #fff; border-bottom-right-radius: 4px; }
-        .brecv { background: #fff; color: #1e293b; border-bottom-left-radius: 4px; border: 1px solid #e2e8f0; }
+        .bsent { background: #4a82c4; color: #fff; border-bottom-right-radius: 4px; }
+        .brecv { background: #fff; color: #1d2d42; border-bottom-left-radius: 4px; border: 1px solid #e0e8f2; }
         .cv-bubble p { font-size: 14px; line-height: 1.5; white-space: pre-wrap; }
         .cv-meta { display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: 3px; padding: 0 4px; }
         .cv-time { font-size: 10px; color: rgba(255,255,255,0.6); white-space: nowrap; }
-        .brecv .cv-time { color: #94a3b8; }
-        /* Media base */
+        .brecv .cv-time { color: #a0b3c8; }
         .cv-media-wrap { min-width: 180px; }
-        /* Image */
         .cv-media-skeleton {
           width: 240px; height: 160px; border-radius: 8px;
-          background: rgba(0,0,0,0.08); overflow: hidden;
+          background: rgba(0,0,0,0.06); overflow: hidden;
         }
         .cv-media-skel-inner {
           width: 100%; height: 100%;
-          background: linear-gradient(90deg,transparent 25%,rgba(255,255,255,0.3) 50%,transparent 75%);
+          background: linear-gradient(90deg,transparent 25%,rgba(255,255,255,0.4) 50%,transparent 75%);
           background-size: 200% 100%;
           animation: shimmer 1.4s infinite;
         }
@@ -672,16 +610,10 @@ export default function ChatPage({ chatId }) {
           transition: opacity 0.15s;
         }
         .cv-media-img:hover { opacity: 0.92; }
-        /* Video */
-        .cv-media-video {
-          width: 100%; max-width: 280px; border-radius: 8px; display: block;
-        }
-        /* Audio */
+        .cv-media-video { width: 100%; max-width: 280px; border-radius: 8px; display: block; }
         .cv-media-audio-wrap { padding: 4px 0; }
         .cv-media-audio { width: 220px; height: 36px; }
-        /* Caption */
         .cv-media-caption { font-size: 13px; padding: 6px 4px 0; line-height: 1.4; }
-        /* Broken media fallback */
         .cv-media-broken {
           display: flex; align-items: center; gap: 10px;
           padding: 12px 14px; border-radius: 10px; text-decoration: none;
@@ -689,12 +621,11 @@ export default function ChatPage({ chatId }) {
         }
         .cv-media-broken:hover { opacity: 0.85; }
         .cv-media-broken.sent { background: rgba(255,255,255,0.15); color: rgba(255,255,255,0.9); }
-        .cv-media-broken.recv { background: #f0f4f8; color: #475569; border: 1px solid #e2e8f0; }
+        .cv-media-broken.recv { background: #f2f5f9; color: #52607a; border: 1px solid #e0e8f2; }
         .cv-media-broken-info { flex: 1; display: flex; flex-direction: column; gap: 2px; }
         .cv-media-broken-info span { font-size: 13px; font-weight: 600; }
         .cv-media-broken-sub { font-size: 11px; opacity: 0.65; font-weight: 400 !important; }
         .cv-media-broken-dl { opacity: 0.6; flex-shrink: 0; }
-        /* Document */
         .cv-media-doc {
           display: flex; align-items: center; gap: 12px;
           padding: 12px 14px; border-radius: 10px; text-decoration: none;
@@ -702,7 +633,7 @@ export default function ChatPage({ chatId }) {
         }
         .cv-media-doc:hover { opacity: 0.88; }
         .cv-media-doc.sent { background: rgba(255,255,255,0.15); color: #fff; }
-        .cv-media-doc.recv { background: #f0f4f8; color: #1e293b; border: 1px solid #e2e8f0; }
+        .cv-media-doc.recv { background: #f2f5f9; color: #1d2d42; border: 1px solid #e0e8f2; }
         .cv-media-doc-icon-wrap { flex-shrink: 0; }
         .cv-media-doc-icon {
           width: 42px; height: 42px; border-radius: 10px;
@@ -710,16 +641,11 @@ export default function ChatPage({ chatId }) {
           gap: 1px; position: relative;
         }
         .bsent .cv-media-doc-icon { background: rgba(255,255,255,0.18); color: #fff; }
-        .brecv .cv-media-doc-icon { background: #dbeafe; color: #2563eb; }
-        .cv-media-doc-ext {
-          font-size: 8px; font-weight: 800; letter-spacing: 0.3px;
-          text-transform: uppercase; line-height: 1;
-        }
-        .cv-media-doc-icon.dl-active {
-          position: relative;
-        }
+        .brecv .cv-media-doc-icon { background: #d8e7f5; color: #4a82c4; }
+        .cv-media-doc-ext { font-size: 8px; font-weight: 800; letter-spacing: 0.3px; text-transform: uppercase; line-height: 1; }
+        .cv-media-doc-icon.dl-active { position: relative; }
         .bsent .cv-media-doc-icon.dl-active { background: rgba(255,255,255,0.18); color: #fff; }
-        .brecv .cv-media-doc-icon.dl-active { background: #dbeafe; color: #2563eb; }
+        .brecv .cv-media-doc-icon.dl-active { background: #d8e7f5; color: #4a82c4; }
         .cv-dl-ring {
           position: absolute; inset: 3px;
           border-radius: 50%;
@@ -728,81 +654,52 @@ export default function ChatPage({ chatId }) {
           animation: spin 0.8s linear infinite;
         }
         .cv-dl-icon { position: relative; z-index: 1; }
-        .cv-media-doc-icon.dl-done {
-          animation: popIn 0.3s ease;
-        }
-        .bsent .cv-media-doc-icon.dl-done { background: rgba(16,185,129,0.25); color: #6ee7b7; }
-        .brecv .cv-media-doc-icon.dl-done { background: rgba(16,185,129,0.12); color: #10b981; }
+        .cv-media-doc-icon.dl-done { animation: popIn 0.3s ease; }
+        .bsent .cv-media-doc-icon.dl-done { background: rgba(45,168,130,0.25); color: #6ee7c7; }
+        .brecv .cv-media-doc-icon.dl-done { background: rgba(45,168,130,0.12); color: #2da882; }
         .cv-media-doc-info { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
-        .cv-media-doc-name {
-          font-size: 13px; font-weight: 600;
-          white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-          max-width: 180px;
-        }
+        .cv-media-doc-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
         .cv-media-doc-sub { font-size: 11px; opacity: 0.65; }
-        /* Placeholder */
-        .cv-media-placeholder {
-          display: flex; align-items: center; gap: 6px;
-          font-size: 13px; opacity: 0.7; padding: 4px;
-        }
-        /* File preview bar */
+        .cv-media-placeholder { display: flex; align-items: center; gap: 6px; font-size: 13px; opacity: 0.7; padding: 4px; }
         .cv-file-preview {
           display: flex; align-items: center; justify-content: space-between;
-          padding: 8px 14px; background: #eff6ff;
-          border-top: 1px solid #bfdbfe; flex-shrink: 0;
+          padding: 8px 14px; background: #eef4fc;
+          border-top: 1px solid #c8d8ea; flex-shrink: 0;
         }
         .cv-file-preview-content { display: flex; align-items: center; gap: 10px; min-width: 0; }
-        .cv-file-thumb {
-          width: 44px; height: 44px; border-radius: 6px;
-          object-fit: cover; flex-shrink: 0;
-        }
-        .cv-file-video-thumb {
-          background: #1e293b; display: flex;
-          align-items: center; justify-content: center;
-        }
-        .cv-file-doc-thumb {
-          background: #eff6ff; border: 1px solid #bfdbfe;
-          display: flex; align-items: center; justify-content: center;
-        }
-        .cv-file-name {
-          font-size: 13px; font-weight: 500; color: #1e293b;
-          white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-          max-width: 200px;
-        }
-        .cv-file-remove {
-          width: 28px; height: 28px; border-radius: 6px;
-          display: flex; align-items: center; justify-content: center;
-          color: #94a3b8; flex-shrink: 0;
-        }
-        .cv-file-remove:hover { background: #dbeafe; color: #2563eb; }
-        /* Input */
+        .cv-file-thumb { width: 44px; height: 44px; border-radius: 6px; object-fit: cover; flex-shrink: 0; }
+        .cv-file-video-thumb { background: #1d2d42; display: flex; align-items: center; justify-content: center; }
+        .cv-file-doc-thumb { background: #eef4fc; border: 1px solid #c8d8ea; display: flex; align-items: center; justify-content: center; }
+        .cv-file-name { font-size: 13px; font-weight: 500; color: #1d2d42; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
+        .cv-file-remove { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #a0b3c8; flex-shrink: 0; }
+        .cv-file-remove:hover { background: #d8e7f5; color: #4a82c4; }
         .cv-input-bar {
           display: flex; align-items: flex-end; gap: 8px;
           padding: 10px 14px; background: #fff;
-          border-top: 1px solid #e2e8f0; flex-shrink: 0;
+          border-top: 1px solid #e0e8f2; flex-shrink: 0;
         }
         .cv-attach-btn {
           width: 42px; height: 42px; border-radius: 10px;
           display: flex; align-items: center; justify-content: center;
-          color: #94a3b8; transition: all 0.15s; flex-shrink: 0;
+          color: #a0b3c8; transition: all 0.15s; flex-shrink: 0;
         }
-        .cv-attach-btn:hover { background: #f1f5f9; color: #2563eb; }
+        .cv-attach-btn:hover { background: #f2f5f9; color: #4a82c4; }
         .cv-input {
-          flex: 1; background: #f8fafc;
-          border: 1.5px solid #e2e8f0; border-radius: 10px;
-          color: #1e293b; padding: 10px 14px; font-size: 14px;
+          flex: 1; background: #f7f9fc;
+          border: 1.5px solid #e0e8f2; border-radius: 10px;
+          color: #1d2d42; padding: 10px 14px; font-size: 14px;
           line-height: 1.4; outline: none; resize: none;
-          max-height: 130px; overflow-y: auto; transition: border-color 0.15s;
+          max-height: 130px; overflow-y: auto; transition: border-color 0.15s, box-shadow 0.15s;
         }
-        .cv-input:focus { border-color: #2563eb; }
-        .cv-input::placeholder { color: #94a3b8; }
+        .cv-input:focus { border-color: #4a82c4; box-shadow: 0 0 0 3px rgba(74,130,196,0.08); background: #fff; }
+        .cv-input::placeholder { color: #b8c8d8; }
         .cv-send {
           width: 42px; height: 42px; border-radius: 10px;
-          background: #e2e8f0; color: #94a3b8;
+          background: #e0e8f2; color: #a0b3c8;
           display: flex; align-items: center; justify-content: center;
           transition: all 0.15s; flex-shrink: 0;
         }
-        .cv-send.ready { background: #2563eb; color: white; }
+        .cv-send.ready { background: #4a82c4; color: white; box-shadow: 0 2px 8px rgba(74,130,196,0.25); }
         .cv-send:disabled { opacity: 0.5; }
         .cv-sending-dot {
           width: 16px; height: 16px; border-radius: 50%;
@@ -810,10 +707,9 @@ export default function ChatPage({ chatId }) {
           border-top-color: white;
           animation: spin 0.7s linear infinite;
         }
-        /* Lightbox */
         .cv-lightbox {
           position: fixed; inset: 0; z-index: 1000;
-          background: rgba(0,0,0,0.88);
+          background: rgba(0,0,0,0.82);
           display: flex; align-items: center; justify-content: center;
         }
         .cv-lightbox-close {
@@ -824,11 +720,7 @@ export default function ChatPage({ chatId }) {
           color: white; transition: background 0.15s;
         }
         .cv-lightbox-close:hover { background: rgba(255,255,255,0.25); }
-        .cv-lightbox-img {
-          max-width: 90vw; max-height: 90vh;
-          border-radius: 8px; object-fit: contain;
-          box-shadow: 0 8px 40px rgba(0,0,0,0.5);
-        }
+        .cv-lightbox-img { max-width: 90vw; max-height: 90vh; border-radius: 8px; object-fit: contain; box-shadow: 0 8px 40px rgba(0,0,0,0.4); }
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
         @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
