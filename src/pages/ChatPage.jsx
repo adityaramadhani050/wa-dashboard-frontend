@@ -6,7 +6,6 @@ import { getMessages, sendMessage, sendMedia, assignAgent, updateStatus, getConv
 import { Send, ChevronDown, ArrowLeft, UserCheck, Paperclip, X, FileText, Play, Download, Check, Image, Film } from 'lucide-react'
 
 const STATUS_OPTIONS = ['open', 'in_progress', 'resolved']
-const MAX_CHARS = 1200
 
 function formatTime(dateStr) {
   if (!dateStr) return ''
@@ -60,9 +59,7 @@ function MessageTick({ status }) {
 }
 
 function DateSeparator({ label }) {
-  return (
-    <div className="cv-date-sep"><span>{label}</span></div>
-  )
+  return <div className="cv-date-sep"><span>{label}</span></div>
 }
 
 function ImgMedia({ url, filename, caption, sent, onImageClick }) {
@@ -245,7 +242,6 @@ export default function ChatPage({ chatId }) {
   const phone = cleanPhone(conversation?.contact?.phone)
   const assignedAgent = conversation?.agents
   const status = conversation?.status || 'open'
-  const charCount = text.length
 
   const messageItems = []
   let lastDateKey = null
@@ -363,38 +359,35 @@ export default function ChatPage({ chatId }) {
         </div>
       )}
 
-      {/* Input */}
-      <div className="cv-input-area" onClick={e => e.stopPropagation()}>
-        <div className="cv-input-box">
-          <div className="cv-char-count">{charCount} / {MAX_CHARS}</div>
-          <textarea
-            className="cv-input"
-            placeholder={selectedFile ? 'Tambah keterangan (opsional)...' : "We'll contact you ..."}
-            value={text}
-            onChange={e => setText(e.target.value.slice(0, MAX_CHARS))}
-            onKeyDown={handleKeyDown}
-            rows={2}
-          />
-        </div>
-        <div className="cv-input-actions">
-          <div className="cv-input-tools">
-            <input type="file" ref={fileInputRef} style={{ display: 'none' }}
-              accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.rar,.txt"
-              onChange={handleFileSelect} />
-            <button className="cv-tool-btn" onClick={() => fileInputRef.current?.click()} title="Lampirkan file">
-              <Paperclip size={18} />
-            </button>
-          </div>
-          <button
-            className={`cv-send-btn ${(text.trim() || selectedFile) && !sending ? 'ready' : ''}`}
-            onClick={selectedFile ? handleSendMedia : handleSend}
-            disabled={(!text.trim() && !selectedFile) || sending}
-          >
-            {sending
-              ? <div className="cv-sending-dot" />
-              : <><span>Send message</span><Send size={16} /></>}
-          </button>
-        </div>
+      {/* Input bar - single row */}
+      <div className="cv-input-bar" onClick={e => e.stopPropagation()}>
+        <input
+          type="file"
+          ref={fileInputRef}
+          style={{ display: 'none' }}
+          accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.rar,.txt"
+          onChange={handleFileSelect}
+        />
+        <button className="cv-attach-btn" onClick={() => fileInputRef.current?.click()} title="Lampirkan file">
+          <Paperclip size={19} />
+        </button>
+        <textarea
+          className="cv-input"
+          placeholder={selectedFile ? 'Tambah keterangan (opsional)...' : 'Ketik pesan...'}
+          value={text}
+          onChange={e => setText(e.target.value)}
+          onKeyDown={handleKeyDown}
+          rows={1}
+        />
+        <button
+          className={`cv-send-btn ${(text.trim() || selectedFile) && !sending ? 'ready' : ''}`}
+          onClick={selectedFile ? handleSendMedia : handleSend}
+          disabled={(!text.trim() && !selectedFile) || sending}
+        >
+          {sending
+            ? <div className="cv-sending-dot" />
+            : <><span>Send message</span><Send size={15} /></>}
+        </button>
       </div>
 
       <style>{`
@@ -403,7 +396,6 @@ export default function ChatPage({ chatId }) {
           min-height: 0; min-width: 0;
           background: #f0f3fa; overflow: hidden;
         }
-        /* Header */
         .cv-header {
           display: flex; align-items: center; gap: 12px;
           padding: 12px 20px; background: #fff;
@@ -450,13 +442,11 @@ export default function ChatPage({ chatId }) {
           display: flex; align-items: center; gap: 6px;
           padding: 7px 12px; border-radius: 8px;
           font-size: 13px; font-weight: 500;
-          border: 1px solid #e4eaf5; transition: all 0.15s;
-          background: #f7f9fd; color: #4f607a;
+          border: 1px solid #e4eaf5;
+          background: #f7f9fd; color: #4f607a; transition: all 0.15s;
         }
         .cv-status-btn:hover { background: #e8eef8; }
-        .cv-status-dot {
-          width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
-        }
+        .cv-status-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
         .st-open .cv-status-dot { background: #3563e9; }
         .st-in_progress .cv-status-dot { background: #d08b28; }
         .st-resolved .cv-status-dot { background: #27a87a; }
@@ -467,10 +457,7 @@ export default function ChatPage({ chatId }) {
           box-shadow: 0 8px 24px rgba(26,37,64,0.10); overflow: hidden;
         }
         .cv-menu-lbl { padding: 8px 14px 4px; font-size: 10px; font-weight: 700; color: #a8b8d0; text-transform: uppercase; letter-spacing: 0.5px; }
-        .cv-mi {
-          display: flex; flex-direction: column; width: 100%; text-align: left;
-          padding: 9px 14px; font-size: 13px; color: #1a2540; transition: background 0.1s;
-        }
+        .cv-mi { display: flex; flex-direction: column; width: 100%; text-align: left; padding: 9px 14px; font-size: 13px; color: #1a2540; transition: background 0.1s; }
         .cv-mi:hover { background: #f7f9fd; }
         .cv-mi.muted { color: #a8b8d0; cursor: default; }
         .cv-mi.active { background: rgba(39,168,122,0.06); color: #27a87a; }
@@ -478,13 +465,11 @@ export default function ChatPage({ chatId }) {
         .si-open { color: #3563e9 !important; }
         .si-in_progress { color: #d08b28 !important; }
         .si-resolved { color: #27a87a !important; }
-        /* Error */
         .cv-error {
           background: rgba(229,62,62,0.05); border-bottom: 1px solid rgba(229,62,62,0.12);
           color: #c44; padding: 8px 16px; font-size: 13px;
           display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
         }
-        /* Messages area */
         .cv-messages {
           flex: 1; min-height: 0; overflow-y: auto;
           padding: 20px 24px;
@@ -497,21 +482,11 @@ export default function ChatPage({ chatId }) {
         .cv-skel.right { align-self: flex-end; }
         .cv-empty { margin: auto; color: #a8b8d0; font-size: 14px; text-align: center; padding: 32px; }
         .cv-date-sep { display: flex; align-items: center; justify-content: center; margin: 12px 0 8px; }
-        .cv-date-sep span {
-          background: #dce8fb; color: #5a7ab5;
-          font-size: 11px; font-weight: 600;
-          padding: 4px 14px; border-radius: 20px;
-        }
-        /* Bubbles */
+        .cv-date-sep span { background: #dce8fb; color: #5a7ab5; font-size: 11px; font-weight: 600; padding: 4px 14px; border-radius: 20px; }
         .cv-row { display: flex; margin-bottom: 3px; }
         .cv-row.sent { justify-content: flex-end; }
         .cv-row.recv { justify-content: flex-start; }
-        .cv-bubble {
-          max-width: 62%; padding: 10px 14px 7px;
-          border-radius: 16px;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.06);
-          word-break: break-word;
-        }
+        .cv-bubble { max-width: 62%; padding: 10px 14px 7px; border-radius: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); word-break: break-word; }
         .cv-bubble.media { padding: 4px 4px 7px; }
         .bsent { background: #3563e9; color: #fff; border-bottom-right-radius: 4px; }
         .brecv { background: #fff; color: #1a2540; border-bottom-left-radius: 4px; border: 1px solid #e4eaf5; }
@@ -519,7 +494,6 @@ export default function ChatPage({ chatId }) {
         .cv-meta { display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: 4px; padding: 0 2px; }
         .cv-time { font-size: 10px; color: rgba(255,255,255,0.6); white-space: nowrap; }
         .brecv .cv-time { color: #a8b8d0; }
-        /* Media */
         .cv-media-wrap { min-width: 180px; }
         .cv-media-skeleton { width: 240px; height: 160px; border-radius: 8px; background: rgba(0,0,0,0.06); overflow: hidden; }
         .cv-media-skel-inner { width: 100%; height: 100%; background: linear-gradient(90deg,transparent 25%,rgba(255,255,255,0.4) 50%,transparent 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; }
@@ -549,7 +523,6 @@ export default function ChatPage({ chatId }) {
         .cv-media-doc-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
         .cv-media-doc-sub { font-size: 11px; opacity: 0.65; }
         .cv-media-placeholder { display: flex; align-items: center; gap: 6px; font-size: 13px; opacity: 0.7; padding: 4px; }
-        /* File preview bar */
         .cv-file-preview { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; background: #eef4fd; border-top: 1px solid #c8d4ec; flex-shrink: 0; }
         .cv-file-preview-content { display: flex; align-items: center; gap: 10px; min-width: 0; }
         .cv-file-thumb { width: 40px; height: 40px; border-radius: 6px; object-fit: cover; flex-shrink: 0; }
@@ -558,47 +531,35 @@ export default function ChatPage({ chatId }) {
         .cv-file-name { font-size: 13px; font-weight: 500; color: #1a2540; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
         .cv-file-remove { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #a8b8d0; }
         .cv-file-remove:hover { background: #dce8fb; color: #3563e9; }
-        /* Input area */
-        .cv-input-area {
-          background: #fff; border-top: 1px solid #e4eaf5;
-          padding: 14px 20px; flex-shrink: 0;
+        /* Input bar - single row */
+        .cv-input-bar {
+          display: flex; align-items: flex-end; gap: 10px;
+          padding: 12px 16px; background: #fff;
+          border-top: 1px solid #e4eaf5; flex-shrink: 0;
         }
-        .cv-input-box {
-          position: relative;
-          border: 1.5px solid #e4eaf5; border-radius: 12px;
-          background: #f7f9fd; overflow: hidden;
-          margin-bottom: 10px;
-        }
-        .cv-input-box:focus-within { border-color: #3563e9; background: #fff; }
-        .cv-char-count {
-          position: absolute; top: 10px; right: 12px;
-          font-size: 11px; color: #a8b8d0; pointer-events: none;
-        }
-        .cv-input {
-          width: 100%; background: none;
-          border: none; outline: none;
-          color: #1a2540; padding: 12px 80px 12px 14px;
-          font-size: 14px; line-height: 1.5;
-          resize: none; max-height: 120px; overflow-y: auto;
-          font-family: inherit;
-        }
-        .cv-input::placeholder { color: #b8c8d8; }
-        .cv-input-actions {
-          display: flex; align-items: center; justify-content: space-between;
-        }
-        .cv-input-tools { display: flex; align-items: center; gap: 4px; }
-        .cv-tool-btn {
-          width: 36px; height: 36px; border-radius: 8px;
+        .cv-attach-btn {
+          width: 42px; height: 42px; border-radius: 10px; flex-shrink: 0;
           display: flex; align-items: center; justify-content: center;
           color: #a8b8d0; transition: all 0.15s;
+          border: 1.5px solid #e4eaf5; background: #f7f9fd;
         }
-        .cv-tool-btn:hover { background: #f0f3fa; color: #3563e9; }
+        .cv-attach-btn:hover { background: #eef4fd; color: #3563e9; border-color: #c8d4ec; }
+        .cv-input {
+          flex: 1; background: #f7f9fd;
+          border: 1.5px solid #e4eaf5; border-radius: 12px;
+          color: #1a2540; padding: 11px 14px;
+          font-size: 14px; line-height: 1.5; outline: none;
+          resize: none; max-height: 130px; overflow-y: auto;
+          transition: border-color 0.15s; font-family: inherit;
+        }
+        .cv-input:focus { border-color: #3563e9; background: #fff; }
+        .cv-input::placeholder { color: #b8c8d8; }
         .cv-send-btn {
           display: flex; align-items: center; gap: 8px;
-          padding: 10px 20px; border-radius: 10px;
+          padding: 11px 18px; border-radius: 10px; flex-shrink: 0;
           background: #e4eaf5; color: #8a9bb8;
           font-size: 14px; font-weight: 600;
-          transition: all 0.15s;
+          transition: all 0.15s; white-space: nowrap;
         }
         .cv-send-btn.ready {
           background: #3563e9; color: #fff;
@@ -607,7 +568,6 @@ export default function ChatPage({ chatId }) {
         .cv-send-btn.ready:hover { background: #2850cc; }
         .cv-send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .cv-sending-dot { width: 16px; height: 16px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.4); border-top-color: white; animation: spin 0.7s linear infinite; }
-        /* Lightbox */
         .cv-lightbox { position: fixed; inset: 0; z-index: 1000; background: rgba(0,0,0,0.82); display: flex; align-items: center; justify-content: center; }
         .cv-lightbox-close { position: absolute; top: 16px; right: 16px; width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center; color: white; }
         .cv-lightbox-close:hover { background: rgba(255,255,255,0.25); }
