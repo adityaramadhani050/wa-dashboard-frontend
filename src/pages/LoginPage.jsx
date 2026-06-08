@@ -85,68 +85,84 @@ export default function LoginPage() {
         .lp-root {
           min-height: 100%;
           display: flex; align-items: center; justify-content: center;
-          background: #0f172a;
+          background: #f2f5f9;
           padding: 20px;
+          position: relative;
+        }
+        .lp-root::before {
+          content: '';
+          position: absolute; inset: 0;
+          background:
+            radial-gradient(ellipse at 20% 50%, rgba(74,130,196,0.08) 0%, transparent 60%),
+            radial-gradient(ellipse at 80% 20%, rgba(74,130,196,0.05) 0%, transparent 50%);
+          pointer-events: none;
         }
         .lp-card {
           width: 100%; max-width: 400px;
-          background: #1e293b;
-          border-radius: 16px;
-          padding: 36px 32px;
-          box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+          background: #ffffff;
+          border-radius: 18px;
+          padding: 40px 36px;
+          box-shadow: 0 4px 6px rgba(0,0,0,0.04), 0 16px 40px rgba(74,130,196,0.10);
+          border: 1px solid #e0e8f2;
+          position: relative;
         }
         .lp-brand {
           display: flex; align-items: center; gap: 12px;
-          margin-bottom: 28px;
+          margin-bottom: 32px;
         }
         .lp-brand-icon {
-          width: 44px; height: 44px; border-radius: 10px;
-          background: #2563eb;
+          width: 44px; height: 44px; border-radius: 12px;
+          background: #4a82c4;
           display: flex; align-items: center; justify-content: center;
           font-size: 20px; font-weight: 800; color: white;
-          flex-shrink: 0;
+          flex-shrink: 0; letter-spacing: -0.5px;
         }
-        .lp-brand-name { font-size: 18px; font-weight: 700; color: #f1f5f9; line-height: 1; }
-        .lp-brand-name span { color: #60a5fa; }
-        .lp-brand-sub { font-size: 10px; color: #64748b; margin-top: 3px; letter-spacing: 0.5px; }
-        .lp-title { font-size: 20px; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
-        .lp-desc { font-size: 13px; color: #64748b; margin-bottom: 24px; }
-        .lp-form { display: flex; flex-direction: column; gap: 16px; }
+        .lp-brand-name { font-size: 17px; font-weight: 700; color: #1d2d42; line-height: 1; }
+        .lp-brand-name span { color: #4a82c4; }
+        .lp-brand-sub { font-size: 10px; color: #8fa2b8; margin-top: 4px; letter-spacing: 0.4px; }
+        .lp-title { font-size: 21px; font-weight: 700; color: #1d2d42; margin-bottom: 4px; }
+        .lp-desc { font-size: 13px; color: #8fa2b8; margin-bottom: 28px; }
+        .lp-form { display: flex; flex-direction: column; gap: 18px; }
         .lp-field { display: flex; flex-direction: column; gap: 6px; }
         .lp-field label {
-          font-size: 11px; font-weight: 700; color: #94a3b8;
-          letter-spacing: 0.6px;
+          font-size: 11px; font-weight: 700; color: #8fa2b8;
+          letter-spacing: 0.7px;
         }
         .lp-field input {
-          background: #0f172a; border: 1.5px solid #334155;
-          border-radius: 8px; color: #f1f5f9;
+          background: #f7f9fc; border: 1.5px solid #e0e8f2;
+          border-radius: 10px; color: #1d2d42;
           padding: 12px 14px; font-size: 14px; outline: none;
-          transition: border-color 0.15s; width: 100%;
+          transition: border-color 0.15s, box-shadow 0.15s; width: 100%;
         }
-        .lp-field input:focus { border-color: #2563eb; }
-        .lp-field input::placeholder { color: #475569; }
+        .lp-field input:focus {
+          border-color: #4a82c4;
+          box-shadow: 0 0 0 3px rgba(74,130,196,0.1);
+          background: #fff;
+        }
+        .lp-field input::placeholder { color: #b8c8d8; }
         .lp-pw-wrap { position: relative; }
         .lp-pw-wrap input { padding-right: 42px; }
         .lp-pw-eye {
           position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
-          color: #64748b; padding: 4px;
+          color: #a0b3c8; padding: 4px;
         }
-        .lp-pw-eye:hover { color: #94a3b8; }
+        .lp-pw-eye:hover { color: #4a82c4; }
         .lp-error {
           padding: 10px 14px;
-          background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.25);
-          border-radius: 8px; color: #fca5a5; font-size: 13px;
+          background: rgba(224,82,82,0.06); border: 1px solid rgba(224,82,82,0.18);
+          border-radius: 8px; color: #c44; font-size: 13px;
         }
         .lp-submit {
           display: flex; align-items: center; justify-content: center; gap: 8px;
-          background: #2563eb; color: white;
-          border-radius: 8px; padding: 13px;
+          background: #4a82c4; color: white;
+          border-radius: 10px; padding: 13px;
           font-size: 15px; font-weight: 600;
-          transition: background 0.15s; margin-top: 4px;
+          transition: background 0.15s, box-shadow 0.15s; margin-top: 4px;
+          box-shadow: 0 2px 8px rgba(74,130,196,0.25);
         }
-        .lp-submit:hover { background: #1d4ed8; }
-        .lp-submit:disabled { opacity: 0.6; cursor: not-allowed; }
-        .lp-footer { text-align: center; font-size: 12px; color: #475569; margin-top: 20px; }
+        .lp-submit:hover { background: #3a6da8; box-shadow: 0 4px 12px rgba(74,130,196,0.3); }
+        .lp-submit:disabled { opacity: 0.55; cursor: not-allowed; box-shadow: none; }
+        .lp-footer { text-align: center; font-size: 12px; color: #a0b3c8; margin-top: 24px; }
       `}</style>
     </div>
   )

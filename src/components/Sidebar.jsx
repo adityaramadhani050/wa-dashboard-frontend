@@ -24,18 +24,18 @@ export default function IconBar() {
       <div className="ib-top">
         {/* Logo */}
         <div style={{
-          width: 40, height: 40, borderRadius: 10,
-          background: '#2563eb',
+          width: 36, height: 36, borderRadius: 10,
+          background: '#4a82c4',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 18, fontWeight: 700, color: '#fff',
-          marginBottom: 12,
+          fontSize: 16, fontWeight: 800, color: '#fff',
+          marginBottom: 14, letterSpacing: '-0.5px',
         }}>R</div>
 
         {navItems.map(({ path, icon: Icon, label }) => {
           const isActive = location.pathname === path || (path === '/inbox' && location.pathname.startsWith('/chat/'))
           return (
             <button key={path} className={`ib-btn${isActive ? ' active' : ''}`} onClick={() => navigate(path)} title={label}>
-              <Icon size={20} />
+              <Icon size={19} />
             </button>
           )
         })}
@@ -46,11 +46,11 @@ export default function IconBar() {
           className={`ib-dot ${waConnected ? 'online' : 'offline'}`}
           title={waConnected ? 'WA Connected' : 'WA Disconnected'}
         />
-        <div style={{ fontSize: 10, color: '#475569' }}>
+        <div className="ib-user-chip">
           {user?.name?.[0]?.toUpperCase() || 'U'}
         </div>
         <button className="ib-btn logout" onClick={handleLogout} title="Logout">
-          <LogOut size={18} />
+          <LogOut size={17} />
         </button>
       </div>
     </div>
