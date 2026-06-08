@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useSocket } from '../context/SocketContext'
 import { useAuth } from '../context/AuthContext'
 import { getMessages, sendMessage, sendMedia, assignAgent, updateStatus, getConversations, getAgents } from '../hooks/useApi'
+import { supabase } from '../lib/supabase'
 import { Send, ChevronDown, ArrowLeft, UserCheck, Paperclip, X, FileText, Play, Download, Check, Image, Film } from 'lucide-react'
 
 const STATUS_OPTIONS = ['open', 'in_progress', 'resolved']
@@ -167,6 +168,7 @@ export default function ChatPage({ chatId }) {
   const fileInputRef = useRef(null)
   const { newMessages } = useSocket()
 
+  // Fetch initial data (messages + conversation info)
   const fetchData = useCallback(async () => {
     try {
       const agentId = user?.role === 'agent' ? user.id : null
@@ -184,22 +186,69 @@ export default function ChatPage({ chatId }) {
     if (isAdmin) getAgents().then(d => setAgents(Array.isArray(d) ? d.filter(a => a.role === 'agent') : [])).catch(() => {})
   }, [fetchData, isAdmin])
 
+  // Supabase Realtime — subscribe to new messages for this conversation
   useEffect(() => {
-    if (newMessages.some(m => String(m.conversationId) === String(id))) fetchData()
-  }, [newMessages, id, fetchData])
+    if (!supabase || !id) return
+    const channel = supabase
+      .channel(`messages:conv:${id}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
+        filter: `conversation_id=eq.${id}`,
+      }, ({ new: msg }) => {
+        if (!msg?.id) return
+        setMessages(prev =>
+          prev.some(m => String(m.id) === String(msg.id)) ? prev : [...prev, msg]
+        )
+      })
+      .subscribe()
+    return () => supabase.removeChannel(channel)
+  }, [id])
 
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
+  // Socket.io new_message — append, do NOT re-fetch all messages
+  useEffect(() => {
+    const relevant = newMessages.filter(m => String(m.conversationId) === String(id))
+    if (!relevant.length) return
+    relevant.forEach(({ message }) => {
+      if (!message?.id) return
+      setMessages(prev =>
+        prev.some(m => String(m.id) === String(message.id)) ? prev : [...prev, message]
+      )
+    })
+  }, [newMessages, id])
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
 
   const closeMenus = () => { setShowStatusMenu(false); setShowAgentMenu(false) }
 
+  // Optimistic send: message appears instantly, replaced with real data on success
   const handleSend = async () => {
     if (!text.trim() || sending) return
     const msg = text.trim()
     setText('')
     setSending(true)
-    try { await sendMessage(id, msg); await fetchData() }
-    catch (e) { setError(e?.response?.data?.error || 'Gagal mengirim.'); setText(msg) }
-    finally { setSending(false) }
+
+    const tempId = `tmp-${Date.now()}`
+    setMessages(prev => [...prev, {
+      id: tempId, body: msg, from_me: true,
+      timestamp: new Date().toISOString(), status: 'sending',
+    }])
+
+    try {
+      await sendMessage(id, msg)
+      // Silently refresh to replace optimistic with real saved message
+      const fresh = await getMessages(id)
+      if (Array.isArray(fresh)) setMessages(fresh)
+    } catch (e) {
+      setError(e?.response?.data?.error || 'Gagal mengirim.')
+      setMessages(prev => prev.filter(m => m.id !== tempId))
+      setText(msg)
+    } finally {
+      setSending(false)
+    }
   }
 
   const handleFileSelect = (e) => {
@@ -327,16 +376,19 @@ export default function ChatPage({ chatId }) {
             const msg = item.msg
             const sent = msg.from_me === true || msg.from_me === 1 || msg.fromMe === true
             const hasMedia = !!msg.media_type
+            const isSending = String(msg.id).startsWith('tmp-')
             return (
               <div key={msg.id || i} className={`cv-row ${sent?'sent':'recv'}`}>
-                <div className={`cv-bubble ${sent?'bsent':'brecv'} ${hasMedia?'media':''}`}>
+                <div className={`cv-bubble ${sent?'bsent':'brecv'} ${hasMedia?'media':''} ${isSending?'sending':''}`}>
                   {hasMedia
                     ? <MediaContent msg={msg} sent={sent} onImageClick={setLightboxUrl} />
                     : <p>{msg.body || msg.content || msg.text}</p>
                   }
                   <div className="cv-meta">
-                    <span className="cv-time">{formatTime(msg.timestamp || msg.createdAt)}</span>
-                    {sent && <MessageTick status={msg.status} />}
+                    <span className="cv-time">
+                      {isSending ? '⏳' : formatTime(msg.timestamp || msg.createdAt)}
+                    </span>
+                    {sent && !isSending && <MessageTick status={msg.status} />}
                   </div>
                 </div>
               </div>
@@ -359,15 +411,11 @@ export default function ChatPage({ chatId }) {
         </div>
       )}
 
-      {/* Input bar - single row */}
+      {/* Input bar */}
       <div className="cv-input-bar" onClick={e => e.stopPropagation()}>
-        <input
-          type="file"
-          ref={fileInputRef}
-          style={{ display: 'none' }}
+        <input type="file" ref={fileInputRef} style={{ display: 'none' }}
           accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.rar,.txt"
-          onChange={handleFileSelect}
-        />
+          onChange={handleFileSelect} />
         <button className="cv-attach-btn" onClick={() => fileInputRef.current?.click()} title="Lampirkan file">
           <Paperclip size={19} />
         </button>
@@ -419,43 +467,19 @@ export default function ChatPage({ chatId }) {
         .cv-name { font-size: 14px; font-weight: 600; color: #1a2540; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .cv-sub { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 1px; }
         .cv-phone { font-size: 12px; color: #a8b8d0; }
-        .cv-assigned {
-          display: inline-flex; align-items: center; gap: 3px;
-          font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 10px;
-          background: rgba(39,168,122,0.1); color: #27a87a;
-        }
-        .cv-unassigned {
-          font-size: 11px; padding: 1px 7px; border-radius: 10px;
-          background: rgba(208,139,40,0.1); color: #d08b28;
-        }
+        .cv-assigned { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 10px; background: rgba(39,168,122,0.1); color: #27a87a; }
+        .cv-unassigned { font-size: 11px; padding: 1px 7px; border-radius: 10px; background: rgba(208,139,40,0.1); color: #d08b28; }
         .cv-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
         .cv-dd { position: relative; }
-        .cv-assign-btn {
-          display: flex; align-items: center; gap: 5px;
-          padding: 7px 14px; border-radius: 8px;
-          font-size: 13px; font-weight: 500;
-          color: #4f607a; background: #f0f3fa;
-          border: 1px solid #e4eaf5; transition: all 0.15s;
-        }
+        .cv-assign-btn { display: flex; align-items: center; gap: 5px; padding: 7px 14px; border-radius: 8px; font-size: 13px; font-weight: 500; color: #4f607a; background: #f0f3fa; border: 1px solid #e4eaf5; transition: all 0.15s; }
         .cv-assign-btn:hover { background: #e8eef8; }
-        .cv-status-btn {
-          display: flex; align-items: center; gap: 6px;
-          padding: 7px 12px; border-radius: 8px;
-          font-size: 13px; font-weight: 500;
-          border: 1px solid #e4eaf5;
-          background: #f7f9fd; color: #4f607a; transition: all 0.15s;
-        }
+        .cv-status-btn { display: flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 8px; font-size: 13px; font-weight: 500; border: 1px solid #e4eaf5; background: #f7f9fd; color: #4f607a; transition: all 0.15s; }
         .cv-status-btn:hover { background: #e8eef8; }
         .cv-status-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
         .st-open .cv-status-dot { background: #3563e9; }
         .st-in_progress .cv-status-dot { background: #d08b28; }
         .st-resolved .cv-status-dot { background: #27a87a; }
-        .cv-menu {
-          position: absolute; right: 0; top: calc(100% + 6px);
-          background: #fff; border: 1px solid #e4eaf5;
-          border-radius: 12px; z-index: 200;
-          box-shadow: 0 8px 24px rgba(26,37,64,0.10); overflow: hidden;
-        }
+        .cv-menu { position: absolute; right: 0; top: calc(100% + 6px); background: #fff; border: 1px solid #e4eaf5; border-radius: 12px; z-index: 200; box-shadow: 0 8px 24px rgba(26,37,64,0.10); overflow: hidden; }
         .cv-menu-lbl { padding: 8px 14px 4px; font-size: 10px; font-weight: 700; color: #a8b8d0; text-transform: uppercase; letter-spacing: 0.5px; }
         .cv-mi { display: flex; flex-direction: column; width: 100%; text-align: left; padding: 9px 14px; font-size: 13px; color: #1a2540; transition: background 0.1s; }
         .cv-mi:hover { background: #f7f9fd; }
@@ -465,17 +489,8 @@ export default function ChatPage({ chatId }) {
         .si-open { color: #3563e9 !important; }
         .si-in_progress { color: #d08b28 !important; }
         .si-resolved { color: #27a87a !important; }
-        .cv-error {
-          background: rgba(229,62,62,0.05); border-bottom: 1px solid rgba(229,62,62,0.12);
-          color: #c44; padding: 8px 16px; font-size: 13px;
-          display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
-        }
-        .cv-messages {
-          flex: 1; min-height: 0; overflow-y: auto;
-          padding: 20px 24px;
-          display: flex; flex-direction: column; gap: 2px;
-          background: #f0f3fa;
-        }
+        .cv-error { background: rgba(229,62,62,0.05); border-bottom: 1px solid rgba(229,62,62,0.12); color: #c44; padding: 8px 16px; font-size: 13px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+        .cv-messages { flex: 1; min-height: 0; overflow-y: auto; padding: 20px 24px; display: flex; flex-direction: column; gap: 2px; background: #f0f3fa; }
         .cv-loading { display: flex; flex-direction: column; gap: 8px; }
         .cv-skel { height: 40px; max-width: 55%; border-radius: 10px; background: rgba(0,0,0,0.05); animation: pulse 1.4s ease infinite; }
         .cv-skel.left { align-self: flex-start; }
@@ -488,6 +503,7 @@ export default function ChatPage({ chatId }) {
         .cv-row.recv { justify-content: flex-start; }
         .cv-bubble { max-width: 62%; padding: 10px 14px 7px; border-radius: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); word-break: break-word; }
         .cv-bubble.media { padding: 4px 4px 7px; }
+        .cv-bubble.sending { opacity: 0.65; }
         .bsent { background: #3563e9; color: #fff; border-bottom-right-radius: 4px; }
         .brecv { background: #fff; color: #1a2540; border-bottom-left-radius: 4px; border: 1px solid #e4eaf5; }
         .cv-bubble p { font-size: 14px; line-height: 1.55; white-space: pre-wrap; }
@@ -531,40 +547,14 @@ export default function ChatPage({ chatId }) {
         .cv-file-name { font-size: 13px; font-weight: 500; color: #1a2540; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
         .cv-file-remove { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #a8b8d0; }
         .cv-file-remove:hover { background: #dce8fb; color: #3563e9; }
-        /* Input bar */
-        .cv-input-bar {
-          display: flex; align-items: flex-end; gap: 10px;
-          padding: 12px 16px; background: #fff;
-          border-top: 1px solid #e4eaf5; flex-shrink: 0;
-        }
-        .cv-attach-btn {
-          width: 42px; height: 42px; border-radius: 10px; flex-shrink: 0;
-          display: flex; align-items: center; justify-content: center;
-          color: #a8b8d0; transition: all 0.15s;
-          border: 1.5px solid #e4eaf5; background: #f7f9fd;
-        }
+        .cv-input-bar { display: flex; align-items: flex-end; gap: 10px; padding: 12px 16px; background: #fff; border-top: 1px solid #e4eaf5; flex-shrink: 0; }
+        .cv-attach-btn { width: 42px; height: 42px; border-radius: 10px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: #a8b8d0; transition: all 0.15s; border: 1.5px solid #e4eaf5; background: #f7f9fd; }
         .cv-attach-btn:hover { background: #eef4fd; color: #3563e9; border-color: #c8d4ec; }
-        .cv-input {
-          flex: 1; background: #f7f9fd;
-          border: 1.5px solid #e4eaf5; border-radius: 12px;
-          color: #1a2540; padding: 11px 14px;
-          font-size: 14px; line-height: 1.5; outline: none;
-          resize: none; max-height: 130px; overflow-y: auto;
-          transition: border-color 0.15s; font-family: inherit;
-        }
+        .cv-input { flex: 1; background: #f7f9fd; border: 1.5px solid #e4eaf5; border-radius: 12px; color: #1a2540; padding: 11px 14px; font-size: 14px; line-height: 1.5; outline: none; resize: none; max-height: 130px; overflow-y: auto; transition: border-color 0.15s; font-family: inherit; }
         .cv-input:focus { border-color: #3563e9; background: #fff; }
         .cv-input::placeholder { color: #b8c8d8; }
-        .cv-send-btn {
-          display: flex; align-items: center; gap: 8px;
-          padding: 11px 18px; border-radius: 10px; flex-shrink: 0;
-          background: #e4eaf5; color: #8a9bb8;
-          font-size: 14px; font-weight: 600;
-          transition: all 0.15s; white-space: nowrap;
-        }
-        .cv-send-btn.ready {
-          background: #3563e9; color: #fff;
-          box-shadow: 0 4px 12px rgba(53,99,233,0.28);
-        }
+        .cv-send-btn { display: flex; align-items: center; gap: 8px; padding: 11px 18px; border-radius: 10px; flex-shrink: 0; background: #e4eaf5; color: #8a9bb8; font-size: 14px; font-weight: 600; transition: all 0.15s; white-space: nowrap; }
+        .cv-send-btn.ready { background: #3563e9; color: #fff; box-shadow: 0 4px 12px rgba(53,99,233,0.28); }
         .cv-send-btn.ready:hover { background: #2850cc; }
         .cv-send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .cv-sending-dot { width: 16px; height: 16px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.4); border-top-color: white; animation: spin 0.7s linear infinite; }
@@ -572,7 +562,6 @@ export default function ChatPage({ chatId }) {
         .cv-lightbox-close { position: absolute; top: 16px; right: 16px; width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center; color: white; }
         .cv-lightbox-close:hover { background: rgba(255,255,255,0.25); }
         .cv-lightbox-img { max-width: 90vw; max-height: 90vh; border-radius: 8px; object-fit: contain; }
-        /* Mobile adjustments */
         @media (max-width: 768px) {
           .cv-header { padding: 10px 12px; gap: 8px; min-height: 56px; }
           .cv-messages { padding: 12px; }

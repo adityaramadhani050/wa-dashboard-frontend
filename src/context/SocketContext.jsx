@@ -15,53 +15,34 @@ export function SocketProvider({ children }) {
   const socketRef = useRef(null)
 
   useEffect(() => {
-    console.log('[Socket] Connecting to:', BACKEND_URL)
-
     const s = io(BACKEND_URL, {
-      transports: ['websocket', 'polling'],
-      reconnectionAttempts: 5,
-      reconnectionDelay: 2000,
+      // Force WebSocket only — no polling fallback
+      transports: ['websocket'],
+      reconnectionAttempts: 10,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
       withCredentials: false,
-      timeout: 20000,
+      timeout: 10000,
     })
 
     socketRef.current = s
     setSocket(s)
 
     s.on('connect', () => {
-      const transport = s.io.engine.transport.name
-      console.log(`[Socket] Connected ✓  id=${s.id}  transport=${transport}`)
+      console.log(`[Socket] Connected ✓ id=${s.id}`)
       setSocketConnected(true)
       setSocketError(null)
     })
 
     s.on('connect_error', (err) => {
-      // Log the full error object for maximum detail
-      console.error('[Socket] connect_error:', {
-        message: err.message,
-        description: err.description,
-        context: err.context,
-        type: err.type,
-        data: err.data,
-        stack: err.stack,
-      })
+      console.error('[Socket] connect_error:', err.message)
       setSocketConnected(false)
-      setSocketError(err.message || 'Unknown connection error')
+      setSocketError(err.message || 'Connection error')
     })
 
-    s.on('disconnect', (reason, details) => {
-      console.warn('[Socket] Disconnected:', {
-        reason,
-        // details available in Socket.io v4.1+
-        message: details?.message,
-        description: details?.description,
-        context: details?.context,
-      })
+    s.on('disconnect', (reason) => {
+      console.warn('[Socket] Disconnected:', reason)
       setSocketConnected(false)
-    })
-
-    s.io.on('reconnect_attempt', (n) => {
-      console.log(`[Socket] Reconnect attempt #${n} of 5`)
     })
 
     s.io.on('reconnect', (n) => {
@@ -69,53 +50,35 @@ export function SocketProvider({ children }) {
       setSocketError(null)
     })
 
-    s.io.on('reconnect_error', (err) => {
-      console.error('[Socket] Reconnect error:', err.message)
-    })
-
     s.io.on('reconnect_failed', () => {
-      const msg = 'Failed to reconnect after 5 attempts — check backend is running and CORS is enabled'
-      console.error('[Socket] ' + msg)
-      setSocketError(msg)
+      setSocketError('Failed to reconnect — check backend')
     })
 
     s.on('qr', (data) => {
-      console.log('[Socket] "qr" event received, data length:', typeof data === 'string' ? data.length : typeof data)
       setQrCode(data)
       setWaConnected(false)
     })
 
     s.on('wa_status', (data) => {
-      console.log('[Socket] "wa_status" event:', data)
-      // handle both shapes: true  OR  { connected: true }
       const connected = data === true || data?.connected === true
       setWaConnected(connected)
       if (connected) setQrCode(null)
     })
 
     s.on('new_message', (data) => {
-      console.log('[Socket] "new_message" event:', data)
       setNewMessages(prev => [...prev.slice(-99), data])
     })
 
-    return () => {
-      console.log('[Socket] Tearing down connection')
-      s.disconnect()
-    }
+    return () => s.disconnect()
   }, [])
 
   const clearNewMessages = () => setNewMessages([])
 
   return (
     <SocketContext.Provider value={{
-      socket,
-      socketConnected,
-      socketError,
-      waConnected,
-      qrCode,
-      setQrCode,
-      newMessages,
-      clearNewMessages,
+      socket, socketConnected, socketError,
+      waConnected, qrCode, setQrCode,
+      newMessages, clearNewMessages,
     }}>
       {children}
     </SocketContext.Provider>
