@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { getContacts } from '../hooks/useApi'
-import { Search, Users, Phone, Calendar, Clock } from 'lucide-react'
+import { Search, Users, Phone, Calendar, Clock, EyeOff } from 'lucide-react'
 
 function formatDateTime(dateStr) {
   if (!dateStr) return '-'
@@ -9,8 +9,26 @@ function formatDateTime(dateStr) {
     ' ' + d.toLocaleTimeString('id', { hour: '2-digit', minute: '2-digit' })
 }
 
+function isLid(phone) {
+  return phone?.includes('@lid')
+}
+
 function cleanPhone(phone) {
-  return phone ? phone.split('@')[0] : '-'
+  if (!phone) return '-'
+  if (isLid(phone)) return null
+  return phone.split('@')[0]
+}
+
+function PhoneDisplay({ phone }) {
+  if (isLid(phone)) {
+    return (
+      <span className="ct-phone-hidden">
+        <EyeOff size={12} />
+        Nomor tersembunyi
+      </span>
+    )
+  }
+  return <span className="ct-phone">{cleanPhone(phone)}</span>
 }
 
 function Avatar({ name }) {
@@ -43,9 +61,10 @@ export default function ContactsPage() {
   const filtered = contacts.filter(c => {
     if (!search.trim()) return true
     const q = search.toLowerCase()
+    const phone = cleanPhone(c.phone) || ''
     return (
       c.name?.toLowerCase().includes(q) ||
-      cleanPhone(c.phone).includes(q)
+      phone.includes(q)
     )
   })
 
@@ -108,7 +127,7 @@ export default function ContactsPage() {
                           <span className="ct-name">{c.name || '-'}</span>
                         </div>
                       </td>
-                      <td><span className="ct-phone">{cleanPhone(c.phone)}</span></td>
+                      <td><PhoneDisplay phone={c.phone} /></td>
                       <td><span className="ct-date">{formatDateTime(c.first_seen)}</span></td>
                       <td><span className="ct-date">{formatDateTime(c.last_message_at)}</span></td>
                     </tr>
@@ -124,7 +143,7 @@ export default function ContactsPage() {
                   <Avatar name={c.name} />
                   <div className="ct-card-body">
                     <div className="ct-card-name">{c.name || '-'}</div>
-                    <div className="ct-card-phone">{cleanPhone(c.phone)}</div>
+                    <div className="ct-card-phone-wrap"><PhoneDisplay phone={c.phone} /></div>
                     <div className="ct-card-dates">
                       <span><Calendar size={11} /> {formatDateTime(c.first_seen)}</span>
                       <span><Clock size={11} /> {formatDateTime(c.last_message_at)}</span>
@@ -167,13 +186,16 @@ export default function ContactsPage() {
         .ct-name-cell { display: flex; align-items: center; gap: 10px; }
         .ct-name { font-size: 14px; font-weight: 600; color: #1a2540; }
         .ct-phone { font-size: 13px; color: #4f607a; font-family: monospace; background: #f0f3fa; padding: 3px 8px; border-radius: 6px; }
+        .ct-phone-hidden { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: #a8b8d0; font-style: italic; }
         .ct-date { font-size: 12px; color: #6878a0; }
         /* Mobile card list (hidden on desktop) */
         .ct-card-list { display: none; flex-direction: column; gap: 8px; }
         .ct-card { background: #fff; border: 1px solid #e4eaf5; border-radius: 12px; padding: 14px; display: flex; align-items: flex-start; gap: 12px; }
         .ct-card-body { flex: 1; min-width: 0; }
         .ct-card-name { font-size: 14px; font-weight: 600; color: #1a2540; margin-bottom: 2px; }
-        .ct-card-phone { font-size: 12px; color: #4f607a; font-family: monospace; margin-bottom: 6px; }
+        .ct-card-phone-wrap { margin-bottom: 6px; }
+        .ct-card-phone-wrap .ct-phone { font-size: 12px; color: #4f607a; font-family: monospace; }
+        .ct-card-phone-wrap .ct-phone-hidden { font-size: 11px; }
         .ct-card-dates { display: flex; flex-direction: column; gap: 3px; }
         .ct-card-dates span { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: #8a9bb8; }
         @media (max-width: 768px) {
