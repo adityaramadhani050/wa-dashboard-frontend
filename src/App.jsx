@@ -8,6 +8,7 @@ import InboxPage from './pages/InboxPage'
 import ChatPage from './pages/ChatPage'
 import AnalyticsPage from './pages/AnalyticsPage'
 import AgentManagementPage from './pages/AgentManagementPage'
+import ContactsPage from './pages/ContactsPage'
 
 function WelcomeView() {
   return (
@@ -36,10 +37,11 @@ function WelcomeView() {
 
 function ProtectedShell() {
   const { user } = useAuth()
-  const matchChat = useMatch('/chat/:id')
-  const matchQR = useMatch('/qr')
-  const matchAnalytics = useMatch('/analytics')
-  const matchAgents = useMatch('/agents')
+  const matchChat     = useMatch('/chat/:id')
+  const matchQR       = useMatch('/qr')
+  const matchAnalytics= useMatch('/analytics')
+  const matchAgents   = useMatch('/agents')
+  const matchContacts = useMatch('/contacts')
 
   if (!user) return <Navigate to="/login" replace />
 
@@ -48,7 +50,7 @@ function ProtectedShell() {
   }
 
   const chatId = matchChat?.params?.id
-  const isFullPage = matchQR || matchAnalytics || matchAgents
+  const isFullPage = matchQR || matchAnalytics || matchAgents || matchContacts
 
   return (
     <SocketProvider>
@@ -56,9 +58,10 @@ function ProtectedShell() {
         <IconBar />
         {isFullPage ? (
           <div className="wa-full-panel">
-            {matchQR && <QRSetupPage />}
+            {matchQR       && <QRSetupPage />}
             {matchAnalytics && <AnalyticsPage />}
-            {matchAgents && <AgentManagementPage />}
+            {matchAgents   && <AgentManagementPage />}
+            {matchContacts && <ContactsPage />}
           </div>
         ) : (
           <>

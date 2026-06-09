@@ -13,8 +13,6 @@ export function SocketProvider({ children }) {
   const [qrCode, setQrCode] = useState(null)
   const [newMessages, setNewMessages] = useState([])
   const [statusUpdates, setStatusUpdates] = useState([])
-  const [deletedMessages, setDeletedMessages] = useState([])
-  const [editedMessages, setEditedMessages] = useState([])
   const socketRef = useRef(null)
 
   useEffect(() => {
@@ -31,71 +29,35 @@ export function SocketProvider({ children }) {
     setSocket(s)
 
     s.on('connect', () => {
-      console.log(`[Socket] Connected ✓ id=${s.id}`)
       setSocketConnected(true)
       setSocketError(null)
     })
-
     s.on('connect_error', (err) => {
-      console.error('[Socket] connect_error:', err.message)
       setSocketConnected(false)
       setSocketError(err.message || 'Connection error')
     })
+    s.on('disconnect', () => setSocketConnected(false))
+    s.io.on('reconnect', () => setSocketError(null))
+    s.io.on('reconnect_failed', () => setSocketError('Failed to reconnect — check backend'))
 
-    s.on('disconnect', (reason) => {
-      console.warn('[Socket] Disconnected:', reason)
-      setSocketConnected(false)
-    })
-
-    s.io.on('reconnect', (n) => {
-      console.log(`[Socket] Reconnected after ${n} attempt(s)`)
-      setSocketError(null)
-    })
-
-    s.io.on('reconnect_failed', () => {
-      setSocketError('Failed to reconnect — check backend')
-    })
-
-    s.on('qr', (data) => {
-      setQrCode(data)
-      setWaConnected(false)
-    })
-
+    s.on('qr', (data) => { setQrCode(data); setWaConnected(false) })
     s.on('wa_status', (data) => {
       const connected = data === true || data?.connected === true
       setWaConnected(connected)
       if (connected) setQrCode(null)
     })
-
-    s.on('new_message', (data) => {
-      setNewMessages(prev => [...prev.slice(-99), data])
-    })
-
-    s.on('message_status', (data) => {
-      setStatusUpdates(prev => [...prev.slice(-99), data])
-    })
-
-    s.on('message_deleted', (data) => {
-      setDeletedMessages(prev => [...prev.slice(-99), data])
-    })
-
-    s.on('message_edited', (data) => {
-      setEditedMessages(prev => [...prev.slice(-99), data])
-    })
+    s.on('new_message', (data) => setNewMessages(prev => [...prev.slice(-99), data]))
+    s.on('message_status', (data) => setStatusUpdates(prev => [...prev.slice(-99), data]))
 
     return () => s.disconnect()
   }, [])
-
-  const clearNewMessages = () => setNewMessages([])
 
   return (
     <SocketContext.Provider value={{
       socket, socketConnected, socketError,
       waConnected, qrCode, setQrCode,
-      newMessages, clearNewMessages,
+      newMessages, clearNewMessages: () => setNewMessages([]),
       statusUpdates,
-      deletedMessages,
-      editedMessages,
     }}>
       {children}
     </SocketContext.Provider>

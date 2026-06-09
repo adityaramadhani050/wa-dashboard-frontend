@@ -1,7 +1,7 @@
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useSocket } from '../context/SocketContext'
-import { MessageSquare, BarChart2, QrCode, LogOut, Users } from 'lucide-react'
+import { MessageSquare, BarChart2, QrCode, LogOut, Users, BookUser } from 'lucide-react'
 
 export default function IconBar() {
   const { user, logout } = useAuth()
@@ -13,16 +13,16 @@ export default function IconBar() {
   const handleLogout = () => { logout(); navigate('/login') }
 
   const navItems = [
-    { path: '/inbox', icon: MessageSquare, label: 'Chats', adminOnly: false },
-    { path: '/analytics', icon: BarChart2, label: 'Analytics', adminOnly: true },
-    { path: '/agents', icon: Users, label: 'Manajemen Agent', adminOnly: true },
-    { path: '/qr', icon: QrCode, label: 'QR Setup', adminOnly: true },
+    { path: '/inbox',    icon: MessageSquare, label: 'Chats',           adminOnly: false },
+    { path: '/contacts', icon: BookUser,      label: 'Kontak',          adminOnly: false },
+    { path: '/analytics',icon: BarChart2,     label: 'Analytics',       adminOnly: true  },
+    { path: '/agents',   icon: Users,         label: 'Manajemen Agent', adminOnly: true  },
+    { path: '/qr',       icon: QrCode,        label: 'QR Setup',        adminOnly: true  },
   ].filter(item => !item.adminOnly || isAdmin)
 
   return (
     <div className="icon-bar">
       <div className="ib-top">
-        {/* ib-logo class hides this on mobile */}
         <div className="ib-logo" style={{
           width: 34, height: 34, borderRadius: 10,
           background: '#3563e9',
