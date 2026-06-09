@@ -12,6 +12,13 @@ const TABS = [
   { id: 'resolved', label: 'Selesai' },
 ]
 
+const AVATAR_COLORS = ['#3563e9','#27a87a','#d08b28','#e05c8a','#7c5cd6','#2aaccc']
+function avatarStyle(name) {
+  const letter = (name || '?')[0].toUpperCase()
+  const c = AVATAR_COLORS[letter.charCodeAt(0) % AVATAR_COLORS.length]
+  return { background: c + '22', color: c }
+}
+
 function timeStr(dateStr) {
   if (!dateStr) return ''
   const d = new Date(dateStr)
@@ -121,7 +128,10 @@ export default function InboxPage() {
                 className={`cl-item${isActive ? ' active' : ''}`}
                 onClick={() => navigate(`/chat/${conv.id}`)}
               >
-                <div className="cl-avatar">{initial}</div>
+                <div
+                  className="cl-avatar"
+                  style={isActive ? { background: 'rgba(255,255,255,0.22)', color: '#fff' } : avatarStyle(name)}
+                >{initial}</div>
                 <div className="cl-info">
                   <div className="cl-row">
                     <span className="cl-name">{name}</span>
@@ -211,9 +221,7 @@ export default function InboxPage() {
           transition: background 0.1s;
         }
         .cl-item:hover { background: #f7f9fd; }
-        .cl-item.active {
-          background: #3563e9;
-        }
+        .cl-item.active { background: #3563e9; }
         .cl-item.active .cl-name { color: #fff; }
         .cl-item.active .cl-time { color: rgba(255,255,255,0.7); }
         .cl-item.active .cl-preview { color: rgba(255,255,255,0.75); }
@@ -222,13 +230,8 @@ export default function InboxPage() {
         }
         .cl-avatar {
           width: 42px; height: 42px; border-radius: 50%;
-          background: #dce8fb;
-          color: #3563e9;
           display: flex; align-items: center; justify-content: center;
           font-size: 16px; font-weight: 700; flex-shrink: 0;
-        }
-        .cl-item.active .cl-avatar {
-          background: rgba(255,255,255,0.22); color: #fff;
         }
         .cl-info { flex: 1; min-width: 0; }
         .cl-row {

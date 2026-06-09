@@ -4,6 +4,13 @@ import { Plus, Pencil, Trash2, X, Eye, EyeOff, Users } from 'lucide-react'
 
 const EMPTY_FORM = { name: '', username: '', email: '', role: 'agent', password: '', confirmPassword: '' }
 
+const AVATAR_COLORS = ['#3563e9','#27a87a','#d08b28','#e05c8a','#7c5cd6','#2aaccc']
+function avatarStyle(name) {
+  const letter = (name || '?')[0].toUpperCase()
+  const c = AVATAR_COLORS[letter.charCodeAt(0) % AVATAR_COLORS.length]
+  return { background: c + '22', color: c }
+}
+
 function Modal({ title, onClose, children }) {
   return (
     <div className="am-overlay" onClick={onClose}>
@@ -200,7 +207,7 @@ export default function AgentManagementPage() {
                   <tr key={a.id}>
                     <td>
                       <div className="am-agent-cell">
-                        <div className="am-avatar">{(a.name || 'A')[0].toUpperCase()}</div>
+                        <div className="am-avatar" style={avatarStyle(a.name)}>{(a.name || 'A')[0].toUpperCase()}</div>
                         <span>{a.name}</span>
                       </div>
                     </td>
@@ -300,10 +307,9 @@ export default function AgentManagementPage() {
         .am-table tr:hover td { background: #f8fafc; }
         .am-agent-cell { display: flex; align-items: center; gap: 10px; }
         .am-avatar {
-          width: 32px; height: 32px; border-radius: 50%;
-          background: linear-gradient(135deg,#2563eb,#7c3aed); flex-shrink: 0;
+          width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
           display: flex; align-items: center; justify-content: center;
-          font-size: 13px; font-weight: 700; color: white;
+          font-size: 13px; font-weight: 700;
         }
         .am-username { font-size: 13px; color: #2563eb; font-weight: 500; font-family: monospace; }
         .am-email { color: #64748b; font-size: 13px; }

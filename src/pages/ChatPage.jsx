@@ -8,6 +8,13 @@ import { Send, ChevronDown, ArrowLeft, UserCheck, Paperclip, X, FileText, Play, 
 
 const STATUS_OPTIONS = ['open', 'in_progress', 'resolved']
 
+const AVATAR_COLORS = ['#3563e9','#27a87a','#d08b28','#e05c8a','#7c5cd6','#2aaccc']
+function avatarStyle(name) {
+  const letter = (name || '?')[0].toUpperCase()
+  const c = AVATAR_COLORS[letter.charCodeAt(0) % AVATAR_COLORS.length]
+  return { background: c + '22', color: c }
+}
+
 function formatTime(dateStr) {
   if (!dateStr) return ''
   return new Date(dateStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -335,7 +342,7 @@ export default function ChatPage({ chatId }) {
 
       <div className="cv-header" onClick={e => e.stopPropagation()}>
         <button className="cv-back" onClick={() => navigate('/inbox')}><ArrowLeft size={20} /></button>
-        <div className="cv-avatar">{name[0].toUpperCase()}</div>
+        <div className="cv-avatar" style={avatarStyle(name)}>{name[0].toUpperCase()}</div>
         <div className="cv-contact">
           <div className="cv-name">{name}</div>
           <div className="cv-sub">
@@ -472,7 +479,7 @@ export default function ChatPage({ chatId }) {
         .cv-back { display: none; width: 36px; height: 36px; border-radius: 8px; align-items: center; justify-content: center; color: #8a9bb8; flex-shrink: 0; }
         .cv-back:hover { background: #f0f3fa; }
         @media (max-width: 768px) { .cv-back { display: flex; } }
-        .cv-avatar { width: 40px; height: 40px; border-radius: 50%; background: #dce8fb; color: #3563e9; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700; flex-shrink: 0; }
+        .cv-avatar { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700; flex-shrink: 0; }
         .cv-contact { flex: 1; min-width: 0; overflow: hidden; }
         .cv-name { font-size: 14px; font-weight: 600; color: #1a2540; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .cv-sub { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 1px; }
