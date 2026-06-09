@@ -2,13 +2,6 @@ import { useState, useEffect } from 'react'
 import { getContacts } from '../hooks/useApi'
 import { Search, Users, Phone, Calendar, Clock } from 'lucide-react'
 
-function formatDate(dateStr) {
-  if (!dateStr) return '-'
-  return new Date(dateStr).toLocaleDateString('id', {
-    day: 'numeric', month: 'short', year: 'numeric',
-  })
-}
-
 function formatDateTime(dateStr) {
   if (!dateStr) return '-'
   const d = new Date(dateStr)
@@ -116,7 +109,7 @@ export default function ContactsPage() {
                         </div>
                       </td>
                       <td><span className="ct-phone">{cleanPhone(c.phone)}</span></td>
-                      <td><span className="ct-date">{formatDate(c.first_seen)}</span></td>
+                      <td><span className="ct-date">{formatDateTime(c.first_seen)}</span></td>
                       <td><span className="ct-date">{formatDateTime(c.last_message_at)}</span></td>
                     </tr>
                   ))}
@@ -133,7 +126,7 @@ export default function ContactsPage() {
                     <div className="ct-card-name">{c.name || '-'}</div>
                     <div className="ct-card-phone">{cleanPhone(c.phone)}</div>
                     <div className="ct-card-dates">
-                      <span><Calendar size={11} /> {formatDate(c.first_seen)}</span>
+                      <span><Calendar size={11} /> {formatDateTime(c.first_seen)}</span>
                       <span><Clock size={11} /> {formatDateTime(c.last_message_at)}</span>
                     </div>
                   </div>
