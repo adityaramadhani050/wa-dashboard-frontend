@@ -154,9 +154,7 @@ function ImageLightbox({ url, onClose }) {
 // Merge incoming message into state: replace first tmp- if from_me, else append
 function mergeMessage(prev, message) {
   if (!message?.id) return prev
-  // Already exists — skip
   if (prev.some(m => String(m.id) === String(message.id))) return prev
-  // Our own message: replace the first optimistic placeholder
   if (isFromMe(message)) {
     const tmpIdx = prev.findIndex(m => String(m.id).startsWith('tmp-'))
     if (tmpIdx !== -1) {
@@ -206,7 +204,6 @@ export default function ChatPage({ chatId }) {
     if (isAdmin) getAgents().then(d => setAgents(Array.isArray(d) ? d.filter(a => a.role === 'agent') : [])).catch(() => {})
   }, [fetchData, isAdmin])
 
-  // Supabase Realtime — replace tmp- for own messages, append for others
   useEffect(() => {
     if (!supabase || !id) return
     const channel = supabase
@@ -221,7 +218,6 @@ export default function ChatPage({ chatId }) {
     return () => supabase.removeChannel(channel)
   }, [id])
 
-  // Socket.io new_message — replace tmp- for own messages, append for others
   useEffect(() => {
     const relevant = newMessages.filter(m => String(m.conversationId) === String(id))
     if (!relevant.length) return
@@ -232,7 +228,6 @@ export default function ChatPage({ chatId }) {
     })
   }, [newMessages, id])
 
-  // Socket.io message_status — update tick in real-time
   useEffect(() => {
     if (!statusUpdates.length) return
     setMessages(prev => prev.map(msg => {
@@ -253,17 +248,14 @@ export default function ChatPage({ chatId }) {
     setText('')
     setSending(true)
     const tempId = `tmp-${Date.now()}`
-    // Show optimistic message immediately
     setMessages(prev => [...prev, {
       id: tempId, body: msg, from_me: true,
       timestamp: new Date().toISOString(), status: 'sending',
     }])
     try {
       await sendMessage(id, msg)
-      // No re-fetch needed: Socket.io / Supabase Realtime will replace the tmp- message
     } catch (e) {
       setError(e?.response?.data?.error || 'Gagal mengirim.')
-      // Remove optimistic on failure
       setMessages(prev => prev.filter(m => m.id !== tempId))
       setText(msg)
     } finally { setSending(false) }
@@ -449,7 +441,7 @@ export default function ChatPage({ chatId }) {
         >
           {sending
             ? <div className="cv-sending-dot" />
-            : <><span className="cv-send-label">Send message</span><Send size={15} /></>}
+            : <><span className="cv-send-label">Kirim</span><Send size={15} /></>}
         </button>
       </div>
 
@@ -544,13 +536,13 @@ export default function ChatPage({ chatId }) {
         .cv-file-name { font-size: 13px; font-weight: 500; color: #1a2540; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
         .cv-file-remove { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #a8b8d0; }
         .cv-file-remove:hover { background: #dce8fb; color: #3563e9; }
-        .cv-input-bar { display: flex; align-items: flex-end; gap: 10px; padding: 12px 16px; background: #fff; border-top: 1px solid #e4eaf5; flex-shrink: 0; }
-        .cv-attach-btn { width: 42px; height: 42px; border-radius: 10px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: #a8b8d0; transition: all 0.15s; border: 1.5px solid #e4eaf5; background: #f7f9fd; }
+        .cv-input-bar { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: #fff; border-top: 1px solid #e4eaf5; flex-shrink: 0; }
+        .cv-attach-btn { width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: #a8b8d0; transition: all 0.15s; border: 1.5px solid #e4eaf5; background: #f7f9fd; }
         .cv-attach-btn:hover { background: #eef4fd; color: #3563e9; border-color: #c8d4ec; }
-        .cv-input { flex: 1; background: #f7f9fd; border: 1.5px solid #e4eaf5; border-radius: 12px; color: #1a2540; padding: 11px 14px; font-size: 14px; line-height: 1.5; outline: none; resize: none; max-height: 130px; overflow-y: auto; transition: border-color 0.15s; font-family: inherit; }
+        .cv-input { flex: 1; background: #f7f9fd; border: 1.5px solid #e4eaf5; border-radius: 12px; color: #1a2540; padding: 0 14px; font-size: 14px; line-height: 44px; height: 44px; outline: none; resize: none; overflow: hidden; transition: border-color 0.15s; font-family: inherit; }
         .cv-input:focus { border-color: #3563e9; background: #fff; }
         .cv-input::placeholder { color: #b8c8d8; }
-        .cv-send-btn { display: flex; align-items: center; gap: 8px; padding: 11px 18px; border-radius: 10px; flex-shrink: 0; background: #e4eaf5; color: #8a9bb8; font-size: 14px; font-weight: 600; transition: all 0.15s; white-space: nowrap; }
+        .cv-send-btn { display: flex; align-items: center; justify-content: center; gap: 7px; height: 44px; padding: 0 18px; border-radius: 12px; flex-shrink: 0; background: #e4eaf5; color: #8a9bb8; font-size: 14px; font-weight: 600; transition: all 0.15s; white-space: nowrap; }
         .cv-send-btn.ready { background: #3563e9; color: #fff; box-shadow: 0 4px 12px rgba(53,99,233,0.28); }
         .cv-send-btn.ready:hover { background: #2850cc; }
         .cv-send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -567,7 +559,8 @@ export default function ChatPage({ chatId }) {
           .cv-assign-btn { padding: 8px 10px; }
           .cv-status-btn { padding: 8px 10px; gap: 4px; }
           .cv-send-label { display: none; }
-          .cv-send-btn { padding: 0; width: 42px; height: 42px; justify-content: center; border-radius: 10px; }
+          .cv-send-btn { padding: 0; width: 44px; height: 44px; justify-content: center; border-radius: 12px; }
+          .cv-input-bar { padding: 8px 10px; gap: 6px; }
         }
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
