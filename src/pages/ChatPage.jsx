@@ -40,6 +40,10 @@ function cleanPhone(phone) {
   return phone.split('@')[0]
 }
 
+function isFromMe(msg) {
+  return msg.from_me === true || msg.from_me === 1 || msg.fromMe === true
+}
+
 function MessageTick({ status }) {
   const isRead = status === 'read'
   const isDelivered = status === 'delivered' || isRead
@@ -147,6 +151,23 @@ function ImageLightbox({ url, onClose }) {
   )
 }
 
+// Merge incoming message into state: replace first tmp- if from_me, else append
+function mergeMessage(prev, message) {
+  if (!message?.id) return prev
+  // Already exists — skip
+  if (prev.some(m => String(m.id) === String(message.id))) return prev
+  // Our own message: replace the first optimistic placeholder
+  if (isFromMe(message)) {
+    const tmpIdx = prev.findIndex(m => String(m.id).startsWith('tmp-'))
+    if (tmpIdx !== -1) {
+      const next = [...prev]
+      next[tmpIdx] = message
+      return next
+    }
+  }
+  return [...prev, message]
+}
+
 export default function ChatPage({ chatId }) {
   const id = chatId
   const navigate = useNavigate()
@@ -185,7 +206,7 @@ export default function ChatPage({ chatId }) {
     if (isAdmin) getAgents().then(d => setAgents(Array.isArray(d) ? d.filter(a => a.role === 'agent') : [])).catch(() => {})
   }, [fetchData, isAdmin])
 
-  // Supabase Realtime — new messages for this conversation
+  // Supabase Realtime — replace tmp- for own messages, append for others
   useEffect(() => {
     if (!supabase || !id) return
     const channel = supabase
@@ -194,29 +215,29 @@ export default function ChatPage({ chatId }) {
         event: 'INSERT', schema: 'public', table: 'messages',
         filter: `conversation_id=eq.${id}`,
       }, ({ new: msg }) => {
-        if (!msg?.id) return
-        setMessages(prev => prev.some(m => String(m.id) === String(msg.id)) ? prev : [...prev, msg])
+        setMessages(prev => mergeMessage(prev, msg))
       })
       .subscribe()
     return () => supabase.removeChannel(channel)
   }, [id])
 
-  // Socket.io new_message — append without re-fetch
+  // Socket.io new_message — replace tmp- for own messages, append for others
   useEffect(() => {
     const relevant = newMessages.filter(m => String(m.conversationId) === String(id))
     if (!relevant.length) return
-    relevant.forEach(({ message }) => {
-      if (!message?.id) return
-      setMessages(prev => prev.some(m => String(m.id) === String(message.id)) ? prev : [...prev, message])
+    setMessages(prev => {
+      let next = prev
+      for (const { message } of relevant) next = mergeMessage(next, message)
+      return next
     })
   }, [newMessages, id])
 
-  // Socket.io message_status — update tick without reload
+  // Socket.io message_status — update tick in real-time
   useEffect(() => {
     if (!statusUpdates.length) return
     setMessages(prev => prev.map(msg => {
-      const update = statusUpdates.find(u => String(u.messageId) === String(msg.id))
-      return update ? { ...msg, status: update.status } : msg
+      const upd = statusUpdates.find(u => String(u.messageId) === String(msg.id))
+      return upd ? { ...msg, status: upd.status } : msg
     }))
   }, [statusUpdates])
 
@@ -232,16 +253,17 @@ export default function ChatPage({ chatId }) {
     setText('')
     setSending(true)
     const tempId = `tmp-${Date.now()}`
+    // Show optimistic message immediately
     setMessages(prev => [...prev, {
       id: tempId, body: msg, from_me: true,
       timestamp: new Date().toISOString(), status: 'sending',
     }])
     try {
       await sendMessage(id, msg)
-      const fresh = await getMessages(id)
-      if (Array.isArray(fresh)) setMessages(fresh)
+      // No re-fetch needed: Socket.io / Supabase Realtime will replace the tmp- message
     } catch (e) {
       setError(e?.response?.data?.error || 'Gagal mengirim.')
+      // Remove optimistic on failure
       setMessages(prev => prev.filter(m => m.id !== tempId))
       setText(msg)
     } finally { setSending(false) }
@@ -368,7 +390,7 @@ export default function ChatPage({ chatId }) {
           messageItems.map((item, i) => {
             if (item.type === 'date') return <DateSeparator key={item.key} label={item.label} />
             const msg = item.msg
-            const sent = msg.from_me === true || msg.from_me === 1 || msg.fromMe === true
+            const sent = isFromMe(msg)
             const hasMedia = !!msg.media_type
             const isSending = String(msg.id).startsWith('tmp-')
             return (
