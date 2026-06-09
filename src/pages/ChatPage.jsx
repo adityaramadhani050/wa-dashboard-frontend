@@ -2,9 +2,9 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSocket } from '../context/SocketContext'
 import { useAuth } from '../context/AuthContext'
-import { getMessages, sendMessage, sendMedia, assignAgent, updateStatus, getConversations, getAgents } from '../hooks/useApi'
+import { getMessages, sendMessage, sendMedia, assignAgent, updateStatus, getConversations, getAgents, deleteConversation, deleteMessage, editMessage } from '../hooks/useApi'
 import { supabase } from '../lib/supabase'
-import { Send, ChevronDown, ArrowLeft, UserCheck, Paperclip, X, FileText, Play, Download, Check, Image, Film, Clock } from 'lucide-react'
+import { Send, ChevronDown, ArrowLeft, UserCheck, Paperclip, X, FileText, Play, Download, Check, Image, Film, Clock, Trash2, Pencil, MoreVertical } from 'lucide-react'
 
 const STATUS_OPTIONS = ['open', 'in_progress', 'resolved']
 
@@ -151,7 +151,6 @@ function ImageLightbox({ url, onClose }) {
   )
 }
 
-// Merge incoming message into state: replace first tmp- if from_me, else append
 function mergeMessage(prev, message) {
   if (!message?.id) return prev
   if (prev.some(m => String(m.id) === String(message.id))) return prev
@@ -183,8 +182,12 @@ export default function ChatPage({ chatId }) {
   const [showAgentMenu, setShowAgentMenu] = useState(false)
   const [selectedFile, setSelectedFile] = useState(null)
   const [lightboxUrl, setLightboxUrl] = useState(null)
+  const [contextMenu, setContextMenu] = useState(null)
+  const [editingMsg, setEditingMsg] = useState(null)
+  const [showDeleteConv, setShowDeleteConv] = useState(false)
   const bottomRef = useRef(null)
   const fileInputRef = useRef(null)
+  const inputRef = useRef(null)
   const { newMessages, statusUpdates } = useSocket()
 
   const fetchData = useCallback(async () => {
@@ -240,10 +243,71 @@ export default function ChatPage({ chatId }) {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  const closeMenus = () => { setShowStatusMenu(false); setShowAgentMenu(false) }
+  const closeMenus = () => {
+    setShowStatusMenu(false)
+    setShowAgentMenu(false)
+    setContextMenu(null)
+  }
 
+  // ── Context menu ──────────────────────────────────────────
+  const openContextMenu = (e, msg, sent) => {
+    e.stopPropagation()
+    const rect = e.currentTarget.getBoundingClientRect()
+    setContextMenu({
+      msgId: msg.id,
+      sent,
+      hasMedia: !!msg.media_type,
+      body: msg.body,
+      x: rect.left,
+      y: rect.bottom + 4,
+    })
+  }
+
+  // ── Delete message ────────────────────────────────────────
+  const handleDeleteMessage = async (msgId) => {
+    setContextMenu(null)
+    setMessages(prev => prev.filter(m => String(m.id) !== String(msgId)))
+    try { await deleteMessage(msgId) }
+    catch { setError('Gagal menghapus pesan.'); fetchData() }
+  }
+
+  // ── Edit message ──────────────────────────────────────────
+  const handleStartEdit = (msgId, body) => {
+    setContextMenu(null)
+    setEditingMsg({ id: msgId, body })
+    setText(body)
+    setTimeout(() => inputRef.current?.focus(), 50)
+  }
+
+  const cancelEdit = () => {
+    setEditingMsg(null)
+    setText('')
+  }
+
+  // ── Delete conversation ───────────────────────────────────
+  const handleDeleteConversation = async () => {
+    setShowDeleteConv(false)
+    try {
+      await deleteConversation(id)
+      navigate('/inbox')
+    } catch { setError('Gagal menghapus percakapan.') }
+  }
+
+  // ── Send / Edit send ──────────────────────────────────────
   const handleSend = async () => {
     if (!text.trim() || sending) return
+
+    if (editingMsg) {
+      const newBody = text.trim()
+      const msgId = editingMsg.id
+      setText('')
+      setEditingMsg(null)
+      setMessages(prev => prev.map(m => String(m.id) === String(msgId) ? { ...m, body: newBody } : m))
+      try { await editMessage(msgId, newBody) }
+      catch { setError('Gagal mengedit pesan.'); fetchData() }
+      return
+    }
+
     const msg = text.trim()
     setText('')
     setSending(true)
@@ -282,7 +346,12 @@ export default function ChatPage({ chatId }) {
   }
 
   const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); selectedFile ? handleSendMedia() : handleSend() }
+    if (e.key === 'Escape' && editingMsg) { cancelEdit(); return }
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      if (editingMsg) { handleSend(); return }
+      selectedFile ? handleSendMedia() : handleSend()
+    }
   }
 
   const handleStatusChange = async (status) => {
@@ -314,6 +383,42 @@ export default function ChatPage({ chatId }) {
   return (
     <div className="cv-root" onClick={closeMenus}>
       <ImageLightbox url={lightboxUrl} onClose={() => setLightboxUrl(null)} />
+
+      {/* Delete conversation confirmation */}
+      {showDeleteConv && (
+        <div className="cv-confirm-overlay" onClick={() => setShowDeleteConv(false)}>
+          <div className="cv-confirm-box" onClick={e => e.stopPropagation()}>
+            <h3>Hapus Percakapan?</h3>
+            <p>Semua pesan dalam percakapan ini akan dihapus permanen dan tidak bisa dikembalikan.</p>
+            <div className="cv-confirm-actions">
+              <button className="cv-confirm-cancel" onClick={() => setShowDeleteConv(false)}>Batal</button>
+              <button className="cv-confirm-delete" onClick={handleDeleteConversation}>Hapus</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Floating context menu */}
+      {contextMenu && (
+        <div
+          className="cv-ctx-menu"
+          style={{
+            position: 'fixed',
+            left: Math.min(contextMenu.x, window.innerWidth - 160),
+            top: Math.min(contextMenu.y, window.innerHeight - 100),
+          }}
+          onClick={e => e.stopPropagation()}
+        >
+          {contextMenu.sent && !contextMenu.hasMedia && (
+            <button className="cv-ctx-item" onClick={() => handleStartEdit(contextMenu.msgId, contextMenu.body)}>
+              <Pencil size={14} /> Edit
+            </button>
+          )}
+          <button className="cv-ctx-item danger" onClick={() => handleDeleteMessage(contextMenu.msgId)}>
+            <Trash2 size={14} /> Hapus
+          </button>
+        </div>
+      )}
 
       <div className="cv-header" onClick={e => e.stopPropagation()}>
         <button className="cv-back" onClick={() => navigate('/inbox')}><ArrowLeft size={20} /></button>
@@ -360,6 +465,13 @@ export default function ChatPage({ chatId }) {
               </div>
             )}
           </div>
+          <button
+            className="cv-del-conv-btn"
+            title="Hapus percakapan"
+            onClick={() => setShowDeleteConv(true)}
+          >
+            <Trash2 size={15} />
+          </button>
         </div>
       </div>
 
@@ -387,6 +499,14 @@ export default function ChatPage({ chatId }) {
             const isSending = String(msg.id).startsWith('tmp-')
             return (
               <div key={msg.id || i} className={`cv-row ${sent?'sent':'recv'}`}>
+                {sent && !isSending && (
+                  <button
+                    className="cv-msg-actions"
+                    onClick={(e) => openContextMenu(e, msg, sent)}
+                  >
+                    <MoreVertical size={14} />
+                  </button>
+                )}
                 <div className={`cv-bubble ${sent?'bsent':'brecv'} ${hasMedia?'media':''} ${isSending?'sending':''}`}>
                   {hasMedia
                     ? <MediaContent msg={msg} sent={sent} onImageClick={setLightboxUrl} />
@@ -400,6 +520,14 @@ export default function ChatPage({ chatId }) {
                     {sent && !isSending && <MessageTick status={msg.status} />}
                   </div>
                 </div>
+                {!sent && (
+                  <button
+                    className="cv-msg-actions recv"
+                    onClick={(e) => openContextMenu(e, msg, sent)}
+                  >
+                    <MoreVertical size={14} />
+                  </button>
+                )}
               </div>
             )
           })
@@ -419,16 +547,27 @@ export default function ChatPage({ chatId }) {
         </div>
       )}
 
+      {editingMsg && (
+        <div className="cv-edit-bar" onClick={e => e.stopPropagation()}>
+          <Pencil size={13} />
+          <span>Mengedit pesan</span>
+          <button className="cv-edit-cancel" onClick={cancelEdit}><X size={14} /></button>
+        </div>
+      )}
+
       <div className="cv-input-bar" onClick={e => e.stopPropagation()}>
         <input type="file" ref={fileInputRef} style={{ display: 'none' }}
           accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.rar,.txt"
           onChange={handleFileSelect} />
-        <button className="cv-attach-btn" onClick={() => fileInputRef.current?.click()} title="Lampirkan file">
-          <Paperclip size={19} />
-        </button>
+        {!editingMsg && (
+          <button className="cv-attach-btn" onClick={() => fileInputRef.current?.click()} title="Lampirkan file">
+            <Paperclip size={19} />
+          </button>
+        )}
         <textarea
+          ref={inputRef}
           className="cv-input"
-          placeholder={selectedFile ? 'Tambah keterangan (opsional)...' : 'Ketik pesan...'}
+          placeholder={editingMsg ? 'Edit pesan...' : selectedFile ? 'Tambah keterangan (opsional)...' : 'Ketik pesan...'}
           value={text}
           onChange={e => setText(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -436,12 +575,14 @@ export default function ChatPage({ chatId }) {
         />
         <button
           className={`cv-send-btn ${(text.trim() || selectedFile) && !sending ? 'ready' : ''}`}
-          onClick={selectedFile ? handleSendMedia : handleSend}
+          onClick={editingMsg ? handleSend : selectedFile ? handleSendMedia : handleSend}
           disabled={(!text.trim() && !selectedFile) || sending}
         >
           {sending
             ? <div className="cv-sending-dot" />
-            : <><span className="cv-send-label">Kirim</span><Send size={15} /></>}
+            : editingMsg
+              ? <><span className="cv-send-label">Simpan</span><Check size={15} /></>
+              : <><span className="cv-send-label">Kirim</span><Send size={15} /></>}
         </button>
       </div>
 
@@ -468,6 +609,8 @@ export default function ChatPage({ chatId }) {
         .st-open .cv-status-dot { background: #3563e9; }
         .st-in_progress .cv-status-dot { background: #d08b28; }
         .st-resolved .cv-status-dot { background: #27a87a; }
+        .cv-del-conv-btn { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #a8b8d0; transition: all 0.15s; }
+        .cv-del-conv-btn:hover { background: rgba(229,62,62,0.08); color: #e53e3e; }
         .cv-menu { position: absolute; right: 0; top: calc(100% + 6px); background: #fff; border: 1px solid #e4eaf5; border-radius: 12px; z-index: 200; box-shadow: 0 8px 24px rgba(26,37,64,0.10); overflow: hidden; }
         .cv-menu-lbl { padding: 8px 14px 4px; font-size: 10px; font-weight: 700; color: #a8b8d0; text-transform: uppercase; letter-spacing: 0.5px; }
         .cv-mi { display: flex; flex-direction: column; width: 100%; text-align: left; padding: 9px 14px; font-size: 13px; color: #1a2540; transition: background 0.1s; }
@@ -478,6 +621,24 @@ export default function ChatPage({ chatId }) {
         .si-open { color: #3563e9 !important; }
         .si-in_progress { color: #d08b28 !important; }
         .si-resolved { color: #27a87a !important; }
+        .cv-ctx-menu { background: #fff; border: 1px solid #e4eaf5; border-radius: 10px; box-shadow: 0 8px 28px rgba(26,37,64,0.14); overflow: hidden; z-index: 500; min-width: 140px; }
+        .cv-ctx-item { display: flex; align-items: center; gap: 9px; width: 100%; padding: 11px 16px; font-size: 13px; color: #1a2540; transition: background 0.1s; }
+        .cv-ctx-item:hover { background: #f7f9fd; }
+        .cv-ctx-item.danger { color: #e53e3e; }
+        .cv-ctx-item.danger:hover { background: rgba(229,62,62,0.06); }
+        .cv-confirm-overlay { position: fixed; inset: 0; z-index: 900; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; }
+        .cv-confirm-box { background: #fff; border-radius: 16px; padding: 24px; max-width: 320px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.2); }
+        .cv-confirm-box h3 { font-size: 16px; font-weight: 700; color: #1a2540; margin-bottom: 8px; }
+        .cv-confirm-box p { font-size: 13px; color: #4f607a; line-height: 1.5; margin-bottom: 20px; }
+        .cv-confirm-actions { display: flex; gap: 10px; justify-content: flex-end; }
+        .cv-confirm-cancel { padding: 9px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; background: #f0f3fa; color: #4f607a; }
+        .cv-confirm-cancel:hover { background: #e4eaf5; }
+        .cv-confirm-delete { padding: 9px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; background: #e53e3e; color: #fff; }
+        .cv-confirm-delete:hover { background: #c53030; }
+        .cv-edit-bar { display: flex; align-items: center; gap: 8px; padding: 7px 14px; background: #eef4fd; border-top: 1px solid #c8d4ec; font-size: 12px; font-weight: 600; color: #3563e9; flex-shrink: 0; }
+        .cv-edit-bar span { flex: 1; }
+        .cv-edit-cancel { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #8a9bb8; }
+        .cv-edit-cancel:hover { background: #dce8fb; color: #3563e9; }
         .cv-error { background: rgba(229,62,62,0.05); border-bottom: 1px solid rgba(229,62,62,0.12); color: #c44; padding: 8px 16px; font-size: 13px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
         .cv-messages { flex: 1; min-height: 0; overflow-y: auto; padding: 20px 24px; display: flex; flex-direction: column; gap: 2px; background: #f0f3fa; }
         .cv-loading { display: flex; flex-direction: column; gap: 8px; }
@@ -487,9 +648,13 @@ export default function ChatPage({ chatId }) {
         .cv-empty { margin: auto; color: #a8b8d0; font-size: 14px; text-align: center; padding: 32px; }
         .cv-date-sep { display: flex; align-items: center; justify-content: center; margin: 12px 0 8px; }
         .cv-date-sep span { background: #dce8fb; color: #5a7ab5; font-size: 11px; font-weight: 600; padding: 4px 14px; border-radius: 20px; }
-        .cv-row { display: flex; margin-bottom: 3px; }
+        .cv-row { display: flex; align-items: flex-end; margin-bottom: 3px; gap: 4px; }
         .cv-row.sent { justify-content: flex-end; }
         .cv-row.recv { justify-content: flex-start; }
+        .cv-msg-actions { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #b8c8d8; opacity: 0; flex-shrink: 0; transition: opacity 0.15s, background 0.1s, color 0.1s; }
+        .cv-row:hover .cv-msg-actions { opacity: 1; }
+        .cv-msg-actions:hover { background: rgba(0,0,0,0.07); color: #4f607a; }
+        @media (max-width: 768px) { .cv-msg-actions { opacity: 1; } }
         .cv-bubble { max-width: 62%; padding: 10px 14px 7px; border-radius: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); word-break: break-word; }
         .cv-bubble.media { padding: 4px 4px 7px; }
         .cv-bubble.sending { opacity: 0.65; }

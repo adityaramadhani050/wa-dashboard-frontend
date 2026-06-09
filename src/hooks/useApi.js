@@ -24,6 +24,9 @@ export const sendMedia = (conversationId, file, caption) => {
 }
 export const assignAgent = (id, agent_id) => api.post(`/conversations/${id}/assign`, { agent_id }).then(r => r.data)
 export const updateStatus = (id, status) => api.patch(`/conversations/${id}/status`, { status }).then(r => r.data)
+export const deleteConversation = (id) => api.delete(`/conversations/${id}`).then(r => r.data)
+export const deleteMessage = (id) => api.delete(`/messages/${id}`).then(r => r.data)
+export const editMessage = (id, body) => api.patch(`/messages/${id}`, { body }).then(r => r.data)
 export const getDailyStats = (from, to) => api.get('/stats/daily', { params: { from, to } }).then(r => r.data)
 export const getAgentStats = () => api.get('/stats/agents').then(r => r.data)
 export const getContactStats = () => api.get('/stats/contacts').then(r => r.data)
