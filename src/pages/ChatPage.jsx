@@ -188,7 +188,7 @@ export default function ChatPage({ chatId }) {
   const bottomRef = useRef(null)
   const fileInputRef = useRef(null)
   const inputRef = useRef(null)
-  const { newMessages, statusUpdates } = useSocket()
+  const { newMessages, statusUpdates, deletedMessages, editedMessages } = useSocket()
 
   const fetchData = useCallback(async () => {
     try {
@@ -221,6 +221,7 @@ export default function ChatPage({ chatId }) {
     return () => supabase.removeChannel(channel)
   }, [id])
 
+  // New messages via Socket.io
   useEffect(() => {
     const relevant = newMessages.filter(m => String(m.conversationId) === String(id))
     if (!relevant.length) return
@@ -231,6 +232,7 @@ export default function ChatPage({ chatId }) {
     })
   }, [newMessages, id])
 
+  // Status updates (centang)
   useEffect(() => {
     if (!statusUpdates.length) return
     setMessages(prev => prev.map(msg => {
@@ -238,6 +240,23 @@ export default function ChatPage({ chatId }) {
       return upd ? { ...msg, status: upd.status } : msg
     }))
   }, [statusUpdates])
+
+  // Realtime: pesan dihapus oleh client lain
+  useEffect(() => {
+    const relevant = deletedMessages.filter(d => String(d.conversationId) === String(id))
+    if (!relevant.length) return
+    setMessages(prev => prev.filter(m => !relevant.some(d => String(d.messageId) === String(m.id))))
+  }, [deletedMessages, id])
+
+  // Realtime: pesan diedit oleh client lain
+  useEffect(() => {
+    const relevant = editedMessages.filter(e => String(e.conversationId) === String(id))
+    if (!relevant.length) return
+    setMessages(prev => prev.map(m => {
+      const upd = relevant.find(e => String(e.messageId) === String(m.id))
+      return upd ? { ...m, body: upd.body } : m
+    }))
+  }, [editedMessages, id])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -249,7 +268,6 @@ export default function ChatPage({ chatId }) {
     setContextMenu(null)
   }
 
-  // ── Context menu ──────────────────────────────────────────
   const openContextMenu = (e, msg, sent) => {
     e.stopPropagation()
     const rect = e.currentTarget.getBoundingClientRect()
@@ -263,7 +281,6 @@ export default function ChatPage({ chatId }) {
     })
   }
 
-  // ── Delete message ────────────────────────────────────────
   const handleDeleteMessage = async (msgId) => {
     setContextMenu(null)
     setMessages(prev => prev.filter(m => String(m.id) !== String(msgId)))
@@ -271,7 +288,6 @@ export default function ChatPage({ chatId }) {
     catch { setError('Gagal menghapus pesan.'); fetchData() }
   }
 
-  // ── Edit message ──────────────────────────────────────────
   const handleStartEdit = (msgId, body) => {
     setContextMenu(null)
     setEditingMsg({ id: msgId, body })
@@ -284,7 +300,6 @@ export default function ChatPage({ chatId }) {
     setText('')
   }
 
-  // ── Delete conversation ───────────────────────────────────
   const handleDeleteConversation = async () => {
     setShowDeleteConv(false)
     try {
@@ -293,7 +308,6 @@ export default function ChatPage({ chatId }) {
     } catch { setError('Gagal menghapus percakapan.') }
   }
 
-  // ── Send / Edit send ──────────────────────────────────────
   const handleSend = async () => {
     if (!text.trim() || sending) return
 
@@ -384,7 +398,6 @@ export default function ChatPage({ chatId }) {
     <div className="cv-root" onClick={closeMenus}>
       <ImageLightbox url={lightboxUrl} onClose={() => setLightboxUrl(null)} />
 
-      {/* Delete conversation confirmation */}
       {showDeleteConv && (
         <div className="cv-confirm-overlay" onClick={() => setShowDeleteConv(false)}>
           <div className="cv-confirm-box" onClick={e => e.stopPropagation()}>
@@ -398,7 +411,6 @@ export default function ChatPage({ chatId }) {
         </div>
       )}
 
-      {/* Floating context menu */}
       {contextMenu && (
         <div
           className="cv-ctx-menu"
@@ -465,11 +477,7 @@ export default function ChatPage({ chatId }) {
               </div>
             )}
           </div>
-          <button
-            className="cv-del-conv-btn"
-            title="Hapus percakapan"
-            onClick={() => setShowDeleteConv(true)}
-          >
+          <button className="cv-del-conv-btn" title="Hapus percakapan" onClick={() => setShowDeleteConv(true)}>
             <Trash2 size={15} />
           </button>
         </div>
@@ -500,10 +508,7 @@ export default function ChatPage({ chatId }) {
             return (
               <div key={msg.id || i} className={`cv-row ${sent?'sent':'recv'}`}>
                 {sent && !isSending && (
-                  <button
-                    className="cv-msg-actions"
-                    onClick={(e) => openContextMenu(e, msg, sent)}
-                  >
+                  <button className="cv-msg-actions" onClick={(e) => openContextMenu(e, msg, sent)}>
                     <MoreVertical size={14} />
                   </button>
                 )}
@@ -521,10 +526,7 @@ export default function ChatPage({ chatId }) {
                   </div>
                 </div>
                 {!sent && (
-                  <button
-                    className="cv-msg-actions recv"
-                    onClick={(e) => openContextMenu(e, msg, sent)}
-                  >
+                  <button className="cv-msg-actions recv" onClick={(e) => openContextMenu(e, msg, sent)}>
                     <MoreVertical size={14} />
                   </button>
                 )}

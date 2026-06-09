@@ -13,6 +13,8 @@ export function SocketProvider({ children }) {
   const [qrCode, setQrCode] = useState(null)
   const [newMessages, setNewMessages] = useState([])
   const [statusUpdates, setStatusUpdates] = useState([])
+  const [deletedMessages, setDeletedMessages] = useState([])
+  const [editedMessages, setEditedMessages] = useState([])
   const socketRef = useRef(null)
 
   useEffect(() => {
@@ -73,6 +75,14 @@ export function SocketProvider({ children }) {
       setStatusUpdates(prev => [...prev.slice(-99), data])
     })
 
+    s.on('message_deleted', (data) => {
+      setDeletedMessages(prev => [...prev.slice(-99), data])
+    })
+
+    s.on('message_edited', (data) => {
+      setEditedMessages(prev => [...prev.slice(-99), data])
+    })
+
     return () => s.disconnect()
   }, [])
 
@@ -84,6 +94,8 @@ export function SocketProvider({ children }) {
       waConnected, qrCode, setQrCode,
       newMessages, clearNewMessages,
       statusUpdates,
+      deletedMessages,
+      editedMessages,
     }}>
       {children}
     </SocketContext.Provider>
