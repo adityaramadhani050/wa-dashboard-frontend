@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { getContacts } from '../hooks/useApi'
-import { Search, Users, Phone, Calendar, Clock, EyeOff } from 'lucide-react'
+import { getContacts, updateContact } from '../hooks/useApi'
+import { Search, Users, Phone, Calendar, Clock, EyeOff, Pencil, X } from 'lucide-react'
 
 function formatDateTime(dateStr) {
   if (!dateStr) return '-'
@@ -45,11 +45,60 @@ function Avatar({ name }) {
   )
 }
 
+function EditContactModal({ contact, onClose, onSaved }) {
+  const [name, setName] = useState(contact.name || '')
+  const [manualWa, setManualWa] = useState(contact.manual_wa_number || '')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setSaving(true); setError('')
+    try {
+      const updated = await updateContact(contact.id, { name, manual_wa_number: manualWa })
+      onSaved(updated)
+      onClose()
+    } catch (err) {
+      setError(err.response?.data?.error || 'Gagal menyimpan kontak')
+    } finally { setSaving(false) }
+  }
+
+  return (
+    <div className="ct-overlay" onClick={onClose}>
+      <div className="ct-modal" onClick={e => e.stopPropagation()}>
+        <div className="ct-modal-header">
+          <h3>Edit Kontak</h3>
+          <button className="ct-modal-close" onClick={onClose}><X size={18} /></button>
+        </div>
+        <form onSubmit={handleSubmit} className="ct-form">
+          <div className="ct-field">
+            <label>Nama</label>
+            <input value={name} onChange={e => setName(e.target.value)} placeholder="Nama kontak" />
+          </div>
+          <div className="ct-field">
+            <label>No WA</label>
+            <input value={manualWa} onChange={e => setManualWa(e.target.value)} placeholder="Contoh: 6281234567890" />
+            <span className="ct-field-hint">Untuk referensi sales, tidak memengaruhi pengiriman pesan otomatis.</span>
+          </div>
+          {error && <div className="ct-form-err">{error}</div>}
+          <div className="ct-form-actions">
+            <button type="button" className="ct-btn secondary" onClick={onClose}>Batal</button>
+            <button type="submit" className="ct-btn primary" disabled={saving}>
+              {saving ? 'Menyimpan...' : 'Simpan'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 export default function ContactsPage() {
   const [contacts, setContacts] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
+  const [editTarget, setEditTarget] = useState(null)
 
   useEffect(() => {
     getContacts()
@@ -58,13 +107,18 @@ export default function ContactsPage() {
       .finally(() => setLoading(false))
   }, [])
 
+  const handleSaved = (updated) => {
+    setContacts(prev => prev.map(c => c.id === updated.id ? { ...c, ...updated } : c))
+  }
+
   const filtered = contacts.filter(c => {
     if (!search.trim()) return true
     const q = search.toLowerCase()
     const phone = cleanPhone(c.phone) || ''
     return (
       c.name?.toLowerCase().includes(q) ||
-      phone.includes(q)
+      phone.includes(q) ||
+      c.manual_wa_number?.toLowerCase().includes(q)
     )
   })
 
@@ -113,9 +167,11 @@ export default function ContactsPage() {
                 <thead>
                   <tr>
                     <th>Nama</th>
-                    <th><Phone size={13} style={{marginRight:4,verticalAlign:'middle'}}/>Nomor WA</th>
+                    <th><Phone size={13} style={{marginRight:4,verticalAlign:'middle'}}/>LID</th>
+                    <th><Phone size={13} style={{marginRight:4,verticalAlign:'middle'}}/>No WA</th>
                     <th><Calendar size={13} style={{marginRight:4,verticalAlign:'middle'}}/>Pertama Chat</th>
                     <th><Clock size={13} style={{marginRight:4,verticalAlign:'middle'}}/>Terakhir Chat</th>
+                    <th>Aksi</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -128,8 +184,16 @@ export default function ContactsPage() {
                         </div>
                       </td>
                       <td><PhoneDisplay phone={c.phone} /></td>
+                      <td>{c.manual_wa_number
+                        ? <span className="ct-phone">{c.manual_wa_number}</span>
+                        : <span className="ct-no-wa">—</span>}</td>
                       <td><span className="ct-date">{formatDateTime(c.first_seen)}</span></td>
                       <td><span className="ct-date">{formatDateTime(c.last_message_at)}</span></td>
+                      <td>
+                        <button className="ct-edit-btn" title="Edit kontak" onClick={() => setEditTarget(c)}>
+                          <Pencil size={14} />
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -143,18 +207,37 @@ export default function ContactsPage() {
                   <Avatar name={c.name} />
                   <div className="ct-card-body">
                     <div className="ct-card-name">{c.name || '-'}</div>
-                    <div className="ct-card-phone-wrap"><PhoneDisplay phone={c.phone} /></div>
+                    <div className="ct-card-phone-wrap">
+                      <span className="ct-card-label">LID:</span> <PhoneDisplay phone={c.phone} />
+                    </div>
+                    <div className="ct-card-phone-wrap">
+                      <span className="ct-card-label">No WA:</span>{' '}
+                      {c.manual_wa_number
+                        ? <span className="ct-phone">{c.manual_wa_number}</span>
+                        : <span className="ct-no-wa">—</span>}
+                    </div>
                     <div className="ct-card-dates">
                       <span><Calendar size={11} /> {formatDateTime(c.first_seen)}</span>
                       <span><Clock size={11} /> {formatDateTime(c.last_message_at)}</span>
                     </div>
                   </div>
+                  <button className="ct-edit-btn" title="Edit kontak" onClick={() => setEditTarget(c)}>
+                    <Pencil size={14} />
+                  </button>
                 </div>
               ))}
             </div>
           </>
         )}
       </div>
+
+      {editTarget && (
+        <EditContactModal
+          contact={editTarget}
+          onClose={() => setEditTarget(null)}
+          onSaved={handleSaved}
+        />
+      )}
 
       <style>{`
         .ct-root { display: flex; flex-direction: column; min-height: 0; height: 100%; background: #f0f3fa; overflow: hidden; }
@@ -175,7 +258,7 @@ export default function ContactsPage() {
         .ct-skel-list { display: flex; flex-direction: column; gap: 8px; }
         .ct-skel-row { height: 52px; border-radius: 10px; background: rgba(0,0,0,0.05); animation: ct-pulse 1.4s ease infinite; }
         /* Desktop table */
-        .ct-table-wrap { background: #fff; border-radius: 14px; border: 1px solid #e4eaf5; overflow: hidden; box-shadow: 0 1px 4px rgba(26,37,64,0.04); }
+        .ct-table-wrap { background: #fff; border-radius: 14px; border: 1px solid #e4eaf5; overflow: hidden; box-shadow: 0 1px 4px rgba(26,37,64,0.04); overflow-x: auto; }
         .ct-table { width: 100%; border-collapse: collapse; }
         .ct-table thead tr { background: #f7f9fd; border-bottom: 1px solid #e4eaf5; }
         .ct-table th { padding: 12px 16px; text-align: left; font-size: 11px; font-weight: 700; color: #8a9bb8; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
@@ -187,16 +270,20 @@ export default function ContactsPage() {
         .ct-name { font-size: 14px; font-weight: 600; color: #1a2540; }
         .ct-phone { font-size: 13px; color: #4f607a; font-family: monospace; background: #f0f3fa; padding: 3px 8px; border-radius: 6px; }
         .ct-phone-hidden { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: #a8b8d0; font-style: italic; }
+        .ct-no-wa { font-size: 13px; color: #c4cee0; }
         .ct-date { font-size: 12px; color: #6878a0; }
+        .ct-edit-btn { width: 30px; height: 30px; border-radius: 7px; display: flex; align-items: center; justify-content: center; color: #a8b8d0; transition: all 0.15s; flex-shrink: 0; }
+        .ct-edit-btn:hover { background: rgba(53,99,233,0.08); color: #3563e9; }
         /* Mobile card list (hidden on desktop) */
         .ct-card-list { display: none; flex-direction: column; gap: 8px; }
         .ct-card { background: #fff; border: 1px solid #e4eaf5; border-radius: 12px; padding: 14px; display: flex; align-items: flex-start; gap: 12px; }
         .ct-card-body { flex: 1; min-width: 0; }
-        .ct-card-name { font-size: 14px; font-weight: 600; color: #1a2540; margin-bottom: 2px; }
-        .ct-card-phone-wrap { margin-bottom: 6px; }
+        .ct-card-name { font-size: 14px; font-weight: 600; color: #1a2540; margin-bottom: 4px; }
+        .ct-card-phone-wrap { font-size: 12px; margin-bottom: 4px; display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+        .ct-card-label { color: #a8b8d0; font-weight: 600; font-size: 11px; }
         .ct-card-phone-wrap .ct-phone { font-size: 12px; color: #4f607a; font-family: monospace; }
         .ct-card-phone-wrap .ct-phone-hidden { font-size: 11px; }
-        .ct-card-dates { display: flex; flex-direction: column; gap: 3px; }
+        .ct-card-dates { display: flex; flex-direction: column; gap: 3px; margin-top: 6px; }
         .ct-card-dates span { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: #8a9bb8; }
         @media (max-width: 768px) {
           .ct-header { padding: 14px 16px; }
@@ -206,6 +293,27 @@ export default function ContactsPage() {
           .ct-card-list { display: flex; }
         }
         @keyframes ct-pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+        /* Edit modal */
+        .ct-overlay { position: fixed; inset: 0; z-index: 500; background: rgba(15,23,42,0.5); display: flex; align-items: center; justify-content: center; padding: 20px; }
+        .ct-modal { background: #fff; border: 1px solid #e4eaf5; border-radius: 12px; width: 100%; max-width: 400px; box-shadow: 0 20px 60px rgba(0,0,0,0.15); overflow: hidden; }
+        .ct-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid #e4eaf5; background: #f7f9fd; }
+        .ct-modal-header h3 { font-size: 15px; font-weight: 700; color: #1a2540; }
+        .ct-modal-close { width: 30px; height: 30px; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #a8b8d0; }
+        .ct-modal-close:hover { background: #e4eaf5; color: #4f607a; }
+        .ct-form { padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+        .ct-field { display: flex; flex-direction: column; gap: 5px; }
+        .ct-field label { font-size: 12px; color: #4f607a; font-weight: 600; }
+        .ct-field input { background: #f7f9fd; border: 1.5px solid #e4eaf5; border-radius: 8px; color: #1a2540; padding: 10px 12px; font-size: 14px; outline: none; transition: border-color 0.15s; font-family: inherit; }
+        .ct-field input:focus { border-color: #3563e9; background: #fff; }
+        .ct-field-hint { font-size: 11px; color: #a8b8d0; }
+        .ct-form-err { padding: 10px 14px; background: rgba(229,62,62,0.06); border: 1px solid rgba(229,62,62,0.15); border-radius: 7px; color: #c44; font-size: 13px; }
+        .ct-form-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+        .ct-btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; transition: all 0.15s; }
+        .ct-btn.primary { background: #3563e9; color: #fff; }
+        .ct-btn.primary:hover { background: #2850cc; }
+        .ct-btn.primary:disabled { opacity: 0.6; cursor: not-allowed; }
+        .ct-btn.secondary { background: #f0f3fa; color: #4f607a; }
+        .ct-btn.secondary:hover { background: #e4eaf5; }
       `}</style>
     </div>
   )

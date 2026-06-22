@@ -310,7 +310,7 @@ export default function ChatPage({ chatId }) {
   }
 
   const name = conversation?.contact?.name || conversation?.contact?.phone || 'Unknown'
-  const phone = cleanPhone(conversation?.contact?.phone)
+  const phone = conversation?.contact?.manual_wa_number || cleanPhone(conversation?.contact?.phone)
   const assignedAgent = conversation?.agents
   const status = conversation?.status || 'open'
 
