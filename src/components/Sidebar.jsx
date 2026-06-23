@@ -1,7 +1,7 @@
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useSocket } from '../context/SocketContext'
-import { MessageSquare, BarChart2, QrCode, LogOut, Users, BookUser } from 'lucide-react'
+import { MessageSquare, BarChart2, QrCode, LogOut, Users, BookUser, Zap } from 'lucide-react'
 
 export default function IconBar() {
   const { user, logout } = useAuth()
@@ -17,6 +17,7 @@ export default function IconBar() {
     { path: '/contacts', icon: BookUser,      label: 'Kontak',          adminOnly: false },
     { path: '/analytics',icon: BarChart2,     label: 'Analytics',       adminOnly: true  },
     { path: '/agents',   icon: Users,         label: 'Manajemen Agent', adminOnly: true  },
+    { path: '/templates',icon: Zap,           label: 'Template & Galeri', adminOnly: true },
     { path: '/qr',       icon: QrCode,        label: 'QR Setup',        adminOnly: true  },
   ].filter(item => !item.adminOnly || isAdmin)
 

@@ -9,6 +9,7 @@ import ChatPage from './pages/ChatPage'
 import AnalyticsPage from './pages/AnalyticsPage'
 import AgentManagementPage from './pages/AgentManagementPage'
 import ContactsPage from './pages/ContactsPage'
+import TemplatesPage from './pages/TemplatesPage'
 
 function WelcomeView() {
   return (
@@ -42,15 +43,16 @@ function ProtectedShell() {
   const matchAnalytics= useMatch('/analytics')
   const matchAgents   = useMatch('/agents')
   const matchContacts = useMatch('/contacts')
+  const matchTemplates = useMatch('/templates')
 
   if (!user) return <Navigate to="/login" replace />
 
-  if (user.role !== 'admin' && (matchQR || matchAnalytics || matchAgents)) {
+  if (user.role !== 'admin' && (matchQR || matchAnalytics || matchAgents || matchTemplates)) {
     return <Navigate to="/inbox" replace />
   }
 
   const chatId = matchChat?.params?.id
-  const isFullPage = matchQR || matchAnalytics || matchAgents || matchContacts
+  const isFullPage = matchQR || matchAnalytics || matchAgents || matchContacts || matchTemplates
 
   return (
     <SocketProvider>
@@ -62,6 +64,7 @@ function ProtectedShell() {
             {matchAnalytics && <AnalyticsPage />}
             {matchAgents   && <AgentManagementPage />}
             {matchContacts && <ContactsPage />}
+            {matchTemplates && <TemplatesPage />}
           </div>
         ) : (
           <>

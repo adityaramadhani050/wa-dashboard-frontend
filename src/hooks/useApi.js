@@ -36,4 +36,30 @@ export const updateAgent = (id, payload) => api.put(`/agents/${id}`, payload).th
 export const deleteAgent = (id) => api.delete(`/agents/${id}`).then(r => r.data)
 export const resetWASession = () => api.post('/wa/reset').then(r => r.data)
 
+// Template Pesan / Quick Reply
+export const getTemplates = () => api.get('/templates').then(r => r.data)
+export const createTemplate = (payload) => api.post('/templates', payload).then(r => r.data)
+export const updateTemplate = (id, payload) => api.put(`/templates/${id}`, payload).then(r => r.data)
+export const deleteTemplate = (id) => api.delete(`/templates/${id}`).then(r => r.data)
+
+// Galeri Produk / Quick Media
+export const getQuickMedia = () => api.get('/messages/quick-media').then(r => r.data)
+export const uploadQuickMedia = (file, label, category) => {
+  const form = new FormData()
+  form.append('file', file)
+  form.append('label', label)
+  if (category) form.append('category', category)
+  return api.post('/messages/quick-media', form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 60000,
+  }).then(r => r.data)
+}
+export const deleteQuickMedia = (id) => api.delete(`/messages/quick-media/${id}`).then(r => r.data)
+export const sendQuickMedia = (conversationId, quickMediaId, caption) =>
+  api.post('/messages/send-quick-media', {
+    conversation_id: conversationId,
+    quick_media_id: quickMediaId,
+    caption,
+  }).then(r => r.data)
+
 export default api

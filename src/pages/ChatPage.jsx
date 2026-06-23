@@ -2,9 +2,12 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSocket } from '../context/SocketContext'
 import { useAuth } from '../context/AuthContext'
-import { getMessages, sendMessage, sendMedia, assignAgent, updateStatus, getConversations, getAgents, deleteConversation } from '../hooks/useApi'
+import {
+  getMessages, sendMessage, sendMedia, assignAgent, updateStatus, getConversations, getAgents, deleteConversation,
+  getTemplates, getQuickMedia, sendQuickMedia,
+} from '../hooks/useApi'
 import { supabase } from '../lib/supabase'
-import { Send, ChevronDown, ArrowLeft, UserCheck, Paperclip, X, FileText, Play, Download, Check, Image, Film, Clock, Trash2 } from 'lucide-react'
+import { Send, ChevronDown, ArrowLeft, UserCheck, Paperclip, X, FileText, Play, Download, Check, Image, Film, Clock, Trash2, Zap, Images } from 'lucide-react'
 
 const STATUS_OPTIONS = ['open', 'in_progress', 'resolved']
 
@@ -190,8 +193,14 @@ export default function ChatPage({ chatId }) {
   const [selectedFile, setSelectedFile] = useState(null)
   const [lightboxUrl, setLightboxUrl] = useState(null)
   const [showDeleteConv, setShowDeleteConv] = useState(false)
+  const [templates, setTemplates] = useState([])
+  const [showTemplateMenu, setShowTemplateMenu] = useState(false)
+  const [quickMedia, setQuickMedia] = useState([])
+  const [showMediaGallery, setShowMediaGallery] = useState(false)
+  const [sendingQuickMediaId, setSendingQuickMediaId] = useState(null)
   const bottomRef = useRef(null)
   const fileInputRef = useRef(null)
+  const textareaRef = useRef(null)
   const { newMessages, statusUpdates } = useSocket()
 
   const fetchData = useCallback(async () => {
@@ -209,6 +218,8 @@ export default function ChatPage({ chatId }) {
   useEffect(() => {
     fetchData()
     if (isAdmin) getAgents().then(d => setAgents(Array.isArray(d) ? d.filter(a => a.role === 'agent') : [])).catch(() => {})
+    getTemplates().then(d => setTemplates(Array.isArray(d) ? d : [])).catch(() => {})
+    getQuickMedia().then(d => setQuickMedia(Array.isArray(d) ? d : [])).catch(() => {})
   }, [fetchData, isAdmin])
 
   useEffect(() => {
@@ -247,7 +258,7 @@ export default function ChatPage({ chatId }) {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  const closeMenus = () => { setShowStatusMenu(false); setShowAgentMenu(false) }
+  const closeMenus = () => { setShowStatusMenu(false); setShowAgentMenu(false); setShowTemplateMenu(false); setShowMediaGallery(false) }
 
   const handleDeleteConversation = async () => {
     setShowDeleteConv(false)
@@ -295,6 +306,38 @@ export default function ChatPage({ chatId }) {
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); selectedFile ? handleSendMedia() : handleSend() }
+  }
+
+  const contactName = conversation?.contact?.name || ''
+
+  const insertTemplate = (tpl) => {
+    const filled = (tpl.body || '').replaceAll('{{nama}}', contactName || 'Kak')
+    setText(filled)
+    setShowTemplateMenu(false)
+    textareaRef.current?.focus()
+  }
+
+  const handleTextChange = (e) => {
+    const val = e.target.value
+    setText(val)
+    if (val.startsWith('/') && val.length > 0) setShowTemplateMenu(true)
+    else if (showTemplateMenu) setShowTemplateMenu(false)
+  }
+
+  const slashQuery = text.startsWith('/') ? text.slice(1).toLowerCase() : ''
+  const filteredTemplates = slashQuery
+    ? templates.filter(t =>
+        (t.shortcut || '').toLowerCase().includes(slashQuery) ||
+        (t.title || '').toLowerCase().includes(slashQuery))
+    : templates
+
+  const handleSendQuickMedia = async (item) => {
+    if (sendingQuickMediaId) return
+    setSendingQuickMediaId(item.id)
+    setShowMediaGallery(false)
+    try { await sendQuickMedia(id, item.id); await fetchData() }
+    catch (e) { setError(e?.response?.data?.error || 'Gagal mengirim media.') }
+    finally { setSendingQuickMediaId(null) }
   }
 
   const handleStatusChange = async (status) => {
@@ -454,11 +497,64 @@ export default function ChatPage({ chatId }) {
         <button className="cv-attach-btn" onClick={() => fileInputRef.current?.click()} title="Lampirkan file">
           <Paperclip size={19} />
         </button>
+
+        <div className="cv-dd">
+          <button className="cv-attach-btn" title="Template Pesan" onClick={() => { setShowTemplateMenu(!showTemplateMenu); setShowMediaGallery(false) }}>
+            <Zap size={19} />
+          </button>
+          {showTemplateMenu && (
+            <div className="cv-menu cv-template-menu" style={{minWidth:260}}>
+              <div className="cv-menu-lbl">Template Pesan{slashQuery && <span> &middot; filter: "{slashQuery}"</span>}</div>
+              {filteredTemplates.length === 0 ? (
+                <div className="cv-mi muted">Tidak ada template cocok</div>
+              ) : filteredTemplates.map(t => (
+                <button key={t.id} className="cv-mi" onClick={() => insertTemplate(t)}>
+                  <span>{t.title}{t.shortcut && <span className="cv-mi-sub"> /{t.shortcut}</span>}</span>
+                  <span className="cv-mi-sub cv-tpl-preview">{t.body}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="cv-dd">
+          <button className="cv-attach-btn" title="Produk/Katalog" onClick={() => { setShowMediaGallery(!showMediaGallery); setShowTemplateMenu(false) }}>
+            <Images size={19} />
+          </button>
+          {showMediaGallery && (
+            <div className="cv-menu cv-media-menu" style={{minWidth:260}}>
+              <div className="cv-menu-lbl">Produk / Katalog</div>
+              {quickMedia.length === 0 ? (
+                <div className="cv-mi muted">Belum ada media di galeri</div>
+              ) : (
+                <div className="cv-media-grid">
+                  {quickMedia.map(m => (
+                    <button
+                      key={m.id}
+                      className="cv-media-grid-item"
+                      disabled={!!sendingQuickMediaId}
+                      onClick={() => handleSendQuickMedia(m)}
+                      title={m.label}
+                    >
+                      {m.media_type === 'image'
+                        ? <img src={m.media_url} alt={m.label} />
+                        : <div className="cv-media-grid-doc"><FileText size={22} /></div>}
+                      <span className="cv-media-grid-label">{m.label}</span>
+                      {sendingQuickMediaId === m.id && <div className="cv-media-grid-sending"><div className="cv-sending-dot dark" /></div>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
         <textarea
+          ref={textareaRef}
           className="cv-input"
-          placeholder={selectedFile ? 'Tambah keterangan (opsional)...' : 'Ketik pesan...'}
+          placeholder={selectedFile ? 'Tambah keterangan (opsional)...' : 'Ketik pesan... (gunakan / untuk template)'}
           value={text}
-          onChange={e => setText(e.target.value)}
+          onChange={handleTextChange}
           onKeyDown={handleKeyDown}
           rows={1}
         />
@@ -590,6 +686,16 @@ export default function ChatPage({ chatId }) {
         .cv-lightbox-close { position: absolute; top: 16px; right: 16px; width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center; color: white; }
         .cv-lightbox-close:hover { background: rgba(255,255,255,0.25); }
         .cv-lightbox-img { max-width: 90vw; max-height: 90vh; border-radius: 8px; object-fit: contain; }
+        .cv-input-bar .cv-dd .cv-menu { bottom: calc(100% + 8px); top: auto; left: 0; right: auto; max-height: 360px; overflow-y: auto; }
+        .cv-tpl-preview { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 230px; }
+        .cv-media-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 10px; }
+        .cv-media-grid-item { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; border-radius: 8px; overflow: hidden; background: #f7f9fd; border: 1px solid #e4eaf5; padding: 0 0 4px; }
+        .cv-media-grid-item:hover { border-color: #3563e9; }
+        .cv-media-grid-item img { width: 100%; height: 64px; object-fit: cover; }
+        .cv-media-grid-doc { width: 100%; height: 64px; display: flex; align-items: center; justify-content: center; color: #94a3b8; background: #eef4fd; }
+        .cv-media-grid-label { font-size: 10px; color: #4f607a; padding: 0 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+        .cv-media-grid-sending { position: absolute; inset: 0; background: rgba(255,255,255,0.7); display: flex; align-items: center; justify-content: center; }
+        .cv-sending-dot.dark { border-color: rgba(53,99,233,0.3); border-top-color: #3563e9; }
         @media (max-width: 768px) {
           .cv-header { padding: 10px 12px; gap: 8px; min-height: 56px; }
           .cv-messages { padding: 12px; }
