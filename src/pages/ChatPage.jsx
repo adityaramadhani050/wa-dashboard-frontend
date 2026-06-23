@@ -501,16 +501,15 @@ export default function ChatPage({ chatId }) {
       <div className="cv-header" onClick={e => e.stopPropagation()}>
         <button className="cv-back" onClick={() => navigate('/inbox')}><ArrowLeft size={20} /></button>
         <div className="cv-avatar" style={avatarStyle(name)}>{name[0].toUpperCase()}</div>
-        <div className="cv-contact">
+        <div className="cv-contact" onClick={handleToggleNotesPanel} role="button" tabIndex={0}>
           <div className="cv-name">{name}</div>
           <div className="cv-sub">
-            {phone && name !== phone && <span className="cv-phone">{phone}</span>}
             {isAdmin && assignedAgent && <span className="cv-assigned"><UserCheck size={10} />{assignedAgent.name}</span>}
             {isAdmin && !assignedAgent && <span className="cv-unassigned">Unassigned</span>}
             {conversationTags.map(t => (
               <span key={t.id} className="tag-chip" style={{ background: t.color }}>{t.name}</span>
             ))}
-            <button className="cv-tag-edit-btn" title="Atur tag" onClick={() => setShowTagModal(true)}>
+            <button className="cv-tag-edit-btn" title="Atur tag" onClick={e => { e.stopPropagation(); setShowTagModal(true) }}>
               <TagIcon size={12} />
             </button>
           </div>
@@ -770,6 +769,25 @@ export default function ChatPage({ chatId }) {
           <div className="cv-notes-contact">
             <div className="cv-notes-contact-name">{name}</div>
             {phone && <div className="cv-notes-contact-phone">{phone}</div>}
+            <div className="cv-notes-contact-row">
+              <span className="cv-notes-contact-label">Agent</span>
+              {assignedAgent
+                ? <span className="cv-assigned"><UserCheck size={10} />{assignedAgent.name}</span>
+                : <span className="cv-unassigned">Unassigned</span>}
+            </div>
+            <div className="cv-notes-contact-row">
+              <span className="cv-notes-contact-label">Label</span>
+              <div className="cv-notes-contact-tags">
+                {conversationTags.length === 0
+                  ? <span className="cv-notes-empty-inline">Belum ada label</span>
+                  : conversationTags.map(t => (
+                    <span key={t.id} className="tag-chip" style={{ background: t.color }}>{t.name}</span>
+                  ))}
+                <button className="cv-tag-edit-btn" title="Atur tag" onClick={() => setShowTagModal(true)}>
+                  <TagIcon size={12} />
+                </button>
+              </div>
+            </div>
           </div>
           <div className="cv-notes-list">
             {loadingNotes ? (
@@ -831,10 +849,10 @@ export default function ChatPage({ chatId }) {
         .cv-back:hover { background: #f0f3fa; }
         @media (max-width: 768px) { .cv-back { display: flex; } }
         .cv-avatar { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700; flex-shrink: 0; }
-        .cv-contact { flex: 1; min-width: 0; overflow: hidden; }
+        .cv-contact { flex: 1; min-width: 0; overflow: hidden; cursor: pointer; border-radius: 8px; padding: 2px 6px; margin: -2px -6px; transition: background 0.15s; }
+        .cv-contact:hover { background: #f0f3fa; }
         .cv-name { font-size: 14px; font-weight: 600; color: #1a2540; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .cv-sub { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 1px; }
-        .cv-phone { font-size: 12px; color: #a8b8d0; }
         .cv-assigned { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 10px; background: rgba(39,168,122,0.1); color: #27a87a; }
         .cv-unassigned { font-size: 11px; padding: 1px 7px; border-radius: 10px; background: rgba(208,139,40,0.1); color: #d08b28; }
         .cv-actions { position: relative; display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
@@ -964,9 +982,10 @@ export default function ChatPage({ chatId }) {
           .cv-input-bar { padding: 8px 10px; gap: 6px; }
           .cv-attach-group { display: none; }
           .cv-more-dd { display: block; }
-          .cv-notes-sidebar { position: fixed; inset: 0; width: 100%; z-index: 400; border-left: none; }
+          .cv-notes-sidebar { position: fixed; inset: 0; width: 100%; z-index: 400; border-left: none; animation: slideInRight 0.22s ease-out; }
         }
         @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
         @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
         @keyframes popIn { 0%{transform:scale(0.6);opacity:0} 70%{transform:scale(1.15)} 100%{transform:scale(1);opacity:1} }
@@ -986,9 +1005,13 @@ export default function ChatPage({ chatId }) {
         .cv-notes-sidebar-header { display: flex; align-items: center; justify-content: space-between; font-size: 12px; font-weight: 700; color: #a8b8d0; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
         .cv-notes-sidebar-close { width: 26px; height: 26px; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #a8b8d0; transition: all 0.15s; flex-shrink: 0; }
         .cv-notes-sidebar-close:hover { background: #f0f3fa; color: #4f607a; }
-        .cv-notes-contact { margin-bottom: 10px; }
-        .cv-notes-contact-name { font-size: 13px; font-weight: 700; color: #1a2540; }
-        .cv-notes-contact-phone { font-size: 12px; color: #a8b8d0; }
+        .cv-notes-contact { margin-bottom: 10px; display: flex; flex-direction: column; gap: 8px; }
+        .cv-notes-contact-name { font-size: 14px; font-weight: 700; color: #1a2540; }
+        .cv-notes-contact-phone { font-size: 12px; color: #a8b8d0; margin-top: -4px; }
+        .cv-notes-contact-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .cv-notes-contact-label { font-size: 11px; font-weight: 600; color: #a8b8d0; text-transform: uppercase; letter-spacing: 0.4px; min-width: 48px; flex-shrink: 0; }
+        .cv-notes-contact-tags { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+        .cv-notes-empty-inline { font-size: 12px; color: #b8c8d8; }
         .cv-notes-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; max-height: 160px; overflow-y: auto; }
         .cv-notes-loading, .cv-notes-empty { font-size: 12px; color: #a8b8d0; padding: 8px 0; }
         .cv-note-item { background: #f7f9fd; border: 1px solid #e4eaf5; border-radius: 8px; padding: 8px 10px; }
