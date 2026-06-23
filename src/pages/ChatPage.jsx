@@ -3,13 +3,13 @@ import { useNavigate } from 'react-router-dom'
 import { useSocket } from '../context/SocketContext'
 import { useAuth } from '../context/AuthContext'
 import {
-  getMessages, sendMessage, sendMedia, assignAgent, getConversations, getAgents, deleteConversation,
+  getMessages, sendMessage, sendMedia, assignAgent, getConversations, getAgents,
   getTemplates, getQuickMedia, sendQuickMedia, useTemplate,
   getTags, addTagToConversation, removeTagFromConversation,
   getContactNotes, createContactNote, createReminder, getContactConversations,
 } from '../hooks/useApi'
 import { supabase } from '../lib/supabase'
-import { Send, ArrowLeft, UserCheck, Paperclip, X, FileText, Play, Download, Check, Image, Film, Clock, Trash2, Zap, Images, Tag as TagIcon, StickyNote, BellPlus, MoreVertical } from 'lucide-react'
+import { Send, ArrowLeft, UserCheck, Paperclip, X, FileText, Play, Download, Check, Image, Film, Clock, Zap, Images, Tag as TagIcon, StickyNote, BellPlus, MoreVertical } from 'lucide-react'
 
 
 const AVATAR_COLORS = ['#3563e9','#27a87a','#d08b28','#e05c8a','#7c5cd6','#2aaccc']
@@ -211,7 +211,6 @@ export default function ChatPage({ chatId }) {
   const [showAgentMenu, setShowAgentMenu] = useState(false)
   const [selectedFile, setSelectedFile] = useState(null)
   const [lightboxUrl, setLightboxUrl] = useState(null)
-  const [showDeleteConv, setShowDeleteConv] = useState(false)
   const [templates, setTemplates] = useState([])
   const [showTemplateMenu, setShowTemplateMenu] = useState(false)
   const [quickMedia, setQuickMedia] = useState([])
@@ -302,12 +301,6 @@ export default function ChatPage({ chatId }) {
   }, [messages])
 
   const closeMenus = () => { setShowAgentMenu(false); setShowTemplateMenu(false); setShowMediaGallery(false); setShowReminderMenu(false); setShowMoreMenu(false) }
-
-  const handleDeleteConversation = async () => {
-    setShowDeleteConv(false)
-    try { await deleteConversation(id); navigate('/inbox') }
-    catch { setError('Gagal menghapus percakapan.') }
-  }
 
   const handleSend = async () => {
     if (!text.trim() || sending) return
@@ -483,19 +476,6 @@ export default function ChatPage({ chatId }) {
     <div className={`cv-root${showNotesPanel ? ' with-sidebar' : ''}`} onClick={closeMenus}>
       <ImageLightbox url={lightboxUrl} onClose={() => setLightboxUrl(null)} />
 
-      {showDeleteConv && (
-        <div className="cv-confirm-overlay" onClick={() => setShowDeleteConv(false)}>
-          <div className="cv-confirm-box" onClick={e => e.stopPropagation()}>
-            <h3>Hapus Percakapan?</h3>
-            <p>Semua pesan dalam percakapan ini akan dihapus permanen dan tidak bisa dikembalikan.</p>
-            <div className="cv-confirm-actions">
-              <button className="cv-confirm-cancel" onClick={() => setShowDeleteConv(false)}>Batal</button>
-              <button className="cv-confirm-delete" onClick={handleDeleteConversation}>Hapus</button>
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className="cv-chat-col">
 
       <div className="cv-header" onClick={e => e.stopPropagation()}>
@@ -568,9 +548,6 @@ export default function ChatPage({ chatId }) {
               </div>
             )}
           </div>
-          <button className="cv-del-conv-btn" title="Hapus percakapan" onClick={() => setShowDeleteConv(true)}>
-            <Trash2 size={15} />
-          </button>
         </div>
       </div>
 
@@ -872,15 +849,6 @@ export default function ChatPage({ chatId }) {
         .cv-mi-title { display: flex; align-items: baseline; justify-content: flex-start; gap: 6px; width: 100%; text-align: left; }
         .cv-mi-title-text { text-align: left; }
         .cv-mi-sub { font-size: 11px; color: #a8b8d0; margin-top: 1px; text-align: left; }
-        .cv-confirm-overlay { position: fixed; inset: 0; z-index: 900; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; }
-        .cv-confirm-box { background: #fff; border-radius: 16px; padding: 24px; max-width: 320px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.2); }
-        .cv-confirm-box h3 { font-size: 16px; font-weight: 700; color: #1a2540; margin-bottom: 8px; }
-        .cv-confirm-box p { font-size: 13px; color: #4f607a; line-height: 1.5; margin-bottom: 20px; }
-        .cv-confirm-actions { display: flex; gap: 10px; justify-content: flex-end; }
-        .cv-confirm-cancel { padding: 9px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; background: #f0f3fa; color: #4f607a; }
-        .cv-confirm-cancel:hover { background: #e4eaf5; }
-        .cv-confirm-delete { padding: 9px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; background: #e53e3e; color: #fff; }
-        .cv-confirm-delete:hover { background: #c53030; }
         .cv-error { background: rgba(229,62,62,0.05); border-bottom: 1px solid rgba(229,62,62,0.12); color: #c44; padding: 8px 16px; font-size: 13px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
         .cv-messages { flex: 1; min-height: 0; overflow-y: auto; padding: 20px 24px; display: flex; flex-direction: column; gap: 2px; background: #f0f3fa; }
         .cv-loading { display: flex; flex-direction: column; gap: 8px; }

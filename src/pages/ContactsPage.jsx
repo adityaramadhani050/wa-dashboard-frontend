@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { getContacts, updateContact } from '../hooks/useApi'
+import { useAuth } from '../context/AuthContext'
 import { Search, Users, Phone, Calendar, Clock, EyeOff, Pencil, X } from 'lucide-react'
 
 function formatDateTime(dateStr) {
@@ -99,13 +100,15 @@ export default function ContactsPage() {
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
   const [editTarget, setEditTarget] = useState(null)
+  const { user } = useAuth()
 
   useEffect(() => {
-    getContacts()
+    const agentId = user?.role === 'agent' ? user.id : null
+    getContacts(agentId)
       .then(data => setContacts(Array.isArray(data) ? data : []))
       .catch(() => setError('Gagal memuat kontak.'))
       .finally(() => setLoading(false))
-  }, [])
+  }, [user])
 
   const handleSaved = (updated) => {
     setContacts(prev => prev.map(c => c.id === updated.id ? { ...c, ...updated } : c))
