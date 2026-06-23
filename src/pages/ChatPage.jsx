@@ -3,13 +3,13 @@ import { useNavigate } from 'react-router-dom'
 import { useSocket } from '../context/SocketContext'
 import { useAuth } from '../context/AuthContext'
 import {
-  getMessages, sendMessage, sendMedia, assignAgent, getConversations, getAgents,
+  getMessages, sendMessage, sendMedia, assignAgent, getConversation, getAgents,
   getTemplates, getQuickMedia, sendQuickMedia, useTemplate,
   getTags, addTagToConversation, removeTagFromConversation,
   getContactNotes, createContactNote, createReminder, getContactConversations,
 } from '../hooks/useApi'
 import { supabase } from '../lib/supabase'
-import { Send, ArrowLeft, UserCheck, Paperclip, X, FileText, Play, Download, Check, Image, Film, Clock, Zap, Images, Tag as TagIcon, StickyNote, BellPlus, MoreVertical } from 'lucide-react'
+import { Send, ArrowLeft, ArrowDown, UserCheck, Paperclip, X, FileText, Play, Download, Check, Image, Film, Clock, Zap, Images, Tag as TagIcon, StickyNote, BellPlus, MoreVertical } from 'lucide-react'
 
 
 const AVATAR_COLORS = ['#3563e9','#27a87a','#d08b28','#e05c8a','#7c5cd6','#2aaccc']
@@ -240,21 +240,21 @@ export default function ChatPage({ chatId }) {
   const [reminderError, setReminderError] = useState('')
 
   const bottomRef = useRef(null)
+  const messagesRef = useRef(null)
   const fileInputRef = useRef(null)
   const textareaRef = useRef(null)
   const { newMessages, statusUpdates } = useSocket()
+  const [showScrollBtn, setShowScrollBtn] = useState(false)
 
   const fetchData = useCallback(async () => {
     try {
-      const agentId = user?.role === 'agent' ? user.id : null
-      const [msgs, convs] = await Promise.all([getMessages(id), getConversations(agentId)])
+      const [msgs, conv] = await Promise.all([getMessages(id), getConversation(id)])
       setMessages(Array.isArray(msgs) ? msgs : [])
-      const convList = Array.isArray(convs) ? convs : []
-      setConversation(convList.find(c => String(c.id) === String(id)) || null)
+      setConversation(conv || null)
       setError('')
     } catch { setError('Gagal memuat pesan.') }
     finally { setLoading(false) }
-  }, [id, user])
+  }, [id])
 
   useEffect(() => {
     fetchData()
@@ -303,6 +303,20 @@ export default function ChatPage({ chatId }) {
     scrolledForRef.current = id
     bottomRef.current?.scrollIntoView({ behavior: isFirstScrollForConv ? 'auto' : 'smooth' })
   }, [messages, id])
+
+  useEffect(() => {
+    const el = messagesRef.current
+    if (!el) return
+    const handleScroll = () => {
+      const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
+      setShowScrollBtn(distanceFromBottom > 200)
+    }
+    handleScroll()
+    el.addEventListener('scroll', handleScroll)
+    return () => el.removeEventListener('scroll', handleScroll)
+  }, [id])
+
+  const scrollToBottom = () => bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
 
   const closeMenus = () => { setShowAgentMenu(false); setShowTemplateMenu(false); setShowMediaGallery(false); setShowReminderMenu(false); setShowMoreMenu(false) }
 
@@ -586,7 +600,8 @@ export default function ChatPage({ chatId }) {
         </div>
       )}
 
-      <div className="cv-messages">
+      <div className="cv-messages-wrap">
+      <div className="cv-messages" ref={messagesRef}>
         {loading ? (
           <div className="cv-loading">
             {[...Array(5)].map((_, i) => (
@@ -622,6 +637,12 @@ export default function ChatPage({ chatId }) {
           })
         )}
         <div ref={bottomRef} />
+      </div>
+        {showScrollBtn && (
+          <button className="cv-scroll-bottom-btn" title="Scroll ke pesan terbaru" onClick={scrollToBottom}>
+            <ArrowDown size={18} />
+          </button>
+        )}
       </div>
 
       {selectedFile && (
@@ -854,7 +875,10 @@ export default function ChatPage({ chatId }) {
         .cv-mi-title-text { text-align: left; }
         .cv-mi-sub { font-size: 11px; color: #a8b8d0; margin-top: 1px; text-align: left; }
         .cv-error { background: rgba(229,62,62,0.05); border-bottom: 1px solid rgba(229,62,62,0.12); color: #c44; padding: 8px 16px; font-size: 13px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+        .cv-messages-wrap { position: relative; flex: 1; min-height: 0; display: flex; }
         .cv-messages { flex: 1; min-height: 0; overflow-y: auto; padding: 20px 24px; display: flex; flex-direction: column; gap: 2px; background: #f0f3fa; }
+        .cv-scroll-bottom-btn { position: absolute; right: 20px; bottom: 16px; width: 38px; height: 38px; border-radius: 50%; background: #fff; color: #4f607a; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(26,37,64,0.18); border: 1px solid #e4eaf5; z-index: 50; transition: all 0.15s; animation: popIn 0.18s ease-out; }
+        .cv-scroll-bottom-btn:hover { background: #f7f9fd; color: #3563e9; }
         .cv-loading { display: flex; flex-direction: column; gap: 8px; }
         .cv-skel { height: 40px; max-width: 55%; border-radius: 10px; background: rgba(0,0,0,0.05); animation: pulse 1.4s ease infinite; }
         .cv-skel.left { align-self: flex-start; }
