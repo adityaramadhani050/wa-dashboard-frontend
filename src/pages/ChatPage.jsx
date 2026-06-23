@@ -982,7 +982,8 @@ export default function ChatPage({ chatId }) {
           .cv-input-bar { padding: 8px 10px; gap: 6px; }
           .cv-attach-group { display: none; }
           .cv-more-dd { display: block; }
-          .cv-notes-sidebar { position: fixed; inset: 0; width: 100%; z-index: 400; border-left: none; animation: slideInRight 0.22s ease-out; }
+          .cv-notes-sidebar { position: fixed !important; inset: 0 !important; width: 100% !important; height: 100% !important; z-index: 400; border-left: none; animation: slideInRight 0.22s ease-out; }
+          .cv-reminder-menu { position: fixed !important; top: 58px !important; right: 8px !important; left: auto !important; }
         }
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
