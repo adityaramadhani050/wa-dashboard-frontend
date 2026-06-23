@@ -9,7 +9,7 @@ import {
   getContactNotes, createContactNote, createReminder, getContactConversations,
 } from '../hooks/useApi'
 import { supabase } from '../lib/supabase'
-import { Send, ChevronDown, ArrowLeft, UserCheck, Paperclip, X, FileText, Play, Download, Check, Image, Film, Clock, Trash2, Zap, Images, Tag as TagIcon, StickyNote, BellPlus } from 'lucide-react'
+import { Send, ChevronDown, ArrowLeft, UserCheck, Paperclip, X, FileText, Play, Download, Check, Image, Film, Clock, Trash2, Zap, Images, Tag as TagIcon, StickyNote, BellPlus, MoreVertical } from 'lucide-react'
 
 const STATUS_OPTIONS = ['open', 'in_progress', 'resolved']
 
@@ -218,6 +218,7 @@ export default function ChatPage({ chatId }) {
   const [showTemplateMenu, setShowTemplateMenu] = useState(false)
   const [quickMedia, setQuickMedia] = useState([])
   const [showMediaGallery, setShowMediaGallery] = useState(false)
+  const [showMoreMenu, setShowMoreMenu] = useState(false)
   const [sendingQuickMediaId, setSendingQuickMediaId] = useState(null)
 
   // Tags
@@ -302,7 +303,7 @@ export default function ChatPage({ chatId }) {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  const closeMenus = () => { setShowStatusMenu(false); setShowAgentMenu(false); setShowTemplateMenu(false); setShowMediaGallery(false); setShowReminderMenu(false) }
+  const closeMenus = () => { setShowStatusMenu(false); setShowAgentMenu(false); setShowTemplateMenu(false); setShowMediaGallery(false); setShowReminderMenu(false); setShowMoreMenu(false) }
 
   const handleDeleteConversation = async () => {
     setShowDeleteConv(false)
@@ -368,6 +369,13 @@ export default function ChatPage({ chatId }) {
     if (val.startsWith('/') && val.length > 0) setShowTemplateMenu(true)
     else if (showTemplateMenu) setShowTemplateMenu(false)
   }
+
+  useEffect(() => {
+    const el = textareaRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${Math.min(el.scrollHeight, 120)}px`
+  }, [text])
 
   const slashQuery = text.startsWith('/') ? text.slice(1).toLowerCase() : ''
   const filteredTemplates = slashQuery
@@ -670,6 +678,27 @@ export default function ChatPage({ chatId }) {
         <input type="file" ref={fileInputRef} style={{ display: 'none' }}
           accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.rar,.txt"
           onChange={handleFileSelect} />
+
+        <div className="cv-dd cv-more-dd">
+          <button className="cv-attach-btn" title="Lainnya" onClick={() => setShowMoreMenu(!showMoreMenu)}>
+            <MoreVertical size={19} />
+          </button>
+          {showMoreMenu && (
+            <div className="cv-menu cv-more-menu">
+              <button className="cv-mi" onClick={() => { setShowMoreMenu(false); fileInputRef.current?.click() }}>
+                <span className="cv-mi-title"><Paperclip size={14} /><span className="cv-mi-title-text">Lampirkan file</span></span>
+              </button>
+              <button className="cv-mi" onClick={() => { setShowMoreMenu(false); setShowTemplateMenu(true) }}>
+                <span className="cv-mi-title"><Zap size={14} /><span className="cv-mi-title-text">Template Pesan</span></span>
+              </button>
+              <button className="cv-mi" onClick={() => { setShowMoreMenu(false); setShowMediaGallery(true) }}>
+                <span className="cv-mi-title"><Images size={14} /><span className="cv-mi-title-text">Produk / Katalog</span></span>
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div className="cv-attach-group">
         <button className="cv-attach-btn" onClick={() => fileInputRef.current?.click()} title="Lampirkan file">
           <Paperclip size={19} />
         </button>
@@ -726,6 +755,7 @@ export default function ChatPage({ chatId }) {
               )}
             </div>
           )}
+        </div>
         </div>
 
         <textarea
@@ -922,7 +952,11 @@ export default function ChatPage({ chatId }) {
         .cv-input-bar { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: #fff; border-top: 1px solid #e4eaf5; flex-shrink: 0; }
         .cv-attach-btn { width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: #a8b8d0; transition: all 0.15s; border: 1.5px solid #e4eaf5; background: #f7f9fd; }
         .cv-attach-btn:hover { background: #eef4fd; color: #3563e9; border-color: #c8d4ec; }
-        .cv-input { flex: 1; background: #f7f9fd; border: 1.5px solid #e4eaf5; border-radius: 12px; color: #1a2540; padding: 0 14px; font-size: 14px; line-height: 44px; height: 44px; outline: none; resize: none; overflow: hidden; transition: border-color 0.15s; font-family: inherit; }
+        .cv-attach-group { display: contents; }
+        .cv-more-dd { display: none; }
+        .cv-more-menu { min-width: 200px; }
+        .cv-more-menu .cv-mi-title { gap: 10px; }
+        .cv-input { flex: 1; background: #f7f9fd; border: 1.5px solid #e4eaf5; border-radius: 12px; color: #1a2540; padding: 11px 14px; font-size: 14px; line-height: 22px; height: 44px; min-height: 44px; max-height: 120px; outline: none; resize: none; overflow-y: auto; transition: border-color 0.15s; font-family: inherit; }
         .cv-input:focus { border-color: #3563e9; background: #fff; }
         .cv-input::placeholder { color: #b8c8d8; }
         .cv-send-btn { display: flex; align-items: center; justify-content: center; gap: 7px; height: 44px; padding: 0 18px; border-radius: 12px; flex-shrink: 0; background: #e4eaf5; color: #8a9bb8; font-size: 14px; font-weight: 600; transition: all 0.15s; white-space: nowrap; }
@@ -954,6 +988,8 @@ export default function ChatPage({ chatId }) {
           .cv-send-label { display: none; }
           .cv-send-btn { padding: 0; width: 44px; height: 44px; justify-content: center; border-radius: 12px; }
           .cv-input-bar { padding: 8px 10px; gap: 6px; }
+          .cv-attach-group { display: none; }
+          .cv-more-dd { display: block; }
           .cv-notes-sidebar { position: fixed; inset: 0; width: 100%; z-index: 400; border-left: none; }
         }
         @keyframes spin { to { transform: rotate(360deg); } }
