@@ -480,7 +480,7 @@ export default function ChatPage({ chatId }) {
   }
 
   return (
-    <div className="cv-root" onClick={closeMenus}>
+    <div className={`cv-root${showNotesPanel ? ' with-sidebar' : ''}`} onClick={closeMenus}>
       <ImageLightbox url={lightboxUrl} onClose={() => setLightboxUrl(null)} />
 
       {showDeleteConv && (
@@ -495,6 +495,8 @@ export default function ChatPage({ chatId }) {
           </div>
         </div>
       )}
+
+      <div className="cv-chat-col">
 
       <div className="cv-header" onClick={e => e.stopPropagation()}>
         <button className="cv-back" onClick={() => navigate('/inbox')}><ArrowLeft size={20} /></button>
@@ -584,64 +586,6 @@ export default function ChatPage({ chatId }) {
           </button>
         </div>
       </div>
-
-      {showNotesPanel && (
-        <div className="cv-notes-panel" onClick={e => e.stopPropagation()}>
-          <div className="cv-notes-contact">
-            <div className="cv-notes-contact-name">{name}</div>
-            {phone && <div className="cv-notes-contact-phone">{phone}</div>}
-          </div>
-          <div className="cv-notes-list">
-            {loadingNotes ? (
-              <div className="cv-notes-loading">Memuat catatan...</div>
-            ) : notes.length === 0 ? (
-              <div className="cv-notes-empty">Belum ada catatan.</div>
-            ) : (
-              notes.map(n => (
-                <div key={n.id} className="cv-note-item">
-                  <p className="cv-note-body">{n.body}</p>
-                  <div className="cv-note-meta">
-                    <span>{n.agents?.name || 'Sistem'}</span>
-                    <span>{formatReminderTime(n.created_at)}</span>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-          <div className="cv-notes-form">
-            <textarea
-              value={noteText}
-              onChange={e => setNoteText(e.target.value)}
-              placeholder="Tulis catatan tentang kontak ini..."
-              rows={2}
-            />
-            <button className="cv-note-save" onClick={handleSaveNote} disabled={!noteText.trim() || savingNote}>
-              {savingNote ? 'Menyimpan...' : 'Simpan'}
-            </button>
-          </div>
-
-          <div className="cv-history-section">
-            <div className="cv-history-title">Riwayat Percakapan</div>
-            {loadingHistory ? (
-              <div className="cv-notes-loading">Memuat riwayat...</div>
-            ) : convHistory.length === 0 ? (
-              <div className="cv-notes-empty">Tidak ada percakapan lain dengan kontak ini.</div>
-            ) : (
-              <div className="cv-history-list">
-                {convHistory.map(h => (
-                  <button key={h.id} className="cv-history-item" onClick={() => handleOpenHistoryConversation(h.id)}>
-                    <div className="cv-history-item-top">
-                      <span className={`cv-history-badge st-${h.status || 'open'}`}>{statusLabel(h.status)}</span>
-                      <span className="cv-history-time">{formatReminderTime(h.lastMessageAt || h.updated_at)}</span>
-                    </div>
-                    <div className="cv-history-preview">{h.lastMessage || 'Belum ada pesan'}</div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
       {showTagModal && (
         <Modal title="Atur Tag Percakapan" onClose={() => setShowTagModal(false)}>
@@ -801,8 +745,73 @@ export default function ChatPage({ chatId }) {
         </button>
       </div>
 
+      </div>
+
+      {showNotesPanel && (
+        <div className="cv-notes-sidebar" onClick={e => e.stopPropagation()}>
+          <div className="cv-notes-sidebar-header">
+            <span>Catatan & Riwayat</span>
+            <button className="cv-notes-sidebar-close" onClick={handleToggleNotesPanel}><X size={16} /></button>
+          </div>
+          <div className="cv-notes-contact">
+            <div className="cv-notes-contact-name">{name}</div>
+            {phone && <div className="cv-notes-contact-phone">{phone}</div>}
+          </div>
+          <div className="cv-notes-list">
+            {loadingNotes ? (
+              <div className="cv-notes-loading">Memuat catatan...</div>
+            ) : notes.length === 0 ? (
+              <div className="cv-notes-empty">Belum ada catatan.</div>
+            ) : (
+              notes.map(n => (
+                <div key={n.id} className="cv-note-item">
+                  <p className="cv-note-body">{n.body}</p>
+                  <div className="cv-note-meta">
+                    <span>{n.agents?.name || 'Sistem'}</span>
+                    <span>{formatReminderTime(n.created_at)}</span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+          <div className="cv-notes-form">
+            <textarea
+              value={noteText}
+              onChange={e => setNoteText(e.target.value)}
+              placeholder="Tulis catatan tentang kontak ini..."
+              rows={2}
+            />
+            <button className="cv-note-save" onClick={handleSaveNote} disabled={!noteText.trim() || savingNote}>
+              {savingNote ? 'Menyimpan...' : 'Simpan'}
+            </button>
+          </div>
+
+          <div className="cv-history-section">
+            <div className="cv-history-title">Riwayat Percakapan</div>
+            {loadingHistory ? (
+              <div className="cv-notes-loading">Memuat riwayat...</div>
+            ) : convHistory.length === 0 ? (
+              <div className="cv-notes-empty">Tidak ada percakapan lain dengan kontak ini.</div>
+            ) : (
+              <div className="cv-history-list">
+                {convHistory.map(h => (
+                  <button key={h.id} className="cv-history-item" onClick={() => handleOpenHistoryConversation(h.id)}>
+                    <div className="cv-history-item-top">
+                      <span className={`cv-history-badge st-${h.status || 'open'}`}>{statusLabel(h.status)}</span>
+                      <span className="cv-history-time">{formatReminderTime(h.lastMessageAt || h.updated_at)}</span>
+                    </div>
+                    <div className="cv-history-preview">{h.lastMessage || 'Belum ada pesan'}</div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       <style>{`
-        .cv-root { flex: 1; display: flex; flex-direction: column; min-height: 0; min-width: 0; background: #f0f3fa; overflow: hidden; }
+        .cv-root { flex: 1; display: flex; flex-direction: row; min-height: 0; min-width: 0; background: #f0f3fa; overflow: hidden; }
+        .cv-chat-col { flex: 1; display: flex; flex-direction: column; min-height: 0; min-width: 0; overflow: hidden; }
         .cv-header { display: flex; align-items: center; gap: 12px; padding: 12px 20px; background: #fff; border-bottom: 1px solid #e4eaf5; flex-shrink: 0; min-height: 64px; }
         .cv-back { display: none; width: 36px; height: 36px; border-radius: 8px; align-items: center; justify-content: center; color: #8a9bb8; flex-shrink: 0; }
         .cv-back:hover { background: #f0f3fa; }
@@ -938,6 +947,7 @@ export default function ChatPage({ chatId }) {
           .cv-send-label { display: none; }
           .cv-send-btn { padding: 0; width: 44px; height: 44px; justify-content: center; border-radius: 12px; }
           .cv-input-bar { padding: 8px 10px; gap: 6px; }
+          .cv-notes-sidebar { position: fixed; inset: 0; width: 100%; z-index: 400; border-left: none; }
         }
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
@@ -955,7 +965,10 @@ export default function ChatPage({ chatId }) {
         .cv-reminder-save { padding: 8px 14px; border-radius: 7px; font-size: 13px; font-weight: 600; background: #3563e9; color: #fff; transition: all 0.15s; }
         .cv-reminder-save:hover { background: #2850cc; }
         .cv-reminder-save:disabled { opacity: 0.5; cursor: not-allowed; }
-        .cv-notes-panel { background: #fff; border-bottom: 1px solid #e4eaf5; padding: 14px 20px; max-height: 320px; overflow-y: auto; flex-shrink: 0; }
+        .cv-notes-sidebar { width: 320px; flex-shrink: 0; background: #fff; border-left: 1px solid #e4eaf5; padding: 14px 18px; overflow-y: auto; display: flex; flex-direction: column; }
+        .cv-notes-sidebar-header { display: flex; align-items: center; justify-content: space-between; font-size: 12px; font-weight: 700; color: #a8b8d0; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
+        .cv-notes-sidebar-close { width: 26px; height: 26px; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #a8b8d0; transition: all 0.15s; flex-shrink: 0; }
+        .cv-notes-sidebar-close:hover { background: #f0f3fa; color: #4f607a; }
         .cv-notes-contact { margin-bottom: 10px; }
         .cv-notes-contact-name { font-size: 13px; font-weight: 700; color: #1a2540; }
         .cv-notes-contact-phone { font-size: 12px; color: #a8b8d0; }
