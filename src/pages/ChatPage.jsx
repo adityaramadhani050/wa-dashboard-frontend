@@ -296,9 +296,13 @@ export default function ChatPage({ chatId }) {
     }))
   }, [statusUpdates])
 
+  const scrolledForRef = useRef(null)
+
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
+    const isFirstScrollForConv = scrolledForRef.current !== id
+    scrolledForRef.current = id
+    bottomRef.current?.scrollIntoView({ behavior: isFirstScrollForConv ? 'auto' : 'smooth' })
+  }, [messages, id])
 
   const closeMenus = () => { setShowAgentMenu(false); setShowTemplateMenu(false); setShowMediaGallery(false); setShowReminderMenu(false); setShowMoreMenu(false) }
 
