@@ -552,12 +552,12 @@ export default function ChatPage({ chatId }) {
           <button className={`cv-del-conv-btn${showNotesPanel ? ' active' : ''}`} title="Catatan kontak" onClick={handleToggleNotesPanel}>
             <StickyNote size={15} />
           </button>
-          <div className="cv-dd">
+          <div className="cv-dd cv-reminder-dd">
             <button className="cv-del-conv-btn" title="Ingatkan follow-up" onClick={() => { setShowReminderMenu(!showReminderMenu); setShowStatusMenu(false); setShowAgentMenu(false) }}>
               <BellPlus size={15} />
             </button>
             {showReminderMenu && (
-              <div className="cv-menu cv-reminder-menu" style={{ minWidth: 240 }}>
+              <div className="cv-menu cv-reminder-menu" style={{ width: 'min(240px, calc(100vw - 32px))' }}>
                 <div className="cv-menu-lbl">Ingatkan Follow-up</div>
                 <div className="cv-reminder-form">
                   <input
@@ -685,7 +685,10 @@ export default function ChatPage({ chatId }) {
                 <div className="cv-mi muted">Tidak ada template cocok</div>
               ) : filteredTemplates.map(t => (
                 <button key={t.id} className="cv-mi" onClick={() => insertTemplate(t)}>
-                  <span>{t.title}{t.shortcut && <span className="cv-mi-sub"> /{t.shortcut}</span>}</span>
+                  <span className="cv-mi-title">
+                    <span className="cv-mi-title-text">{t.title}</span>
+                    {t.shortcut && <span className="cv-mi-sub">/{t.shortcut}</span>}
+                  </span>
                   <span className="cv-mi-sub cv-tpl-preview">{t.body}</span>
                 </button>
               ))}
@@ -823,8 +826,9 @@ export default function ChatPage({ chatId }) {
         .cv-phone { font-size: 12px; color: #a8b8d0; }
         .cv-assigned { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 10px; background: rgba(39,168,122,0.1); color: #27a87a; }
         .cv-unassigned { font-size: 11px; padding: 1px 7px; border-radius: 10px; background: rgba(208,139,40,0.1); color: #d08b28; }
-        .cv-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+        .cv-actions { position: relative; display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
         .cv-dd { position: relative; }
+        .cv-reminder-dd { position: static; }
         .cv-assign-btn { display: flex; align-items: center; gap: 5px; padding: 7px 14px; border-radius: 8px; font-size: 13px; font-weight: 500; color: #4f607a; background: #f0f3fa; border: 1px solid #e4eaf5; transition: all 0.15s; }
         .cv-assign-btn:hover { background: #e8eef8; }
         .cv-status-btn { display: flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 8px; font-size: 13px; font-weight: 500; border: 1px solid #e4eaf5; background: #f7f9fd; color: #4f607a; transition: all 0.15s; }
@@ -835,13 +839,16 @@ export default function ChatPage({ chatId }) {
         .st-resolved .cv-status-dot { background: #27a87a; }
         .cv-del-conv-btn { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #a8b8d0; transition: all 0.15s; }
         .cv-del-conv-btn:hover { background: rgba(229,62,62,0.08); color: #e53e3e; }
-        .cv-menu { position: absolute; right: 0; top: calc(100% + 6px); background: #fff; border: 1px solid #e4eaf5; border-radius: 12px; z-index: 200; box-shadow: 0 8px 24px rgba(26,37,64,0.10); overflow: hidden; }
+        .cv-menu { position: absolute; right: 0; top: calc(100% + 6px); max-width: calc(100vw - 24px); box-sizing: border-box; background: #fff; border: 1px solid #e4eaf5; border-radius: 12px; z-index: 200; box-shadow: 0 8px 24px rgba(26,37,64,0.10); overflow: hidden; }
+        .cv-reminder-menu { box-sizing: border-box; }
         .cv-menu-lbl { padding: 8px 14px 4px; font-size: 10px; font-weight: 700; color: #a8b8d0; text-transform: uppercase; letter-spacing: 0.5px; }
-        .cv-mi { display: flex; flex-direction: column; width: 100%; text-align: left; padding: 9px 14px; font-size: 13px; color: #1a2540; transition: background 0.1s; }
+        .cv-mi { display: flex; flex-direction: column; align-items: flex-start; width: 100%; text-align: left; padding: 9px 14px; font-size: 13px; color: #1a2540; transition: background 0.1s; }
         .cv-mi:hover { background: #f7f9fd; }
         .cv-mi.muted { color: #a8b8d0; cursor: default; }
         .cv-mi.active { background: rgba(39,168,122,0.06); color: #27a87a; }
-        .cv-mi-sub { font-size: 11px; color: #a8b8d0; margin-top: 1px; }
+        .cv-mi-title { display: flex; align-items: baseline; justify-content: flex-start; gap: 6px; width: 100%; text-align: left; }
+        .cv-mi-title-text { text-align: left; }
+        .cv-mi-sub { font-size: 11px; color: #a8b8d0; margin-top: 1px; text-align: left; }
         .si-open { color: #3563e9 !important; }
         .si-in_progress { color: #d08b28 !important; }
         .si-resolved { color: #27a87a !important; }
