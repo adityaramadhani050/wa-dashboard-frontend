@@ -407,6 +407,7 @@ export default function ChatPage({ chatId }) {
       if (hasTag) await removeTagFromConversation(id, tag.id)
       else await addTagToConversation(id, tag.id)
       await fetchData()
+      window.dispatchEvent(new CustomEvent('cv:conversation-updated', { detail: { id } }))
     } catch { setError('Gagal mengubah tag percakapan.') }
     finally { setTagToggling(null) }
   }
@@ -585,11 +586,13 @@ export default function ChatPage({ chatId }) {
                 <button
                   key={t.id}
                   className={`cv-tag-option${checked ? ' checked' : ''}`}
-                  disabled={tagToggling === t.id}
+                  disabled={!!tagToggling}
                   onClick={() => handleToggleTag(t)}
                 >
                   <span className="tag-chip" style={{ background: t.color }}>{t.name}</span>
-                  {checked && <Check size={14} />}
+                  {tagToggling === t.id
+                    ? <div className="cv-sending-dot dark" />
+                    : checked && <Check size={14} />}
                 </button>
               )
             })}

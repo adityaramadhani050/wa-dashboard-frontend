@@ -52,6 +52,11 @@ export default function InboxPage() {
   useEffect(() => { fetch() }, [fetch])
   useEffect(() => { if (newMessages.length > 0) fetch() }, [newMessages, fetch])
   useEffect(() => { getTags().then(d => setTags(Array.isArray(d) ? d : [])).catch(() => {}) }, [])
+  useEffect(() => {
+    const handler = () => fetch()
+    window.addEventListener('cv:conversation-updated', handler)
+    return () => window.removeEventListener('cv:conversation-updated', handler)
+  }, [fetch])
 
   const handleOpenConversation = (convId) => {
     setConversations(prev => prev.map(c => String(c.id) === String(convId) ? { ...c, unread: false } : c))
