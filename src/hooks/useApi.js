@@ -41,6 +41,8 @@ export const getTemplates = () => api.get('/templates').then(r => r.data)
 export const createTemplate = (payload) => api.post('/templates', payload).then(r => r.data)
 export const updateTemplate = (id, payload) => api.put(`/templates/${id}`, payload).then(r => r.data)
 export const deleteTemplate = (id) => api.delete(`/templates/${id}`).then(r => r.data)
+export const getTopTemplates = (limit) => api.get('/templates/top', limit ? { params: { limit } } : {}).then(r => r.data)
+export const useTemplate = (id) => api.post(`/templates/${id}/use`).then(r => r.data)
 
 // Galeri Produk / Quick Media
 export const getQuickMedia = () => api.get('/messages/quick-media').then(r => r.data)
@@ -65,6 +67,7 @@ export const sendQuickMedia = (conversationId, quickMediaId, caption) =>
 // Catatan Kontak (Contact Notes)
 export const getContactNotes = (contactId) => api.get(`/contacts/${contactId}/notes`).then(r => r.data)
 export const createContactNote = (contactId, payload) => api.post(`/contacts/${contactId}/notes`, payload).then(r => r.data)
+export const getContactConversations = (contactId) => api.get(`/contacts/${contactId}/conversations`).then(r => r.data)
 
 // Tag Percakapan (Conversation Tags)
 export const getTags = () => api.get('/tags').then(r => r.data)

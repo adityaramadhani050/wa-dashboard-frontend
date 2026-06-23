@@ -1,13 +1,32 @@
 import { useState, useEffect, useCallback } from 'react'
-import { getDailyStats, getAgentStats, getContactStats } from '../hooks/useApi'
+import { getDailyStats, getAgentStats, getContactStats, getContacts, getConversations, getTopTemplates } from '../hooks/useApi'
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer
 } from 'recharts'
-import { RefreshCw, TrendingUp, Users, MessageSquare, UserCheck, Clock, UserPlus, Calendar } from 'lucide-react'
+import { RefreshCw, TrendingUp, Users, MessageSquare, UserCheck, Clock, UserPlus, Calendar, Download, Zap } from 'lucide-react'
 
 function fmtDate(d) {
   return d.toISOString().split('T')[0]
+}
+
+function downloadCsv(filename, rows) {
+  if (!rows.length) return
+  const headers = Object.keys(rows[0])
+  const escapeCell = (v) => {
+    const s = v == null ? '' : String(v)
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+  }
+  const csv = [headers.join(','), ...rows.map(r => headers.map(h => escapeCell(r[h])).join(','))].join('\n')
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
 }
 
 function StatCard({ icon: Icon, label, value, sub, color }) {
@@ -48,23 +67,67 @@ export default function AnalyticsPage() {
   const [daily, setDaily] = useState([])
   const [agents, setAgents] = useState([])
   const [contacts, setContacts] = useState(null)
+  const [topTemplates, setTopTemplates] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [exporting, setExporting] = useState('')
 
   const load = useCallback(async (f, t) => {
     setLoading(true)
     setError('')
     try {
-      const [d, a, c] = await Promise.all([getDailyStats(f, t), getAgentStats(), getContactStats()])
+      const [d, a, c, tpl] = await Promise.all([
+        getDailyStats(f, t), getAgentStats(), getContactStats(),
+        getTopTemplates(5).catch(() => []),
+      ])
       setDaily(Array.isArray(d) ? d : [])
       setAgents(Array.isArray(a) ? a : [])
       setContacts(c || null)
+      setTopTemplates(Array.isArray(tpl) ? tpl : [])
     } catch {
       setError('Gagal memuat analytics. Cek koneksi backend.')
     } finally {
       setLoading(false)
     }
   }, [])
+
+  const handleExportContacts = async () => {
+    setExporting('contacts')
+    try {
+      const data = await getContacts()
+      const rows = (data || []).map(c => ({
+        nama: c.name || '',
+        telepon: c.phone || '',
+        no_wa_manual: c.manual_wa_number || '',
+        pertama_dilihat: c.first_seen || '',
+        pesan_terakhir: c.last_message_at || '',
+      }))
+      downloadCsv(`kontak-${fmtDate(new Date())}.csv`, rows)
+    } catch {
+      setError('Gagal mengekspor kontak.')
+    } finally {
+      setExporting('')
+    }
+  }
+
+  const handleExportConversations = async () => {
+    setExporting('conversations')
+    try {
+      const data = await getConversations()
+      const rows = (data || []).map(c => ({
+        kontak: c.contact?.name || c.contact?.phone || '',
+        status: c.status || '',
+        agent: c.agents?.name || '',
+        pesan_terakhir: c.lastMessage || '',
+        diperbarui: c.updated_at || '',
+      }))
+      downloadCsv(`percakapan-${fmtDate(new Date())}.csv`, rows)
+    } catch {
+      setError('Gagal mengekspor percakapan.')
+    } finally {
+      setExporting('')
+    }
+  }
 
   useEffect(() => { load(from, to) }, []) // eslint-disable-line
 
@@ -108,10 +171,20 @@ export default function AnalyticsPage() {
           <h1>Analytics</h1>
           <p>Statistik pesan dan performa agent</p>
         </div>
-        <button className="an-refresh" onClick={() => load(from, to)} disabled={loading}>
-          <RefreshCw size={15} style={loading ? { animation: 'spin 1s linear infinite' } : {}} />
-          Refresh
-        </button>
+        <div className="an-header-actions">
+          <button className="an-refresh" onClick={handleExportContacts} disabled={!!exporting}>
+            <Download size={15} />
+            {exporting === 'contacts' ? 'Mengekspor...' : 'Export Kontak'}
+          </button>
+          <button className="an-refresh" onClick={handleExportConversations} disabled={!!exporting}>
+            <Download size={15} />
+            {exporting === 'conversations' ? 'Mengekspor...' : 'Export Percakapan'}
+          </button>
+          <button className="an-refresh" onClick={() => load(from, to)} disabled={loading}>
+            <RefreshCw size={15} style={loading ? { animation: 'spin 1s linear infinite' } : {}} />
+            Refresh
+          </button>
+        </div>
       </div>
 
       {/* Date filter */}
@@ -200,6 +273,25 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
+      {/* Template Terpopuler */}
+      {!loading && topTemplates.length > 0 && (
+        <div className="an-table-box">
+          <h3><Zap size={14} style={{ verticalAlign: -2, marginRight: 4 }} />Template Terpopuler</h3>
+          <div className="an-tpl-list">
+            {topTemplates.map((t, i) => (
+              <div key={t.id} className="an-tpl-item">
+                <span className="an-tpl-rank">#{i + 1}</span>
+                <div className="an-tpl-body">
+                  <div className="an-tpl-title">{t.title}</div>
+                  <div className="an-tpl-preview">{t.body}</div>
+                </div>
+                <span className="an-tpl-count">{t.usage_count || 0}x dipakai</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Agent table */}
       {!loading && agents.length > 0 && (
         <div className="an-table-box">
@@ -268,6 +360,15 @@ export default function AnalyticsPage() {
         }
         .an-refresh:hover { background: #f8fafc; border-color: #cbd5e1; }
         .an-refresh:disabled { opacity: 0.6; }
+        .an-header-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; flex-shrink: 0; }
+
+        .an-tpl-list { display: flex; flex-direction: column; gap: 8px; }
+        .an-tpl-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 8px; background: #f8fafc; border: 1px solid #f0f4f8; }
+        .an-tpl-rank { font-size: 13px; font-weight: 700; color: #2563eb; width: 24px; flex-shrink: 0; }
+        .an-tpl-body { flex: 1; min-width: 0; }
+        .an-tpl-title { font-size: 13px; font-weight: 600; color: #1e293b; }
+        .an-tpl-preview { font-size: 12px; color: #94a3b8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .an-tpl-count { font-size: 12px; font-weight: 600; color: #10b981; white-space: nowrap; flex-shrink: 0; }
 
         /* Date filter */
         .an-filter {

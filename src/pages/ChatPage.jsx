@@ -4,9 +4,9 @@ import { useSocket } from '../context/SocketContext'
 import { useAuth } from '../context/AuthContext'
 import {
   getMessages, sendMessage, sendMedia, assignAgent, updateStatus, getConversations, getAgents, deleteConversation,
-  getTemplates, getQuickMedia, sendQuickMedia,
+  getTemplates, getQuickMedia, sendQuickMedia, useTemplate,
   getTags, addTagToConversation, removeTagFromConversation,
-  getContactNotes, createContactNote, createReminder,
+  getContactNotes, createContactNote, createReminder, getContactConversations,
 } from '../hooks/useApi'
 import { supabase } from '../lib/supabase'
 import { Send, ChevronDown, ArrowLeft, UserCheck, Paperclip, X, FileText, Play, Download, Check, Image, Film, Clock, Trash2, Zap, Images, Tag as TagIcon, StickyNote, BellPlus } from 'lucide-react'
@@ -231,6 +231,8 @@ export default function ChatPage({ chatId }) {
   const [loadingNotes, setLoadingNotes] = useState(false)
   const [noteText, setNoteText] = useState('')
   const [savingNote, setSavingNote] = useState(false)
+  const [convHistory, setConvHistory] = useState([])
+  const [loadingHistory, setLoadingHistory] = useState(false)
 
   // Reminder
   const [showReminderMenu, setShowReminderMenu] = useState(false)
@@ -357,6 +359,7 @@ export default function ChatPage({ chatId }) {
     setText(filled)
     setShowTemplateMenu(false)
     textareaRef.current?.focus()
+    if (tpl.id) useTemplate(tpl.id).catch(() => {})
   }
 
   const handleTextChange = (e) => {
@@ -415,10 +418,24 @@ export default function ChatPage({ chatId }) {
     finally { setLoadingNotes(false) }
   }, [conversation])
 
+  const loadHistory = useCallback(async () => {
+    if (!conversation?.contact?.id) return
+    setLoadingHistory(true)
+    try {
+      const data = await getContactConversations(conversation.contact.id)
+      setConvHistory(Array.isArray(data) ? data.filter(c => String(c.id) !== String(id)) : [])
+    } catch {}
+    finally { setLoadingHistory(false) }
+  }, [conversation, id])
+
   const handleToggleNotesPanel = () => {
     const next = !showNotesPanel
     setShowNotesPanel(next)
-    if (next) loadNotes()
+    if (next) { loadNotes(); loadHistory() }
+  }
+
+  const handleOpenHistoryConversation = (convId) => {
+    navigate(`/chat/${convId}`)
   }
 
   const handleSaveNote = async () => {
@@ -601,6 +618,27 @@ export default function ChatPage({ chatId }) {
             <button className="cv-note-save" onClick={handleSaveNote} disabled={!noteText.trim() || savingNote}>
               {savingNote ? 'Menyimpan...' : 'Simpan'}
             </button>
+          </div>
+
+          <div className="cv-history-section">
+            <div className="cv-history-title">Riwayat Percakapan</div>
+            {loadingHistory ? (
+              <div className="cv-notes-loading">Memuat riwayat...</div>
+            ) : convHistory.length === 0 ? (
+              <div className="cv-notes-empty">Tidak ada percakapan lain dengan kontak ini.</div>
+            ) : (
+              <div className="cv-history-list">
+                {convHistory.map(h => (
+                  <button key={h.id} className="cv-history-item" onClick={() => handleOpenHistoryConversation(h.id)}>
+                    <div className="cv-history-item-top">
+                      <span className={`cv-history-badge st-${h.status || 'open'}`}>{statusLabel(h.status)}</span>
+                      <span className="cv-history-time">{formatReminderTime(h.lastMessageAt || h.updated_at)}</span>
+                    </div>
+                    <div className="cv-history-preview">{h.lastMessage || 'Belum ada pesan'}</div>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -932,6 +970,18 @@ export default function ChatPage({ chatId }) {
         .cv-note-save { align-self: flex-end; padding: 7px 16px; border-radius: 7px; font-size: 13px; font-weight: 600; background: #3563e9; color: #fff; transition: all 0.15s; }
         .cv-note-save:hover { background: #2850cc; }
         .cv-note-save:disabled { opacity: 0.5; cursor: not-allowed; }
+        .cv-history-section { margin-top: 14px; padding-top: 12px; border-top: 1px solid #e4eaf5; }
+        .cv-history-title { font-size: 11px; font-weight: 700; color: #a8b8d0; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+        .cv-history-list { display: flex; flex-direction: column; gap: 6px; max-height: 180px; overflow-y: auto; }
+        .cv-history-item { display: flex; flex-direction: column; gap: 4px; width: 100%; text-align: left; background: #f7f9fd; border: 1px solid #e4eaf5; border-radius: 8px; padding: 8px 10px; transition: all 0.15s; }
+        .cv-history-item:hover { background: #eef4fd; border-color: #c8d4ec; }
+        .cv-history-item-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+        .cv-history-badge { font-size: 10px; font-weight: 600; padding: 1px 8px; border-radius: 10px; }
+        .cv-history-badge.st-open { background: rgba(53,99,233,0.1); color: #3563e9; }
+        .cv-history-badge.st-in_progress { background: rgba(208,139,40,0.1); color: #d08b28; }
+        .cv-history-badge.st-resolved { background: rgba(39,168,122,0.1); color: #27a87a; }
+        .cv-history-time { font-size: 11px; color: #a8b8d0; flex-shrink: 0; }
+        .cv-history-preview { font-size: 12px; color: #4f607a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .cv-modal-overlay { position: fixed; inset: 0; z-index: 500; background: rgba(15,23,42,0.5); display: flex; align-items: center; justify-content: center; padding: 20px; }
         .cv-modal { background: #fff; border: 1px solid #e4eaf5; border-radius: 12px; width: 100%; max-width: 360px; box-shadow: 0 20px 60px rgba(0,0,0,0.15); overflow: hidden; max-height: 90vh; overflow-y: auto; }
         .cv-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid #e4eaf5; background: #f7f9fd; }

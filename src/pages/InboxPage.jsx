@@ -61,6 +61,11 @@ export default function InboxPage() {
   useEffect(() => { if (newMessages.length > 0) fetch() }, [newMessages, fetch])
   useEffect(() => { getTags().then(d => setTags(Array.isArray(d) ? d : [])).catch(() => {}) }, [])
 
+  const handleOpenConversation = (convId) => {
+    setConversations(prev => prev.map(c => String(c.id) === String(convId) ? { ...c, unread: false } : c))
+    navigate(`/chat/${convId}`)
+  }
+
   const filtered = conversations.filter(c => {
     const matchesTab = activeTab === 'all' || c.status === activeTab
     const q = search.toLowerCase()
@@ -148,12 +153,13 @@ export default function InboxPage() {
             const agentLabel = assignedAgent?.name?.length > 12
               ? assignedAgent.name.slice(0, 12) + '…'
               : assignedAgent?.name
+            const isUnread = !!conv.unread && !isActive
 
             return (
               <div
                 key={conv.id}
-                className={`cl-item${isActive ? ' active' : ''}`}
-                onClick={() => navigate(`/chat/${conv.id}`)}
+                className={`cl-item${isActive ? ' active' : ''}${isUnread ? ' unread' : ''}`}
+                onClick={() => handleOpenConversation(conv.id)}
               >
                 <div
                   className="cl-avatar"
@@ -162,7 +168,10 @@ export default function InboxPage() {
                 <div className="cl-info">
                   <div className="cl-row">
                     <span className="cl-name">{name}</span>
-                    <span className="cl-time">{timeStr(conv.lastMessageAt || conv.updated_at)}</span>
+                    <span className="cl-row-right">
+                      {isUnread && <span className="cl-unread-dot" />}
+                      <span className="cl-time">{timeStr(conv.lastMessageAt || conv.updated_at)}</span>
+                    </span>
                   </div>
                   <div className="cl-row">
                     <span className="cl-preview">{preview}</span>
@@ -296,6 +305,10 @@ export default function InboxPage() {
         .cv-mi.active { background: rgba(53,99,233,0.06); color: #3563e9; }
         .cl-tags-row { display: flex; gap: 4px; margin-top: 4px; flex-wrap: wrap; }
         .tag-chip { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 600; color: #fff; white-space: nowrap; }
+        .cl-row-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+        .cl-unread-dot { width: 8px; height: 8px; border-radius: 50%; background: #3563e9; flex-shrink: 0; }
+        .cl-item.unread .cl-name { font-weight: 800; color: #0d1730; }
+        .cl-item.unread .cl-preview { color: #1a2540; font-weight: 600; }
       `}</style>
     </div>
   )
