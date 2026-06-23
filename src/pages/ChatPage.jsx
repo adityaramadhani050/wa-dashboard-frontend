@@ -685,10 +685,16 @@ export default function ChatPage({ chatId }) {
           <Paperclip size={19} />
         </button>
 
-        <div className="cv-dd">
-          <button className="cv-attach-btn" title="Template Pesan" onClick={() => { setShowTemplateMenu(!showTemplateMenu); setShowMediaGallery(false) }}>
-            <Zap size={19} />
-          </button>
+        <button className="cv-attach-btn" title="Template Pesan" onClick={() => { setShowTemplateMenu(!showTemplateMenu); setShowMediaGallery(false) }}>
+          <Zap size={19} />
+        </button>
+
+        <button className="cv-attach-btn" title="Produk/Katalog" onClick={() => { setShowMediaGallery(!showMediaGallery); setShowTemplateMenu(false) }}>
+          <Images size={19} />
+        </button>
+        </div>
+
+        <div className="cv-dd cv-shared-menu-anchor">
           {showTemplateMenu && (
             <div className="cv-menu cv-template-menu" style={{minWidth:260}}>
               <div className="cv-menu-lbl">Template Pesan{slashQuery && <span> &middot; filter: "{slashQuery}"</span>}</div>
@@ -705,12 +711,6 @@ export default function ChatPage({ chatId }) {
               ))}
             </div>
           )}
-        </div>
-
-        <div className="cv-dd">
-          <button className="cv-attach-btn" title="Produk/Katalog" onClick={() => { setShowMediaGallery(!showMediaGallery); setShowTemplateMenu(false) }}>
-            <Images size={19} />
-          </button>
           {showMediaGallery && (
             <div className="cv-menu cv-media-menu" style={{minWidth:260}}>
               <div className="cv-menu-lbl">Produk / Katalog</div>
@@ -737,7 +737,6 @@ export default function ChatPage({ chatId }) {
               )}
             </div>
           )}
-        </div>
         </div>
 
         <textarea
@@ -922,7 +921,8 @@ export default function ChatPage({ chatId }) {
         .cv-file-name { font-size: 13px; font-weight: 500; color: #1a2540; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
         .cv-file-remove { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #a8b8d0; }
         .cv-file-remove:hover { background: #dce8fb; color: #3563e9; }
-        .cv-input-bar { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: #fff; border-top: 1px solid #e4eaf5; flex-shrink: 0; }
+        .cv-input-bar { position: relative; display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: #fff; border-top: 1px solid #e4eaf5; flex-shrink: 0; }
+        .cv-shared-menu-anchor { position: absolute; left: 14px; bottom: 100%; width: 0; height: 0; }
         .cv-attach-btn { width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: #a8b8d0; transition: all 0.15s; border: 1.5px solid #e4eaf5; background: #f7f9fd; }
         .cv-attach-btn:hover { background: #eef4fd; color: #3563e9; border-color: #c8d4ec; }
         .cv-attach-group { display: contents; }
