@@ -5,13 +5,6 @@ import { useAuth } from '../context/AuthContext'
 import { getConversations, getTags } from '../hooks/useApi'
 import { Search, RefreshCw, UserCheck, Tag as TagIcon, ChevronDown } from 'lucide-react'
 
-const TABS = [
-  { id: 'all', label: 'Semua' },
-  { id: 'open', label: 'Aktif' },
-  { id: 'in_progress', label: 'Diproses' },
-  { id: 'resolved', label: 'Selesai' },
-]
-
 const AVATAR_COLORS = ['#3563e9','#27a87a','#d08b28','#e05c8a','#7c5cd6','#2aaccc']
 function avatarStyle(name) {
   const letter = (name || '?')[0].toUpperCase()
@@ -37,7 +30,6 @@ export default function InboxPage() {
   const [conversations, setConversations] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
-  const [activeTab, setActiveTab] = useState('all')
   const [tags, setTags] = useState([])
   const [activeTagFilter, setActiveTagFilter] = useState(null)
   const [showTagFilter, setShowTagFilter] = useState(false)
@@ -67,14 +59,13 @@ export default function InboxPage() {
   }
 
   const filtered = conversations.filter(c => {
-    const matchesTab = activeTab === 'all' || c.status === activeTab
     const q = search.toLowerCase()
     const matchesSearch = !search ||
       c.contact?.name?.toLowerCase().includes(q) ||
       c.contact?.phone?.includes(q) ||
       c.lastMessage?.toLowerCase().includes(q)
     const matchesTag = !activeTagFilter || c.tags?.some(t => t.id === activeTagFilter)
-    return matchesTab && matchesSearch && matchesTag
+    return matchesSearch && matchesTag
   })
 
   return (
@@ -96,18 +87,6 @@ export default function InboxPage() {
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
-        </div>
-        {/* Tabs */}
-        <div className="cl-tabs">
-          {TABS.map(tab => (
-            <button
-              key={tab.id}
-              className={`cl-tab${activeTab === tab.id ? ' active' : ''}`}
-              onClick={() => setActiveTab(tab.id)}
-            >
-              {tab.label}
-            </button>
-          ))}
         </div>
         {/* Tag filter */}
         <div className="cl-tagfilter-row" onClick={e => e.stopPropagation()}>
@@ -229,25 +208,6 @@ export default function InboxPage() {
           color: #1a2540; font-size: 13px; width: 100%;
         }
         .cl-search input::placeholder { color: #b8c8d8; }
-        .cl-tabs {
-          display: flex; gap: 2px;
-          overflow-x: auto;
-          padding-bottom: 0;
-        }
-        .cl-tabs::-webkit-scrollbar { display: none; }
-        .cl-tab {
-          padding: 8px 14px;
-          font-size: 13px; font-weight: 500;
-          color: #8a9bb8; border-radius: 0;
-          border-bottom: 2px solid transparent;
-          transition: all 0.15s; white-space: nowrap;
-          margin-bottom: -1px;
-        }
-        .cl-tab:hover { color: #3563e9; }
-        .cl-tab.active {
-          color: #3563e9; font-weight: 600;
-          border-bottom-color: #3563e9;
-        }
         .cl-list { flex: 1; min-height: 0; overflow-y: auto; }
         .cl-skel {
           height: 64px; margin: 4px 12px; border-radius: 10px;
