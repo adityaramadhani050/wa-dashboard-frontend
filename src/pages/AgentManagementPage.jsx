@@ -116,6 +116,7 @@ export default function AgentManagementPage() {
   const [formError, setFormError] = useState('')
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -155,11 +156,12 @@ export default function AgentManagementPage() {
 
   const handleDelete = async () => {
     setDeleting(true)
+    setDeleteError('')
     try {
       await deleteAgent(deleteTarget.id)
       setAgents(prev => prev.filter(a => a.id !== deleteTarget.id))
       setDeleteTarget(null)
-    } catch {}
+    } catch (e) { setDeleteError(e.response?.data?.error || 'Gagal menghapus agent') }
     finally { setDeleting(false) }
   }
 
@@ -228,7 +230,7 @@ export default function AgentManagementPage() {
                         </button>
                         <button
                           className="am-icon-btn del"
-                          onClick={() => setDeleteTarget(a)}
+                          onClick={() => { setDeleteError(''); setDeleteTarget(a) }}
                           title="Hapus"
                         >
                           <Trash2 size={15} />
@@ -267,6 +269,7 @@ export default function AgentManagementPage() {
           <div className="am-confirm">
             <p>Yakin ingin menghapus agent <strong>{deleteTarget.name}</strong>?</p>
             <p className="am-confirm-sub">Tindakan ini tidak dapat dibatalkan.</p>
+            {deleteError && <div className="am-form-err">{deleteError}</div>}
             <div className="am-form-actions">
               <button className="am-btn secondary" onClick={() => setDeleteTarget(null)}>Batal</button>
               <button className="am-btn danger" onClick={handleDelete} disabled={deleting}>
