@@ -2,8 +2,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate, useMatch } from 'react-router-dom'
 import { useSocket } from '../context/SocketContext'
 import { useAuth } from '../context/AuthContext'
-import { getConversations } from '../hooks/useApi'
-import { Search, RefreshCw, UserCheck } from 'lucide-react'
+import { getConversations, getTags } from '../hooks/useApi'
+import { Search, RefreshCw, UserCheck, Tag as TagIcon, ChevronDown } from 'lucide-react'
 
 const TABS = [
   { id: 'all', label: 'Semua' },
@@ -38,6 +38,9 @@ export default function InboxPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [activeTab, setActiveTab] = useState('all')
+  const [tags, setTags] = useState([])
+  const [activeTagFilter, setActiveTagFilter] = useState(null)
+  const [showTagFilter, setShowTagFilter] = useState(false)
   const { newMessages } = useSocket()
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
@@ -56,6 +59,7 @@ export default function InboxPage() {
 
   useEffect(() => { fetch() }, [fetch])
   useEffect(() => { if (newMessages.length > 0) fetch() }, [newMessages, fetch])
+  useEffect(() => { getTags().then(d => setTags(Array.isArray(d) ? d : [])).catch(() => {}) }, [])
 
   const filtered = conversations.filter(c => {
     const matchesTab = activeTab === 'all' || c.status === activeTab
@@ -64,11 +68,12 @@ export default function InboxPage() {
       c.contact?.name?.toLowerCase().includes(q) ||
       c.contact?.phone?.includes(q) ||
       c.lastMessage?.toLowerCase().includes(q)
-    return matchesTab && matchesSearch
+    const matchesTag = !activeTagFilter || c.tags?.some(t => t.id === activeTagFilter)
+    return matchesTab && matchesSearch && matchesTag
   })
 
   return (
-    <div className="cl-root">
+    <div className="cl-root" onClick={() => showTagFilter && setShowTagFilter(false)}>
       {/* Header */}
       <div className="cl-header">
         <div className="cl-header-top">
@@ -98,6 +103,28 @@ export default function InboxPage() {
               {tab.label}
             </button>
           ))}
+        </div>
+        {/* Tag filter */}
+        <div className="cl-tagfilter-row" onClick={e => e.stopPropagation()}>
+          <div className="cv-dd">
+            <button className={`cl-tagfilter-btn${activeTagFilter ? ' active' : ''}`} onClick={() => setShowTagFilter(s => !s)}>
+              <TagIcon size={13} />
+              <span>{activeTagFilter ? (tags.find(t => t.id === activeTagFilter)?.name || 'Tag') : 'Semua Tag'}</span>
+              <ChevronDown size={12} />
+            </button>
+            {showTagFilter && (
+              <div className="cv-menu" style={{ minWidth: 160 }}>
+                <button className={`cv-mi${!activeTagFilter ? ' active' : ''}`} onClick={() => { setActiveTagFilter(null); setShowTagFilter(false) }}>
+                  Semua Tag
+                </button>
+                {tags.map(t => (
+                  <button key={t.id} className={`cv-mi${activeTagFilter === t.id ? ' active' : ''}`} onClick={() => { setActiveTagFilter(t.id); setShowTagFilter(false) }}>
+                    <span className="tag-chip" style={{ background: t.color }}>{t.name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -145,6 +172,13 @@ export default function InboxPage() {
                       </span>
                     )}
                   </div>
+                  {conv.tags?.length > 0 && (
+                    <div className="cl-tags-row">
+                      {conv.tags.slice(0, 3).map(t => (
+                        <span key={t.id} className="tag-chip" style={{ background: t.color }}>{t.name}</span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             )
@@ -251,6 +285,17 @@ export default function InboxPage() {
         }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
         @media (max-width: 768px) { .cl-root { width: 100vw; } }
+        .cl-tagfilter-row { display: flex; padding: 10px 0; }
+        .cv-dd { position: relative; }
+        .cl-tagfilter-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 500; color: #4f607a; background: #f7f9fd; border: 1px solid #e4eaf5; transition: all 0.15s; }
+        .cl-tagfilter-btn:hover { background: #eef4fd; }
+        .cl-tagfilter-btn.active { color: #3563e9; border-color: #c8d4ec; background: #eef4fd; }
+        .cv-menu { position: absolute; left: 0; top: calc(100% + 6px); background: #fff; border: 1px solid #e4eaf5; border-radius: 12px; z-index: 200; box-shadow: 0 8px 24px rgba(26,37,64,0.10); overflow: hidden; }
+        .cv-mi { display: flex; align-items: center; width: 100%; text-align: left; padding: 9px 14px; font-size: 13px; color: #1a2540; transition: background 0.1s; }
+        .cv-mi:hover { background: #f7f9fd; }
+        .cv-mi.active { background: rgba(53,99,233,0.06); color: #3563e9; }
+        .cl-tags-row { display: flex; gap: 4px; margin-top: 4px; flex-wrap: wrap; }
+        .tag-chip { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 600; color: #fff; white-space: nowrap; }
       `}</style>
     </div>
   )

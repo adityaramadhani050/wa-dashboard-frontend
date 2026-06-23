@@ -5,9 +5,11 @@ import { useAuth } from '../context/AuthContext'
 import {
   getMessages, sendMessage, sendMedia, assignAgent, updateStatus, getConversations, getAgents, deleteConversation,
   getTemplates, getQuickMedia, sendQuickMedia,
+  getTags, addTagToConversation, removeTagFromConversation,
+  getContactNotes, createContactNote, createReminder,
 } from '../hooks/useApi'
 import { supabase } from '../lib/supabase'
-import { Send, ChevronDown, ArrowLeft, UserCheck, Paperclip, X, FileText, Play, Download, Check, Image, Film, Clock, Trash2, Zap, Images } from 'lucide-react'
+import { Send, ChevronDown, ArrowLeft, UserCheck, Paperclip, X, FileText, Play, Download, Check, Image, Film, Clock, Trash2, Zap, Images, Tag as TagIcon, StickyNote, BellPlus } from 'lucide-react'
 
 const STATUS_OPTIONS = ['open', 'in_progress', 'resolved']
 
@@ -75,6 +77,25 @@ function MessageTick({ status }) {
 
 function DateSeparator({ label }) {
   return <div className="cv-date-sep"><span>{label}</span></div>
+}
+
+function Modal({ title, onClose, children }) {
+  return (
+    <div className="cv-modal-overlay" onClick={onClose}>
+      <div className="cv-modal" onClick={e => e.stopPropagation()}>
+        <div className="cv-modal-header">
+          <h3>{title}</h3>
+          <button className="cv-modal-close" onClick={onClose}><X size={18} /></button>
+        </div>
+        {children}
+      </div>
+    </div>
+  )
+}
+
+function formatReminderTime(dateStr) {
+  if (!dateStr) return ''
+  return new Date(dateStr).toLocaleString('id', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
 }
 
 function ImgMedia({ url, caption, sent, onImageClick }) {
@@ -198,6 +219,26 @@ export default function ChatPage({ chatId }) {
   const [quickMedia, setQuickMedia] = useState([])
   const [showMediaGallery, setShowMediaGallery] = useState(false)
   const [sendingQuickMediaId, setSendingQuickMediaId] = useState(null)
+
+  // Tags
+  const [allTags, setAllTags] = useState([])
+  const [showTagModal, setShowTagModal] = useState(false)
+  const [tagToggling, setTagToggling] = useState(null)
+
+  // Contact notes panel
+  const [showNotesPanel, setShowNotesPanel] = useState(false)
+  const [notes, setNotes] = useState([])
+  const [loadingNotes, setLoadingNotes] = useState(false)
+  const [noteText, setNoteText] = useState('')
+  const [savingNote, setSavingNote] = useState(false)
+
+  // Reminder
+  const [showReminderMenu, setShowReminderMenu] = useState(false)
+  const [reminderAt, setReminderAt] = useState('')
+  const [reminderNote, setReminderNote] = useState('')
+  const [savingReminder, setSavingReminder] = useState(false)
+  const [reminderError, setReminderError] = useState('')
+
   const bottomRef = useRef(null)
   const fileInputRef = useRef(null)
   const textareaRef = useRef(null)
@@ -220,6 +261,7 @@ export default function ChatPage({ chatId }) {
     if (isAdmin) getAgents().then(d => setAgents(Array.isArray(d) ? d.filter(a => a.role === 'agent') : [])).catch(() => {})
     getTemplates().then(d => setTemplates(Array.isArray(d) ? d : [])).catch(() => {})
     getQuickMedia().then(d => setQuickMedia(Array.isArray(d) ? d : [])).catch(() => {})
+    getTags().then(d => setAllTags(Array.isArray(d) ? d : [])).catch(() => {})
   }, [fetchData, isAdmin])
 
   useEffect(() => {
@@ -258,7 +300,7 @@ export default function ChatPage({ chatId }) {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  const closeMenus = () => { setShowStatusMenu(false); setShowAgentMenu(false); setShowTemplateMenu(false); setShowMediaGallery(false) }
+  const closeMenus = () => { setShowStatusMenu(false); setShowAgentMenu(false); setShowTemplateMenu(false); setShowMediaGallery(false); setShowReminderMenu(false) }
 
   const handleDeleteConversation = async () => {
     setShowDeleteConv(false)
@@ -352,6 +394,60 @@ export default function ChatPage({ chatId }) {
     catch { setError('Gagal assign agent.') }
   }
 
+  const conversationTags = conversation?.tags || []
+
+  const handleToggleTag = async (tag) => {
+    if (tagToggling) return
+    setTagToggling(tag.id)
+    const hasTag = conversationTags.some(t => t.id === tag.id)
+    try {
+      if (hasTag) await removeTagFromConversation(id, tag.id)
+      else await addTagToConversation(id, tag.id)
+      await fetchData()
+    } catch { setError('Gagal mengubah tag percakapan.') }
+    finally { setTagToggling(null) }
+  }
+
+  const loadNotes = useCallback(async () => {
+    if (!conversation?.contact?.id) return
+    setLoadingNotes(true)
+    try { setNotes(await getContactNotes(conversation.contact.id)) } catch {}
+    finally { setLoadingNotes(false) }
+  }, [conversation])
+
+  const handleToggleNotesPanel = () => {
+    const next = !showNotesPanel
+    setShowNotesPanel(next)
+    if (next) loadNotes()
+  }
+
+  const handleSaveNote = async () => {
+    if (!noteText.trim() || savingNote || !conversation?.contact?.id) return
+    setSavingNote(true)
+    try {
+      const payload = { body: noteText.trim() }
+      if (user?.id) payload.agent_id = user.id
+      const note = await createContactNote(conversation.contact.id, payload)
+      setNotes(prev => [note, ...prev])
+      setNoteText('')
+    } catch { setError('Gagal menyimpan catatan.') }
+    finally { setSavingNote(false) }
+  }
+
+  const handleSaveReminder = async () => {
+    if (!reminderAt || savingReminder) return
+    setSavingReminder(true); setReminderError('')
+    try {
+      const payload = { conversation_id: id, remind_at: new Date(reminderAt).toISOString() }
+      if (user?.id) payload.agent_id = user.id
+      if (reminderNote.trim()) payload.note = reminderNote.trim()
+      await createReminder(payload)
+      setReminderAt(''); setReminderNote('')
+      setShowReminderMenu(false)
+    } catch (e) { setReminderError(e?.response?.data?.error || 'Gagal menyimpan pengingat.') }
+    finally { setSavingReminder(false) }
+  }
+
   const name = conversation?.contact?.name || conversation?.contact?.phone || 'Unknown'
   const phone = conversation?.contact?.manual_wa_number || cleanPhone(conversation?.contact?.phone)
   const assignedAgent = conversation?.agents
@@ -392,6 +488,12 @@ export default function ChatPage({ chatId }) {
             {phone && name !== phone && <span className="cv-phone">{phone}</span>}
             {isAdmin && assignedAgent && <span className="cv-assigned"><UserCheck size={10} />{assignedAgent.name}</span>}
             {isAdmin && !assignedAgent && <span className="cv-unassigned">Unassigned</span>}
+            {conversationTags.map(t => (
+              <span key={t.id} className="tag-chip" style={{ background: t.color }}>{t.name}</span>
+            ))}
+            <button className="cv-tag-edit-btn" title="Atur tag" onClick={() => setShowTagModal(true)}>
+              <TagIcon size={12} />
+            </button>
           </div>
         </div>
         <div className="cv-actions" onClick={e => e.stopPropagation()}>
@@ -428,11 +530,103 @@ export default function ChatPage({ chatId }) {
               </div>
             )}
           </div>
+          <button className={`cv-del-conv-btn${showNotesPanel ? ' active' : ''}`} title="Catatan kontak" onClick={handleToggleNotesPanel}>
+            <StickyNote size={15} />
+          </button>
+          <div className="cv-dd">
+            <button className="cv-del-conv-btn" title="Ingatkan follow-up" onClick={() => { setShowReminderMenu(!showReminderMenu); setShowStatusMenu(false); setShowAgentMenu(false) }}>
+              <BellPlus size={15} />
+            </button>
+            {showReminderMenu && (
+              <div className="cv-menu cv-reminder-menu" style={{ minWidth: 240 }}>
+                <div className="cv-menu-lbl">Ingatkan Follow-up</div>
+                <div className="cv-reminder-form">
+                  <input
+                    type="datetime-local"
+                    value={reminderAt}
+                    onChange={e => setReminderAt(e.target.value)}
+                    className="cv-reminder-input"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Catatan singkat (opsional)"
+                    value={reminderNote}
+                    onChange={e => setReminderNote(e.target.value)}
+                    className="cv-reminder-input"
+                  />
+                  {reminderError && <div className="cv-reminder-err">{reminderError}</div>}
+                  <button className="cv-reminder-save" onClick={handleSaveReminder} disabled={!reminderAt || savingReminder}>
+                    {savingReminder ? 'Menyimpan...' : 'Simpan'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
           <button className="cv-del-conv-btn" title="Hapus percakapan" onClick={() => setShowDeleteConv(true)}>
             <Trash2 size={15} />
           </button>
         </div>
       </div>
+
+      {showNotesPanel && (
+        <div className="cv-notes-panel" onClick={e => e.stopPropagation()}>
+          <div className="cv-notes-contact">
+            <div className="cv-notes-contact-name">{name}</div>
+            {phone && <div className="cv-notes-contact-phone">{phone}</div>}
+          </div>
+          <div className="cv-notes-list">
+            {loadingNotes ? (
+              <div className="cv-notes-loading">Memuat catatan...</div>
+            ) : notes.length === 0 ? (
+              <div className="cv-notes-empty">Belum ada catatan.</div>
+            ) : (
+              notes.map(n => (
+                <div key={n.id} className="cv-note-item">
+                  <p className="cv-note-body">{n.body}</p>
+                  <div className="cv-note-meta">
+                    <span>{n.agents?.name || 'Sistem'}</span>
+                    <span>{formatReminderTime(n.created_at)}</span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+          <div className="cv-notes-form">
+            <textarea
+              value={noteText}
+              onChange={e => setNoteText(e.target.value)}
+              placeholder="Tulis catatan tentang kontak ini..."
+              rows={2}
+            />
+            <button className="cv-note-save" onClick={handleSaveNote} disabled={!noteText.trim() || savingNote}>
+              {savingNote ? 'Menyimpan...' : 'Simpan'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showTagModal && (
+        <Modal title="Atur Tag Percakapan" onClose={() => setShowTagModal(false)}>
+          <div className="cv-tag-modal-list">
+            {allTags.length === 0 ? (
+              <div className="cv-mi muted">Belum ada tag. Buat di halaman Template & Galeri.</div>
+            ) : allTags.map(t => {
+              const checked = conversationTags.some(ct => ct.id === t.id)
+              return (
+                <button
+                  key={t.id}
+                  className={`cv-tag-option${checked ? ' checked' : ''}`}
+                  disabled={tagToggling === t.id}
+                  onClick={() => handleToggleTag(t)}
+                >
+                  <span className="tag-chip" style={{ background: t.color }}>{t.name}</span>
+                  {checked && <Check size={14} />}
+                </button>
+              )
+            })}
+          </div>
+        </Modal>
+      )}
 
       {error && (
         <div className="cv-error">
@@ -711,6 +905,44 @@ export default function ChatPage({ chatId }) {
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
         @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
         @keyframes popIn { 0%{transform:scale(0.6);opacity:0} 70%{transform:scale(1.15)} 100%{transform:scale(1);opacity:1} }
+        .tag-chip { display: inline-flex; align-items: center; padding: 1px 8px; border-radius: 999px; font-size: 10px; font-weight: 600; color: #fff; white-space: nowrap; }
+        .cv-tag-edit-btn { width: 18px; height: 18px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; color: #a8b8d0; background: #f0f3fa; flex-shrink: 0; }
+        .cv-tag-edit-btn:hover { background: #e4eaf5; color: #3563e9; }
+        .cv-del-conv-btn.active { background: rgba(53,99,233,0.1); color: #3563e9; }
+        .cv-reminder-menu { padding: 0; }
+        .cv-reminder-form { display: flex; flex-direction: column; gap: 8px; padding: 4px 14px 14px; }
+        .cv-reminder-input { background: #f7f9fd; border: 1px solid #e4eaf5; border-radius: 7px; color: #1a2540; padding: 8px 10px; font-size: 13px; outline: none; font-family: inherit; }
+        .cv-reminder-input:focus { border-color: #3563e9; }
+        .cv-reminder-err { font-size: 12px; color: #e53e3e; }
+        .cv-reminder-save { padding: 8px 14px; border-radius: 7px; font-size: 13px; font-weight: 600; background: #3563e9; color: #fff; transition: all 0.15s; }
+        .cv-reminder-save:hover { background: #2850cc; }
+        .cv-reminder-save:disabled { opacity: 0.5; cursor: not-allowed; }
+        .cv-notes-panel { background: #fff; border-bottom: 1px solid #e4eaf5; padding: 14px 20px; max-height: 320px; overflow-y: auto; flex-shrink: 0; }
+        .cv-notes-contact { margin-bottom: 10px; }
+        .cv-notes-contact-name { font-size: 13px; font-weight: 700; color: #1a2540; }
+        .cv-notes-contact-phone { font-size: 12px; color: #a8b8d0; }
+        .cv-notes-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; max-height: 160px; overflow-y: auto; }
+        .cv-notes-loading, .cv-notes-empty { font-size: 12px; color: #a8b8d0; padding: 8px 0; }
+        .cv-note-item { background: #f7f9fd; border: 1px solid #e4eaf5; border-radius: 8px; padding: 8px 10px; }
+        .cv-note-body { font-size: 13px; color: #1a2540; white-space: pre-wrap; margin-bottom: 4px; }
+        .cv-note-meta { display: flex; justify-content: space-between; font-size: 10px; color: #a8b8d0; }
+        .cv-notes-form { display: flex; flex-direction: column; gap: 6px; }
+        .cv-notes-form textarea { background: #f7f9fd; border: 1px solid #e4eaf5; border-radius: 8px; color: #1a2540; padding: 8px 10px; font-size: 13px; outline: none; resize: vertical; font-family: inherit; }
+        .cv-notes-form textarea:focus { border-color: #3563e9; }
+        .cv-note-save { align-self: flex-end; padding: 7px 16px; border-radius: 7px; font-size: 13px; font-weight: 600; background: #3563e9; color: #fff; transition: all 0.15s; }
+        .cv-note-save:hover { background: #2850cc; }
+        .cv-note-save:disabled { opacity: 0.5; cursor: not-allowed; }
+        .cv-modal-overlay { position: fixed; inset: 0; z-index: 500; background: rgba(15,23,42,0.5); display: flex; align-items: center; justify-content: center; padding: 20px; }
+        .cv-modal { background: #fff; border: 1px solid #e4eaf5; border-radius: 12px; width: 100%; max-width: 360px; box-shadow: 0 20px 60px rgba(0,0,0,0.15); overflow: hidden; max-height: 90vh; overflow-y: auto; }
+        .cv-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid #e4eaf5; background: #f7f9fd; }
+        .cv-modal-header h3 { font-size: 15px; font-weight: 600; color: #1a2540; }
+        .cv-modal-close { width: 30px; height: 30px; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #a8b8d0; transition: all 0.15s; }
+        .cv-modal-close:hover { background: #e4eaf5; color: #4f607a; }
+        .cv-tag-modal-list { padding: 14px 20px; display: flex; flex-direction: column; gap: 6px; }
+        .cv-tag-option { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; border-radius: 8px; transition: background 0.1s; color: #27a87a; }
+        .cv-tag-option:hover { background: #f7f9fd; }
+        .cv-tag-option.checked { background: rgba(39,168,122,0.06); }
+        .cv-tag-option:disabled { opacity: 0.6; cursor: not-allowed; }
       `}</style>
     </div>
   )

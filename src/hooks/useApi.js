@@ -62,4 +62,21 @@ export const sendQuickMedia = (conversationId, quickMediaId, caption) =>
     caption,
   }).then(r => r.data)
 
+// Catatan Kontak (Contact Notes)
+export const getContactNotes = (contactId) => api.get(`/contacts/${contactId}/notes`).then(r => r.data)
+export const createContactNote = (contactId, payload) => api.post(`/contacts/${contactId}/notes`, payload).then(r => r.data)
+
+// Tag Percakapan (Conversation Tags)
+export const getTags = () => api.get('/tags').then(r => r.data)
+export const createTag = (payload) => api.post('/tags', payload).then(r => r.data)
+export const updateTag = (id, payload) => api.put(`/tags/${id}`, payload).then(r => r.data)
+export const deleteTag = (id) => api.delete(`/tags/${id}`).then(r => r.data)
+export const addTagToConversation = (conversationId, tagId) => api.post(`/conversations/${conversationId}/tags`, { tag_id: tagId }).then(r => r.data)
+export const removeTagFromConversation = (conversationId, tagId) => api.delete(`/conversations/${conversationId}/tags/${tagId}`).then(r => r.data)
+
+// Pengingat Follow-up (Reminders)
+export const createReminder = (payload) => api.post('/reminders', payload).then(r => r.data)
+export const getDueReminders = () => api.get('/reminders/due').then(r => r.data)
+export const markReminderDone = (id) => api.patch(`/reminders/${id}`, { done: true }).then(r => r.data)
+
 export default api

@@ -2,10 +2,12 @@ import { useState, useEffect, useCallback } from 'react'
 import {
   getTemplates, createTemplate, updateTemplate, deleteTemplate,
   getQuickMedia, uploadQuickMedia, deleteQuickMedia,
+  getTags, createTag, updateTag, deleteTag,
 } from '../hooks/useApi'
-import { Plus, Pencil, Trash2, X, MessageSquareText, Image as ImageIcon, FileText } from 'lucide-react'
+import { Plus, Pencil, Trash2, X, MessageSquareText, Image as ImageIcon, FileText, Tag as TagIcon } from 'lucide-react'
 
 const EMPTY_TEMPLATE = { title: '', body: '', shortcut: '', category: '' }
+const EMPTY_TAG = { name: '', color: '#3563e9' }
 
 function Modal({ title, onClose, children }) {
   return (
@@ -113,8 +115,39 @@ function QuickMediaForm({ onSave, onClose, loading, error }) {
   )
 }
 
+function TagForm({ initial, onSave, onClose, loading, error }) {
+  const [form, setForm] = useState(initial || EMPTY_TAG)
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    if (!form.name.trim()) return
+    onSave(form)
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="am-form">
+      <div className="am-field">
+        <label>Nama Tag <span className="req">*</span></label>
+        <input value={form.name} onChange={e => set('name', e.target.value)} placeholder="contoh: VIP" required />
+      </div>
+      <div className="am-field">
+        <label>Warna</label>
+        <input type="color" value={form.color || '#3563e9'} onChange={e => set('color', e.target.value)} style={{ width: 60, height: 36, padding: 2 }} />
+      </div>
+      {error && <div className="am-form-err">{error}</div>}
+      <div className="am-form-actions">
+        <button type="button" className="am-btn secondary" onClick={onClose}>Batal</button>
+        <button type="submit" className="am-btn primary" disabled={loading}>
+          {loading ? 'Menyimpan...' : 'Simpan'}
+        </button>
+      </div>
+    </form>
+  )
+}
+
 export default function TemplatesPage() {
-  const [tab, setTab] = useState('templates') // 'templates' | 'media'
+  const [tab, setTab] = useState('templates') // 'templates' | 'media' | 'tags'
 
   // Templates state
   const [templates, setTemplates] = useState([])
@@ -134,6 +167,15 @@ export default function TemplatesPage() {
   const [mediaDeleteTarget, setMediaDeleteTarget] = useState(null)
   const [mediaDeleting, setMediaDeleting] = useState(false)
 
+  // Tags state
+  const [tags, setTags] = useState([])
+  const [loadingTags, setLoadingTags] = useState(true)
+  const [tagModal, setTagModal] = useState(null)
+  const [tagSaving, setTagSaving] = useState(false)
+  const [tagError, setTagError] = useState('')
+  const [tagDeleteTarget, setTagDeleteTarget] = useState(null)
+  const [tagDeleting, setTagDeleting] = useState(false)
+
   const loadTemplates = useCallback(async () => {
     setLoadingTemplates(true)
     try { setTemplates(await getTemplates()) } catch {}
@@ -146,7 +188,13 @@ export default function TemplatesPage() {
     finally { setLoadingMedia(false) }
   }, [])
 
-  useEffect(() => { loadTemplates(); loadMedia() }, [loadTemplates, loadMedia])
+  const loadTags = useCallback(async () => {
+    setLoadingTags(true)
+    try { setTags(await getTags()) } catch {}
+    finally { setLoadingTags(false) }
+  }, [])
+
+  useEffect(() => { loadTemplates(); loadMedia(); loadTags() }, [loadTemplates, loadMedia, loadTags])
 
   const handleCreateTemplate = async (form) => {
     setTplSaving(true); setTplError('')
@@ -198,6 +246,36 @@ export default function TemplatesPage() {
     finally { setMediaDeleting(false) }
   }
 
+  const handleCreateTag = async (form) => {
+    setTagSaving(true); setTagError('')
+    try {
+      const tag = await createTag(form)
+      setTags(prev => [tag, ...prev])
+      setTagModal(null)
+    } catch (e) { setTagError(e.response?.data?.error || 'Gagal membuat tag') }
+    finally { setTagSaving(false) }
+  }
+
+  const handleUpdateTag = async (form) => {
+    setTagSaving(true); setTagError('')
+    try {
+      const updated = await updateTag(tagModal.tag.id, form)
+      setTags(prev => prev.map(t => t.id === updated.id ? updated : t))
+      setTagModal(null)
+    } catch (e) { setTagError(e.response?.data?.error || 'Gagal mengupdate tag') }
+    finally { setTagSaving(false) }
+  }
+
+  const handleDeleteTag = async () => {
+    setTagDeleting(true)
+    try {
+      await deleteTag(tagDeleteTarget.id)
+      setTags(prev => prev.filter(t => t.id !== tagDeleteTarget.id))
+      setTagDeleteTarget(null)
+    } catch {}
+    finally { setTagDeleting(false) }
+  }
+
   return (
     <div className="am-page">
       <div className="am-header">
@@ -205,16 +283,21 @@ export default function TemplatesPage() {
           <h1>Template & Galeri Produk</h1>
           <p>Kelola template pesan cepat dan galeri media untuk dikirim ke customer</p>
         </div>
-        {tab === 'templates'
-          ? (
-            <button className="am-btn primary" onClick={() => { setTplError(''); setTplModal('create') }}>
-              <Plus size={16} /> Tambah Template
-            </button>
-          ) : (
-            <button className="am-btn primary" onClick={() => { setMediaError(''); setMediaModal(true) }}>
-              <Plus size={16} /> Tambah Media
-            </button>
-          )}
+        {tab === 'templates' && (
+          <button className="am-btn primary" onClick={() => { setTplError(''); setTplModal('create') }}>
+            <Plus size={16} /> Tambah Template
+          </button>
+        )}
+        {tab === 'media' && (
+          <button className="am-btn primary" onClick={() => { setMediaError(''); setMediaModal(true) }}>
+            <Plus size={16} /> Tambah Media
+          </button>
+        )}
+        {tab === 'tags' && (
+          <button className="am-btn primary" onClick={() => { setTagError(''); setTagModal('create') }}>
+            <Plus size={16} /> Tambah Tag
+          </button>
+        )}
       </div>
 
       <div className="tp-tabs">
@@ -224,9 +307,12 @@ export default function TemplatesPage() {
         <button className={`tp-tab${tab === 'media' ? ' active' : ''}`} onClick={() => setTab('media')}>
           <ImageIcon size={15} /> Galeri Produk
         </button>
+        <button className={`tp-tab${tab === 'tags' ? ' active' : ''}`} onClick={() => setTab('tags')}>
+          <TagIcon size={15} /> Tag Percakapan
+        </button>
       </div>
 
-      {tab === 'templates' ? (
+      {tab === 'templates' && (
         <div className="am-table-box">
           {loadingTemplates ? (
             <div className="am-loading">
@@ -273,7 +359,9 @@ export default function TemplatesPage() {
             </div>
           )}
         </div>
-      ) : (
+      )}
+
+      {tab === 'media' && (
         <div className="am-table-box">
           {loadingMedia ? (
             <div className="am-loading">
@@ -302,6 +390,51 @@ export default function TemplatesPage() {
                   </button>
                 </div>
               ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === 'tags' && (
+        <div className="am-table-box">
+          {loadingTags ? (
+            <div className="am-loading">
+              {[...Array(3)].map((_, i) => <div key={i} className="am-skel" style={{ animationDelay: `${i * 0.08}s` }} />)}
+            </div>
+          ) : tags.length === 0 ? (
+            <div className="am-empty">
+              <TagIcon size={40} style={{ opacity: 0.2, marginBottom: 12 }} />
+              <p>Belum ada tag. Klik "Tambah Tag" untuk membuat.</p>
+            </div>
+          ) : (
+            <div className="am-table-wrap">
+              <table className="am-table">
+                <thead>
+                  <tr>
+                    <th>Tag</th>
+                    <th>Warna</th>
+                    <th>Aksi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tags.map(t => (
+                    <tr key={t.id}>
+                      <td><span className="tag-chip" style={{ background: t.color }}>{t.name}</span></td>
+                      <td><span style={{color:'#64748b'}}>{t.color}</span></td>
+                      <td>
+                        <div className="am-actions">
+                          <button className="am-icon-btn edit" onClick={() => { setTagError(''); setTagModal({ tag: t }) }} title="Edit">
+                            <Pencil size={15} />
+                          </button>
+                          <button className="am-icon-btn del" onClick={() => setTagDeleteTarget(t)} title="Hapus">
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </div>
@@ -349,6 +482,33 @@ export default function TemplatesPage() {
               <button className="am-btn secondary" onClick={() => setMediaDeleteTarget(null)}>Batal</button>
               <button className="am-btn danger" onClick={handleDeleteMedia} disabled={mediaDeleting}>
                 {mediaDeleting ? 'Menghapus...' : 'Hapus'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {tagModal === 'create' && (
+        <Modal title="Tambah Tag Baru" onClose={() => setTagModal(null)}>
+          <TagForm onSave={handleCreateTag} onClose={() => setTagModal(null)} loading={tagSaving} error={tagError} />
+        </Modal>
+      )}
+
+      {tagModal?.tag && (
+        <Modal title="Edit Tag" onClose={() => setTagModal(null)}>
+          <TagForm initial={tagModal.tag} onSave={handleUpdateTag} onClose={() => setTagModal(null)} loading={tagSaving} error={tagError} />
+        </Modal>
+      )}
+
+      {tagDeleteTarget && (
+        <Modal title="Hapus Tag" onClose={() => setTagDeleteTarget(null)}>
+          <div className="am-confirm">
+            <p>Yakin ingin menghapus tag <strong>{tagDeleteTarget.name}</strong>?</p>
+            <p className="am-confirm-sub">Tindakan ini tidak dapat dibatalkan.</p>
+            <div className="am-form-actions">
+              <button className="am-btn secondary" onClick={() => setTagDeleteTarget(null)}>Batal</button>
+              <button className="am-btn danger" onClick={handleDeleteTag} disabled={tagDeleting}>
+                {tagDeleting ? 'Menghapus...' : 'Hapus'}
               </button>
             </div>
           </div>
@@ -429,6 +589,7 @@ export default function TemplatesPage() {
         .am-confirm-sub { font-size: 13px; color: #64748b; }
         .am-confirm .am-form-actions { margin-top: 20px; }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+        .tag-chip { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; color: #fff; white-space: nowrap; }
       `}</style>
     </div>
   )
