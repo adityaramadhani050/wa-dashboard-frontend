@@ -358,7 +358,10 @@ export default function ChatPage({ chatId }) {
     finally { setSending(false) }
   }
 
+  const isMobileDevice = typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches
+
   const handleKeyDown = (e) => {
+    if (isMobileDevice) return
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); selectedFile ? handleSendMedia() : handleSend() }
   }
 
