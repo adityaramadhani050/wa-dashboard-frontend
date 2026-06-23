@@ -3,15 +3,14 @@ import { useNavigate } from 'react-router-dom'
 import { useSocket } from '../context/SocketContext'
 import { useAuth } from '../context/AuthContext'
 import {
-  getMessages, sendMessage, sendMedia, assignAgent, updateStatus, getConversations, getAgents, deleteConversation,
+  getMessages, sendMessage, sendMedia, assignAgent, getConversations, getAgents, deleteConversation,
   getTemplates, getQuickMedia, sendQuickMedia, useTemplate,
   getTags, addTagToConversation, removeTagFromConversation,
   getContactNotes, createContactNote, createReminder, getContactConversations,
 } from '../hooks/useApi'
 import { supabase } from '../lib/supabase'
-import { Send, ChevronDown, ArrowLeft, UserCheck, Paperclip, X, FileText, Play, Download, Check, Image, Film, Clock, Trash2, Zap, Images, Tag as TagIcon, StickyNote, BellPlus, MoreVertical } from 'lucide-react'
+import { Send, ArrowLeft, UserCheck, Paperclip, X, FileText, Play, Download, Check, Image, Film, Clock, Trash2, Zap, Images, Tag as TagIcon, StickyNote, BellPlus, MoreVertical } from 'lucide-react'
 
-const STATUS_OPTIONS = ['open', 'in_progress', 'resolved']
 
 const AVATAR_COLORS = ['#3563e9','#27a87a','#d08b28','#e05c8a','#7c5cd6','#2aaccc']
 function avatarStyle(name) {
@@ -209,7 +208,6 @@ export default function ChatPage({ chatId }) {
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
-  const [showStatusMenu, setShowStatusMenu] = useState(false)
   const [showAgentMenu, setShowAgentMenu] = useState(false)
   const [selectedFile, setSelectedFile] = useState(null)
   const [lightboxUrl, setLightboxUrl] = useState(null)
@@ -303,7 +301,7 @@ export default function ChatPage({ chatId }) {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  const closeMenus = () => { setShowStatusMenu(false); setShowAgentMenu(false); setShowTemplateMenu(false); setShowMediaGallery(false); setShowReminderMenu(false); setShowMoreMenu(false) }
+  const closeMenus = () => { setShowAgentMenu(false); setShowTemplateMenu(false); setShowMediaGallery(false); setShowReminderMenu(false); setShowMoreMenu(false) }
 
   const handleDeleteConversation = async () => {
     setShowDeleteConv(false)
@@ -393,12 +391,6 @@ export default function ChatPage({ chatId }) {
     finally { setSendingQuickMediaId(null) }
   }
 
-  const handleStatusChange = async (status) => {
-    closeMenus()
-    try { await updateStatus(id, status); setConversation(p => p ? { ...p, status } : p) }
-    catch { setError('Gagal update status.') }
-  }
-
   const handleAgentAssign = async (agent) => {
     closeMenus()
     try { await assignAgent(id, agent.id); setConversation(p => p ? { ...p, agents: agent } : p) }
@@ -476,7 +468,6 @@ export default function ChatPage({ chatId }) {
   const name = conversation?.contact?.name || conversation?.contact?.phone || 'Unknown'
   const phone = conversation?.contact?.manual_wa_number || cleanPhone(conversation?.contact?.phone)
   const assignedAgent = conversation?.agents
-  const status = conversation?.status || 'open'
 
   const messageItems = []
   let lastDateKey = null
@@ -526,7 +517,7 @@ export default function ChatPage({ chatId }) {
         <div className="cv-actions" onClick={e => e.stopPropagation()}>
           {isAdmin && (
             <div className="cv-dd">
-              <button className="cv-assign-btn" onClick={() => { setShowAgentMenu(!showAgentMenu); setShowStatusMenu(false) }}>
+              <button className="cv-assign-btn" onClick={() => { setShowAgentMenu(!showAgentMenu) }}>
                 <UserCheck size={15} /><span className="cv-btn-label">Assign</span>
               </button>
               {showAgentMenu && (
@@ -545,23 +536,11 @@ export default function ChatPage({ chatId }) {
               )}
             </div>
           )}
-          <div className="cv-dd">
-            <button className={`cv-status-btn st-${status}`} onClick={() => { setShowStatusMenu(!showStatusMenu); setShowAgentMenu(false) }}>
-              <span className="cv-status-dot" /><span className="cv-btn-label">{statusLabel(status)}</span><ChevronDown size={12} />
-            </button>
-            {showStatusMenu && (
-              <div className="cv-menu" style={{minWidth:140}}>
-                {STATUS_OPTIONS.map(s => (
-                  <button key={s} className={`cv-mi si-${s}`} onClick={() => handleStatusChange(s)}>{statusLabel(s)}</button>
-                ))}
-              </div>
-            )}
-          </div>
           <button className={`cv-del-conv-btn${showNotesPanel ? ' active' : ''}`} title="Catatan kontak" onClick={handleToggleNotesPanel}>
             <StickyNote size={15} />
           </button>
           <div className="cv-dd cv-reminder-dd">
-            <button className="cv-del-conv-btn" title="Ingatkan follow-up" onClick={() => { setShowReminderMenu(!showReminderMenu); setShowStatusMenu(false); setShowAgentMenu(false) }}>
+            <button className="cv-del-conv-btn" title="Ingatkan follow-up" onClick={() => { setShowReminderMenu(!showReminderMenu); setShowAgentMenu(false) }}>
               <BellPlus size={15} />
             </button>
             {showReminderMenu && (
@@ -861,12 +840,6 @@ export default function ChatPage({ chatId }) {
         .cv-reminder-dd { position: static; }
         .cv-assign-btn { display: flex; align-items: center; gap: 5px; padding: 7px 14px; border-radius: 8px; font-size: 13px; font-weight: 500; color: #4f607a; background: #f0f3fa; border: 1px solid #e4eaf5; transition: all 0.15s; }
         .cv-assign-btn:hover { background: #e8eef8; }
-        .cv-status-btn { display: flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 8px; font-size: 13px; font-weight: 500; border: 1px solid #e4eaf5; background: #f7f9fd; color: #4f607a; transition: all 0.15s; }
-        .cv-status-btn:hover { background: #e8eef8; }
-        .cv-status-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
-        .st-open .cv-status-dot { background: #3563e9; }
-        .st-in_progress .cv-status-dot { background: #d08b28; }
-        .st-resolved .cv-status-dot { background: #27a87a; }
         .cv-del-conv-btn { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #a8b8d0; transition: all 0.15s; }
         .cv-del-conv-btn:hover { background: rgba(229,62,62,0.08); color: #e53e3e; }
         .cv-menu { position: absolute; right: 0; top: calc(100% + 6px); max-width: calc(100vw - 24px); box-sizing: border-box; background: #fff; border: 1px solid #e4eaf5; border-radius: 12px; z-index: 200; box-shadow: 0 8px 24px rgba(26,37,64,0.10); overflow: hidden; }
@@ -879,9 +852,6 @@ export default function ChatPage({ chatId }) {
         .cv-mi-title { display: flex; align-items: baseline; justify-content: flex-start; gap: 6px; width: 100%; text-align: left; }
         .cv-mi-title-text { text-align: left; }
         .cv-mi-sub { font-size: 11px; color: #a8b8d0; margin-top: 1px; text-align: left; }
-        .si-open { color: #3563e9 !important; }
-        .si-in_progress { color: #d08b28 !important; }
-        .si-resolved { color: #27a87a !important; }
         .cv-confirm-overlay { position: fixed; inset: 0; z-index: 900; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; }
         .cv-confirm-box { background: #fff; border-radius: 16px; padding: 24px; max-width: 320px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.2); }
         .cv-confirm-box h3 { font-size: 16px; font-weight: 700; color: #1a2540; margin-bottom: 8px; }
@@ -983,8 +953,9 @@ export default function ChatPage({ chatId }) {
           .cv-messages { padding: 12px; }
           .cv-bubble { max-width: 78%; }
           .cv-btn-label { display: none; }
-          .cv-assign-btn { padding: 8px 10px; }
-          .cv-status-btn { padding: 8px 10px; gap: 4px; }
+          .cv-actions { gap: 2px; }
+          .cv-assign-btn { width: 34px; height: 34px; padding: 0; justify-content: center; gap: 0; }
+          .cv-del-conv-btn { width: 34px; height: 34px; }
           .cv-send-label { display: none; }
           .cv-send-btn { padding: 0; width: 44px; height: 44px; justify-content: center; border-radius: 12px; }
           .cv-input-bar { padding: 8px 10px; gap: 6px; }
