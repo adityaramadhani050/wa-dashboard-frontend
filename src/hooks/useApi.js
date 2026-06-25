@@ -84,4 +84,8 @@ export const createReminder = (payload) => api.post('/reminders', payload).then(
 export const getDueReminders = () => api.get('/reminders/due').then(r => r.data)
 export const markReminderDone = (id) => api.patch(`/reminders/${id}`, { done: true }).then(r => r.data)
 
+// Saran Balasan AI
+export const generateAiSuggestion = (conversationId) =>
+  api.post('/ai/suggest', { conversation_id: conversationId }, { timeout: 30000 }).then(r => r.data)
+
 export default api

@@ -7,9 +7,10 @@ import {
   getTemplates, getQuickMedia, sendQuickMedia, useTemplate,
   getTags, addTagToConversation, removeTagFromConversation,
   getContactNotes, createContactNote, createReminder, getContactConversations,
+  generateAiSuggestion,
 } from '../hooks/useApi'
 import { supabase } from '../lib/supabase'
-import { Send, ArrowLeft, ArrowDown, UserCheck, Paperclip, X, FileText, Play, Download, Check, Image, Film, Clock, Zap, Images, Tag as TagIcon, StickyNote, BellPlus, MoreVertical } from 'lucide-react'
+import { Send, ArrowLeft, ArrowDown, UserCheck, Paperclip, X, FileText, Play, Download, Check, Image, Film, Clock, Zap, Images, Tag as TagIcon, StickyNote, BellPlus, MoreVertical, Sparkles } from 'lucide-react'
 
 
 const AVATAR_COLORS = ['#3563e9','#27a87a','#d08b28','#e05c8a','#7c5cd6','#2aaccc']
@@ -218,6 +219,12 @@ export default function ChatPage({ chatId }) {
   const [showMoreMenu, setShowMoreMenu] = useState(false)
   const [sendingQuickMediaId, setSendingQuickMediaId] = useState(null)
 
+  // Saran Balasan AI
+  const [showAiMenu, setShowAiMenu] = useState(false)
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiSuggestion, setAiSuggestion] = useState('')
+  const [aiError, setAiError] = useState('')
+
   // Tags
   const [allTags, setAllTags] = useState([])
   const [showTagModal, setShowTagModal] = useState(false)
@@ -318,7 +325,30 @@ export default function ChatPage({ chatId }) {
 
   const scrollToBottom = () => bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
 
-  const closeMenus = () => { setShowAgentMenu(false); setShowTemplateMenu(false); setShowMediaGallery(false); setShowReminderMenu(false); setShowMoreMenu(false) }
+  const closeMenus = () => { setShowAgentMenu(false); setShowTemplateMenu(false); setShowMediaGallery(false); setShowReminderMenu(false); setShowMoreMenu(false); setShowAiMenu(false) }
+
+  const handleRequestAiSuggestion = async () => {
+    setShowAiMenu(true)
+    setShowTemplateMenu(false)
+    setShowMediaGallery(false)
+    setAiLoading(true)
+    setAiError('')
+    setAiSuggestion('')
+    try {
+      const { suggestion } = await generateAiSuggestion(id)
+      setAiSuggestion(suggestion || '')
+    } catch (e) {
+      setAiError(e?.response?.data?.error || 'Gagal membuat saran, coba lagi')
+    } finally {
+      setAiLoading(false)
+    }
+  }
+
+  const handleUseAiSuggestion = () => {
+    setText(aiSuggestion)
+    setShowAiMenu(false)
+    textareaRef.current?.focus()
+  }
 
   const handleSend = async () => {
     if (!text.trim() || sending) return
@@ -680,6 +710,9 @@ export default function ChatPage({ chatId }) {
               <button className="cv-mi" onClick={() => { setShowMoreMenu(false); setShowMediaGallery(true) }}>
                 <span className="cv-mi-title"><Images size={14} /><span className="cv-mi-title-text">Produk / Katalog</span></span>
               </button>
+              <button className="cv-mi" onClick={() => { setShowMoreMenu(false); handleRequestAiSuggestion() }}>
+                <span className="cv-mi-title"><Sparkles size={14} /><span className="cv-mi-title-text">Saran AI</span></span>
+              </button>
             </div>
           )}
         </div>
@@ -695,6 +728,10 @@ export default function ChatPage({ chatId }) {
 
         <button className="cv-attach-btn" title="Produk/Katalog" onClick={() => { setShowMediaGallery(!showMediaGallery); setShowTemplateMenu(false) }}>
           <Images size={19} />
+        </button>
+
+        <button className="cv-attach-btn" title="Saran Balasan AI" onClick={() => { showAiMenu ? setShowAiMenu(false) : handleRequestAiSuggestion() }}>
+          <Sparkles size={19} />
         </button>
         </div>
 
@@ -737,6 +774,27 @@ export default function ChatPage({ chatId }) {
                       {sendingQuickMediaId === m.id && <div className="cv-media-grid-sending"><div className="cv-sending-dot dark" /></div>}
                     </button>
                   ))}
+                </div>
+              )}
+            </div>
+          )}
+          {showAiMenu && (
+            <div className="cv-menu cv-ai-menu" style={{minWidth:260}}>
+              <div className="cv-menu-lbl">Saran Balasan AI</div>
+              {aiLoading ? (
+                <div className="cv-mi muted cv-ai-loading"><div className="cv-sending-dot dark" /> Membuat saran...</div>
+              ) : aiError ? (
+                <div className="cv-ai-error-box">
+                  <span>{aiError}</span>
+                  <button className="cv-ai-retry" onClick={handleRequestAiSuggestion}>Coba lagi</button>
+                </div>
+              ) : (
+                <div className="cv-ai-suggestion-box">
+                  <p className="cv-ai-suggestion-text">{aiSuggestion}</p>
+                  <div className="cv-ai-suggestion-actions">
+                    <button className="cv-ai-use-btn" onClick={handleUseAiSuggestion}>Gunakan</button>
+                    <button className="cv-ai-close-btn" onClick={() => setShowAiMenu(false)}>Tutup</button>
+                  </div>
                 </div>
               )}
             </div>
@@ -968,6 +1026,17 @@ export default function ChatPage({ chatId }) {
         .cv-media-grid-label { font-size: 10px; color: #4f607a; padding: 0 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
         .cv-media-grid-sending { position: absolute; inset: 0; background: rgba(255,255,255,0.7); display: flex; align-items: center; justify-content: center; }
         .cv-sending-dot.dark { border-color: rgba(53,99,233,0.3); border-top-color: #3563e9; }
+        .cv-ai-loading { flex-direction: row; align-items: center; gap: 8px; color: #a8b8d0; }
+        .cv-ai-suggestion-box { padding: 6px 14px 12px; display: flex; flex-direction: column; gap: 10px; }
+        .cv-ai-suggestion-text { font-size: 13px; color: #1a2540; white-space: pre-wrap; line-height: 1.5; background: #f7f9fd; border: 1px solid #e4eaf5; border-radius: 8px; padding: 10px 12px; max-height: 180px; overflow-y: auto; }
+        .cv-ai-suggestion-actions { display: flex; justify-content: flex-end; gap: 8px; }
+        .cv-ai-use-btn { padding: 7px 14px; border-radius: 7px; font-size: 13px; font-weight: 600; background: #3563e9; color: #fff; transition: all 0.15s; }
+        .cv-ai-use-btn:hover { background: #2850cc; }
+        .cv-ai-close-btn { padding: 7px 14px; border-radius: 7px; font-size: 13px; font-weight: 500; color: #4f607a; background: #f0f3fa; }
+        .cv-ai-close-btn:hover { background: #e8eef8; }
+        .cv-ai-error-box { display: flex; flex-direction: column; gap: 8px; padding: 6px 14px 14px; font-size: 13px; color: #c44; }
+        .cv-ai-retry { align-self: flex-start; padding: 6px 12px; border-radius: 7px; font-size: 12px; font-weight: 600; background: rgba(229,62,62,0.08); color: #e53e3e; }
+        .cv-ai-retry:hover { background: rgba(229,62,62,0.14); }
         @media (max-width: 768px) {
           .cv-header { padding: 10px 12px; gap: 8px; min-height: 56px; }
           .cv-messages { padding: 12px; }
