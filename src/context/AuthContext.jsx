@@ -23,12 +23,14 @@ export function AuthProvider({ children }) {
     const { data } = await api.post('/auth/login', { username, password })
     const userData = data.user
     localStorage.setItem('wa_user', JSON.stringify(userData))
+    if (data.token) localStorage.setItem('wa_token', data.token)
     setUser(userData)
     return userData
   }
 
   const logout = () => {
     localStorage.removeItem('wa_user')
+    localStorage.removeItem('wa_token')
     setUser(null)
   }
 

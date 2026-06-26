@@ -8,6 +8,28 @@ const api = axios.create({
   withCredentials: false,
 })
 
+// Sertakan token JWT di setiap request bila tersedia
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('wa_token')
+  if (token) config.headers.Authorization = `Bearer ${token}`
+  return config
+})
+
+// Bila token tidak valid/kedaluwarsa (401), bersihkan sesi & arahkan ke login
+api.interceptors.response.use(
+  (res) => res,
+  (err) => {
+    if (err?.response?.status === 401) {
+      localStorage.removeItem('wa_user')
+      localStorage.removeItem('wa_token')
+      if (!window.location.pathname.startsWith('/login')) {
+        window.location.assign('/login')
+      }
+    }
+    return Promise.reject(err)
+  }
+)
+
 export const getConversations = (agentId) =>
   api.get('/conversations', agentId ? { params: { agent_id: agentId } } : {}).then(r => r.data)
 export const getConversation = (id) => api.get(`/conversations/${id}`).then(r => r.data)
