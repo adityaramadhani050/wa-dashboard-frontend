@@ -122,4 +122,10 @@ export const suggestAiTags = (conversationId) =>
 export const suggestAiNote = (conversationId) =>
   api.post('/ai/suggest-note', { conversation_id: conversationId }, { timeout: 30000 }).then(r => r.data)
 
+// Device token untuk push notification (mobile)
+export const registerDevice = (token, platform = 'android') =>
+  api.post('/devices', { token, platform }).then(r => r.data)
+export const unregisterDevice = (token) =>
+  api.delete(`/devices/${encodeURIComponent(token)}`).then(r => r.data)
+
 export default api

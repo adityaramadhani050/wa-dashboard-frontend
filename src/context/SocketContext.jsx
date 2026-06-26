@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, useRef } from 'react'
 import { io } from 'socket.io-client'
+import { isNative } from '../native/push'
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://wa-dashboard-backend-production.up.railway.app'
 
@@ -66,6 +67,9 @@ export function SocketProvider({ children }) {
     if (document.visibilityState !== 'visible') {
       document.title = `🔔 Pesan baru • ${baseTitleRef.current}`
     }
+
+    // Di aplikasi native, notifikasi ditangani FCM (tray) — hindari notifikasi dobel.
+    if (isNative()) return
 
     if ('Notification' in window && Notification.permission === 'granted') {
       try {

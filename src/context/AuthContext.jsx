@@ -1,5 +1,6 @@
-import { createContext, useContext, useState } from 'react'
-import api from '../hooks/useApi'
+import { createContext, useContext, useState, useEffect } from 'react'
+import api, { registerDevice, unregisterDevice } from '../hooks/useApi'
+import { initPushNotifications, getDeviceToken, isNative } from '../native/push'
 
 const AuthContext = createContext(null)
 
@@ -19,6 +20,14 @@ function loadUser() {
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(loadUser)
 
+  // Saat sudah login & di aplikasi native, daftarkan push token ke backend
+  useEffect(() => {
+    if (!user || !isNative()) return
+    initPushNotifications({
+      onToken: (token) => { registerDevice(token).catch(() => {}) },
+    })
+  }, [user])
+
   const login = async (username, password) => {
     const { data } = await api.post('/auth/login', { username, password })
     const userData = data.user
@@ -29,6 +38,8 @@ export function AuthProvider({ children }) {
   }
 
   const logout = () => {
+    const dt = getDeviceToken()
+    if (dt) unregisterDevice(dt).catch(() => {})
     localStorage.removeItem('wa_user')
     localStorage.removeItem('wa_token')
     setUser(null)

@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route, Navigate, useMatch } from 'react-router-dom'
+import { useEffect } from 'react'
+import { BrowserRouter, Routes, Route, Navigate, useMatch, useNavigate, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { SocketProvider } from './context/SocketContext'
 import IconBar from './components/Sidebar'
@@ -79,13 +80,41 @@ function ProtectedShell() {
   )
 }
 
+// Tombol back fisik Android: kembali bila bisa, keluar app di halaman utama
+function NativeBackHandler() {
+  const navigate = useNavigate()
+  const location = useLocation()
+  useEffect(() => {
+    let cleanup = () => {}
+    ;(async () => {
+      try {
+        const { Capacitor } = await import('@capacitor/core')
+        if (!Capacitor.isNativePlatform()) return
+        const { App: CapApp } = await import('@capacitor/app')
+        const sub = await CapApp.addListener('backButton', ({ canGoBack }) => {
+          const atRoot = ['/inbox', '/login'].includes(location.pathname)
+          if (location.pathname.startsWith('/chat/')) navigate('/inbox')
+          else if (canGoBack && !atRoot) navigate(-1)
+          else CapApp.exitApp()
+        })
+        cleanup = () => sub.remove()
+      } catch {}
+    })()
+    return () => cleanup()
+  }, [navigate, location])
+  return null
+}
+
 function AppRoutes() {
   const { user } = useAuth()
   return (
-    <Routes>
-      <Route path="/login" element={user ? <Navigate to="/inbox" replace /> : <LoginPage />} />
-      <Route path="/*" element={<ProtectedShell />} />
-    </Routes>
+    <>
+      <NativeBackHandler />
+      <Routes>
+        <Route path="/login" element={user ? <Navigate to="/inbox" replace /> : <LoginPage />} />
+        <Route path="/*" element={<ProtectedShell />} />
+      </Routes>
+    </>
   )
 }
 
