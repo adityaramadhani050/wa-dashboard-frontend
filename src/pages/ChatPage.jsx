@@ -362,7 +362,11 @@ export default function ChatPage({ chatId }) {
       const { suggestion } = await generateAiSuggestion(id)
       setAiSuggestion(suggestion || '')
     } catch (e) {
-      setAiError(e?.response?.data?.error || 'Gagal membuat saran, coba lagi')
+      if (e?.response?.status === 429) {
+        setAiError(e?.response?.data?.error || 'Kuota AI sedang penuh. Tunggu sebentar lalu coba lagi.')
+      } else {
+        setAiError(e?.response?.data?.error || 'Gagal membuat saran, coba lagi')
+      }
     } finally {
       setAiLoading(false)
     }
