@@ -5,6 +5,32 @@ const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://wa-dashboard-ba
 
 const SocketContext = createContext(null)
 
+// Bunyi notifikasi singkat via Web Audio (tanpa file aset)
+function playBeep() {
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext
+    if (!Ctx) return
+    const ctx = new Ctx()
+    const o = ctx.createOscillator()
+    const g = ctx.createGain()
+    o.connect(g); g.connect(ctx.destination)
+    o.type = 'sine'
+    o.frequency.setValueAtTime(880, ctx.currentTime)
+    o.frequency.setValueAtTime(660, ctx.currentTime + 0.12)
+    g.gain.setValueAtTime(0.0001, ctx.currentTime)
+    g.gain.exponentialRampToValueAtTime(0.18, ctx.currentTime + 0.02)
+    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.32)
+    o.start()
+    o.stop(ctx.currentTime + 0.34)
+    o.onended = () => ctx.close()
+  } catch {}
+}
+
+function activeChatId() {
+  const p = window.location.pathname
+  return p.startsWith('/chat/') ? p.slice('/chat/'.length).split('/')[0] : null
+}
+
 export function SocketProvider({ children }) {
   const [socket, setSocket] = useState(null)
   const [waConnected, setWaConnected] = useState(false)
@@ -14,6 +40,45 @@ export function SocketProvider({ children }) {
   const [newMessages, setNewMessages] = useState([])
   const [statusUpdates, setStatusUpdates] = useState([])
   const socketRef = useRef(null)
+  const baseTitleRef = useRef('WA Dashboard')
+
+  // Minta izin notifikasi browser sekali di awal
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission().catch(() => {})
+    }
+    const restore = () => { document.title = baseTitleRef.current }
+    window.addEventListener('focus', restore)
+    return () => window.removeEventListener('focus', restore)
+  }, [])
+
+  // Tampilkan notifikasi (suara + browser + judul tab) saat ada pesan masuk baru
+  const notifyNewMessage = (data) => {
+    const msg = data?.message
+    if (!msg || msg.from_me) return // hanya pesan masuk dari customer
+    const convId = String(data.conversationId ?? msg.conversation_id ?? '')
+    const viewingThisChat = activeChatId() && String(activeChatId()) === convId && document.visibilityState === 'visible'
+    if (viewingThisChat) return // sedang dibuka & fokus, tak perlu diganggu
+
+    playBeep()
+
+    if (document.visibilityState !== 'visible') {
+      document.title = `🔔 Pesan baru • ${baseTitleRef.current}`
+    }
+
+    if ('Notification' in window && Notification.permission === 'granted') {
+      try {
+        const title = data.contactName || 'Pesan baru'
+        const body = msg.body || 'Pesan baru masuk'
+        const n = new Notification(title, { body, tag: `conv-${convId}`, renotify: true })
+        n.onclick = () => {
+          window.focus()
+          if (convId) window.location.assign(`/chat/${convId}`)
+          n.close()
+        }
+      } catch {}
+    }
+  }
 
   useEffect(() => {
     const s = io(BACKEND_URL, {
@@ -46,7 +111,10 @@ export function SocketProvider({ children }) {
       setWaConnected(connected)
       if (connected) setQrCode(null)
     })
-    s.on('new_message', (data) => setNewMessages(prev => [...prev.slice(-99), data]))
+    s.on('new_message', (data) => {
+      setNewMessages(prev => [...prev.slice(-99), data])
+      notifyNewMessage(data)
+    })
     s.on('message_status', (data) => setStatusUpdates(prev => [...prev.slice(-99), data]))
 
     return () => s.disconnect()
