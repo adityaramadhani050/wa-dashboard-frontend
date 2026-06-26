@@ -93,5 +93,9 @@ export const markReminderDone = (id) => api.patch(`/reminders/${id}`, { done: tr
 // Saran Balasan AI
 export const generateAiSuggestion = (conversationId) =>
   api.post('/ai/suggest', { conversation_id: conversationId }, { timeout: 30000 }).then(r => r.data)
+export const suggestAiTags = (conversationId) =>
+  api.post('/ai/suggest-tags', { conversation_id: conversationId }, { timeout: 30000 }).then(r => r.data)
+export const suggestAiNote = (conversationId) =>
+  api.post('/ai/suggest-note', { conversation_id: conversationId }, { timeout: 30000 }).then(r => r.data)
 
 export default api
