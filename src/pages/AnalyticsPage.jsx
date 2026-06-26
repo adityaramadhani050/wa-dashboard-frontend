@@ -363,14 +363,15 @@ export default function AnalyticsPage() {
             <table className="an-table">
               <thead>
                 <tr>
-                  <th>Agent</th><th>Total</th><th>Open</th>
-                  <th>In Progress</th><th>Resolved</th>
-                  <th>Avg Respons</th><th>Resolution Rate</th>
+                  <th>Agent</th>
+                  <th>Lead</th><th>Penawaran</th><th>Survey</th><th>Deal</th>
+                  <th>Avg Respons</th><th>Deal Rate</th>
                 </tr>
               </thead>
               <tbody>
                 {agents.map((a, i) => {
-                  const rate = a.total > 0 ? Math.round(((a.resolved || 0) / a.total) * 100) : 0
+                  const lead = a.lead != null ? a.lead : (a.total || 0)
+                  const rate = lead > 0 ? Math.round(((a.deal || 0) / lead) * 100) : 0
                   return (
                     <tr key={i}>
                       <td>
@@ -382,10 +383,10 @@ export default function AnalyticsPage() {
                           </div>
                         </div>
                       </td>
-                      <td>{a.total || 0}</td>
-                      <td><span className="an-badge open">{a.open || 0}</span></td>
-                      <td><span className="an-badge progress">{a.in_progress || 0}</span></td>
-                      <td><span className="an-badge resolved">{a.resolved || 0}</span></td>
+                      <td><span className="an-badge lead">{lead}</span></td>
+                      <td><span className="an-badge penawaran">{a.penawaran || 0}</span></td>
+                      <td><span className="an-badge survey">{a.survey || 0}</span></td>
+                      <td><span className="an-badge deal">{a.deal || 0}</span></td>
                       <td><span className="an-resp">{a.avgResponse != null ? `${a.avgResponse} mnt` : '—'}</span></td>
                       <td>
                         <div className="an-rate">
@@ -555,6 +556,10 @@ export default function AnalyticsPage() {
         .an-badge.open { background: #eff6ff; color: #2563eb; }
         .an-badge.progress { background: #fffbeb; color: #d97706; }
         .an-badge.resolved { background: #f0fdf4; color: #10b981; }
+        .an-badge.lead { background: #eff6ff; color: #2563eb; }
+        .an-badge.penawaran { background: #eef2ff; color: #6366f1; }
+        .an-badge.survey { background: #fffbeb; color: #d97706; }
+        .an-badge.deal { background: #f0fdf4; color: #10b981; }
         .an-resp { font-size: 13px; color: #d97706; font-weight: 500; }
         .an-rate { display: flex; align-items: center; gap: 6px; }
         .an-rate-bar { width: 60px; height: 5px; background: #e2e8f0; border-radius: 3px; overflow: hidden; }
