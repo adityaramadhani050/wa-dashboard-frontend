@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { getDailyStats, getAgentStats, getContactStats, getContacts, getConversations, getTopTemplates } from '../hooks/useApi'
+import { getDailyStats, getAgentStats, getContactStats, getContacts, getConversations, getTopTemplates, getResponseKpi, getFunnel } from '../hooks/useApi'
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer
@@ -68,6 +68,8 @@ export default function AnalyticsPage() {
   const [agents, setAgents] = useState([])
   const [contacts, setContacts] = useState(null)
   const [topTemplates, setTopTemplates] = useState([])
+  const [kpi, setKpi] = useState(null)
+  const [funnel, setFunnel] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [exporting, setExporting] = useState('')
@@ -76,14 +78,18 @@ export default function AnalyticsPage() {
     setLoading(true)
     setError('')
     try {
-      const [d, a, c, tpl] = await Promise.all([
+      const [d, a, c, tpl, k, fn] = await Promise.all([
         getDailyStats(f, t), getAgentStats(), getContactStats(),
         getTopTemplates(5).catch(() => []),
+        getResponseKpi(f, t).catch(() => null),
+        getFunnel(f, t).catch(() => null),
       ])
       setDaily(Array.isArray(d) ? d : [])
       setAgents(Array.isArray(a) ? a : [])
       setContacts(c || null)
       setTopTemplates(Array.isArray(tpl) ? tpl : [])
+      setKpi(k || null)
+      setFunnel(fn || null)
     } catch {
       setError('Gagal memuat analytics. Cek koneksi backend.')
     } finally {
@@ -227,6 +233,63 @@ export default function AnalyticsPage() {
           value={globalAvgResponse != null ? `${globalAvgResponse} mnt` : '—'}
           color="#f59e0b"
         />
+      </div>
+
+      {/* KPI Response Time & Funnel */}
+      <div className="an-kpi-row">
+        <div className="an-kpi-box">
+          <h3><Clock size={14} style={{ verticalAlign: -2, marginRight: 4 }} />KPI Response &lt;{kpi?.kpiMinutes ?? 5} menit</h3>
+          {loading ? <div className="an-skel" style={{ height: 120 }} /> : !kpi || kpi.total === 0 ? (
+            <div className="an-chart-empty">Belum ada data balasan pada rentang ini</div>
+          ) : (
+            <>
+              <div className="an-kpi-big" style={{ color: kpi.percent >= 80 ? '#10b981' : kpi.percent >= 50 ? '#f59e0b' : '#ef4444' }}>
+                {kpi.percent}%
+              </div>
+              <div className="an-kpi-sub">{kpi.met} dari {kpi.total} percakapan dibalas ≤{kpi.kpiMinutes} menit</div>
+              {kpi.agents?.length > 0 && (
+                <div className="an-kpi-agents">
+                  {kpi.agents.map(a => (
+                    <div key={a.agent_id || 'unassigned'} className="an-kpi-agent-row">
+                      <span className="an-kpi-agent-name">{a.name}</span>
+                      <div className="an-kpi-bar"><div className="an-kpi-bar-fill" style={{ width: `${a.percent}%`, background: a.percent >= 80 ? '#10b981' : a.percent >= 50 ? '#f59e0b' : '#ef4444' }} /></div>
+                      <span className="an-kpi-agent-pct">{a.percent}% <span style={{color:'#94a3b8'}}>({a.met}/{a.total})</span></span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        <div className="an-kpi-box">
+          <h3><TrendingUp size={14} style={{ verticalAlign: -2, marginRight: 4 }} />Funnel Konversi</h3>
+          {loading ? <div className="an-skel" style={{ height: 120 }} /> : !funnel || !funnel.stages?.length ? (
+            <div className="an-chart-empty">Belum ada data funnel</div>
+          ) : (
+            <div className="an-funnel">
+              {funnel.stages.map((s, i) => {
+                const base = funnel.stages[0]?.count || 1
+                const pct = Math.round((s.count / base) * 100)
+                const colors = ['#2563eb', '#6366f1', '#f59e0b', '#10b981', '#0ea5e9']
+                return (
+                  <div key={s.stage} className="an-funnel-row">
+                    <span className="an-funnel-lbl">{s.stage}</span>
+                    <div className="an-funnel-bar-wrap">
+                      <div className="an-funnel-bar" style={{ width: `${Math.max(pct, 3)}%`, background: colors[i % colors.length] }}>
+                        <span className="an-funnel-count">{s.count}</span>
+                      </div>
+                    </div>
+                    <span className="an-funnel-pct">{pct}%</span>
+                  </div>
+                )
+              })}
+              {funnel.fail > 0 && (
+                <div className="an-funnel-fail">Gagal/Batal (Fail): <strong>{funnel.fail}</strong></div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Charts */}
@@ -453,6 +516,27 @@ export default function AnalyticsPage() {
         .an-chart-empty { height: 220px; display: flex; align-items: center; justify-content: center; color: #94a3b8; font-size: 13px; }
         .an-tip { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; font-size: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
         .an-tip-lbl { font-weight: 600; margin-bottom: 6px; color: #1e293b; }
+
+        /* KPI & Funnel */
+        .an-kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; margin-bottom: 20px; }
+        .an-kpi-box { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px; min-width: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .an-kpi-box h3 { font-size: 14px; font-weight: 600; margin-bottom: 12px; color: #1e293b; }
+        .an-kpi-big { font-size: 44px; font-weight: 800; line-height: 1; }
+        .an-kpi-sub { font-size: 12px; color: #64748b; margin-top: 6px; margin-bottom: 12px; }
+        .an-kpi-agents { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; border-top: 1px solid #f0f4f8; padding-top: 12px; }
+        .an-kpi-agent-row { display: flex; align-items: center; gap: 10px; }
+        .an-kpi-agent-name { font-size: 12px; color: #475569; width: 110px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .an-kpi-bar { flex: 1; height: 8px; background: #f0f4f8; border-radius: 999px; overflow: hidden; }
+        .an-kpi-bar-fill { height: 100%; border-radius: 999px; transition: width 0.3s; }
+        .an-kpi-agent-pct { font-size: 11px; font-weight: 600; color: #1e293b; width: 92px; text-align: right; flex-shrink: 0; }
+        .an-funnel { display: flex; flex-direction: column; gap: 10px; }
+        .an-funnel-row { display: flex; align-items: center; gap: 10px; }
+        .an-funnel-lbl { font-size: 12px; color: #475569; width: 80px; flex-shrink: 0; }
+        .an-funnel-bar-wrap { flex: 1; background: #f0f4f8; border-radius: 6px; overflow: hidden; }
+        .an-funnel-bar { height: 26px; border-radius: 6px; display: flex; align-items: center; justify-content: flex-end; padding: 0 8px; min-width: 24px; transition: width 0.3s; }
+        .an-funnel-count { font-size: 12px; font-weight: 700; color: #fff; }
+        .an-funnel-pct { font-size: 12px; font-weight: 600; color: #64748b; width: 42px; text-align: right; flex-shrink: 0; }
+        .an-funnel-fail { font-size: 12px; color: #ef4444; margin-top: 6px; padding-top: 10px; border-top: 1px solid #f0f4f8; }
 
         /* Table */
         .an-table-box { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px; margin-bottom: 28px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }

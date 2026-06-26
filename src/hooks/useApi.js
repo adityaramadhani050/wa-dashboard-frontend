@@ -54,6 +54,8 @@ export const updateContact = (id, payload) => api.patch(`/contacts/${id}`, paylo
 export const getDailyStats = (from, to) => api.get('/stats/daily', { params: { from, to } }).then(r => r.data)
 export const getAgentStats = () => api.get('/stats/agents').then(r => r.data)
 export const getContactStats = () => api.get('/stats/contacts').then(r => r.data)
+export const getResponseKpi = (from, to) => api.get('/stats/response-kpi', { params: { from, to } }).then(r => r.data)
+export const getFunnel = (from, to) => api.get('/stats/funnel', { params: { from, to } }).then(r => r.data)
 export const getAgents = () => api.get('/agents').then(r => r.data)
 export const createAgent = (payload) => api.post('/agents', payload).then(r => r.data)
 export const updateAgent = (id, payload) => api.put(`/agents/${id}`, payload).then(r => r.data)
