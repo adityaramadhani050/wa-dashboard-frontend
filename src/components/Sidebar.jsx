@@ -136,7 +136,7 @@ export default function IconBar() {
         .ib-reminder-done:hover { background: rgba(39,168,122,0.12); }
         .ib-reminder-done:disabled { opacity: 0.6; cursor: not-allowed; }
         @media (max-width: 768px) {
-          .ib-reminder-panel { bottom: auto; top: calc(100% + 8px); left: auto; right: 0; }
+          .ib-reminder-panel { bottom: calc(100% + 8px); top: auto; left: auto; right: 0; }
         }
       `}</style>
     </div>
