@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate, useMatch } from 'react-router-dom'
 import { useSocket } from '../context/SocketContext'
 import { useAuth } from '../context/AuthContext'
@@ -64,7 +64,43 @@ export default function InboxPage() {
   }, [user, agentFilter])
 
   useEffect(() => { fetch() }, [fetch])
-  useEffect(() => { if (newMessages.length > 0) fetch() }, [newMessages, fetch])
+
+  // Update list secara instan saat ada pesan baru (tanpa refetch seluruh daftar
+  // yang berat). Hanya fallback fetch() bila percakapannya belum ada di list.
+  const processedRef = useRef(null)
+  useEffect(() => {
+    // Lewati event yang sudah ada di buffer saat pertama mount (sudah tercakup fetch awal)
+    if (processedRef.current === null) { processedRef.current = newMessages.length; return }
+    if (newMessages.length === 0) return
+    const fresh = newMessages.slice(processedRef.current)
+    processedRef.current = newMessages.length
+    if (!fresh.length) return
+
+    let needFetch = false
+    setConversations(prev => {
+      let list = prev
+      for (const evt of fresh) {
+        const cid = String(evt.conversationId ?? evt.message?.conversation_id ?? '')
+        if (!cid) continue
+        const idx = list.findIndex(c => String(c.id) === cid)
+        if (idx === -1) { needFetch = true; continue }
+        const msg = evt.message || {}
+        const fromMe = !!msg.from_me
+        const ts = msg.timestamp || new Date().toISOString()
+        const updated = {
+          ...list[idx],
+          lastMessage: msg.body ?? list[idx].lastMessage,
+          lastMessageAt: ts,
+          lastFromMe: fromMe,
+          unread: fromMe ? false : (String(activeChatId) !== cid),
+          awaitingSince: fromMe ? null : (list[idx].awaitingSince || ts),
+        }
+        list = [updated, ...list.slice(0, idx), ...list.slice(idx + 1)]
+      }
+      return list
+    })
+    if (needFetch) fetch()
+  }, [newMessages, fetch, activeChatId])
   useEffect(() => { getTags().then(d => setTags(Array.isArray(d) ? d : [])).catch(() => {}) }, [])
   useEffect(() => {
     if (isAdmin) getAgents().then(d => setAgents(Array.isArray(d) ? d.filter(a => a.role === 'agent') : [])).catch(() => {})
