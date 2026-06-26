@@ -2,8 +2,16 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate, useMatch } from 'react-router-dom'
 import { useSocket } from '../context/SocketContext'
 import { useAuth } from '../context/AuthContext'
-import { getConversations, getTags } from '../hooks/useApi'
-import { Search, RefreshCw, UserCheck, Tag as TagIcon, ChevronDown } from 'lucide-react'
+import { getConversations, getTags, getAgents } from '../hooks/useApi'
+import { Search, RefreshCw, UserCheck, Tag as TagIcon, ChevronDown, Clock } from 'lucide-react'
+
+// KPI response time: customer harus dibalas dalam 5 menit
+const RESPONSE_KPI_MS = 5 * 60 * 1000
+
+function waitMinutes(awaitingSince, now) {
+  if (!awaitingSince) return 0
+  return Math.floor((now - new Date(awaitingSince).getTime()) / 60000)
+}
 
 const AVATAR_COLORS = ['#3563e9','#27a87a','#d08b28','#e05c8a','#7c5cd6','#2aaccc']
 function avatarStyle(name) {
@@ -33,6 +41,11 @@ export default function InboxPage() {
   const [tags, setTags] = useState([])
   const [activeTagFilter, setActiveTagFilter] = useState(null)
   const [showTagFilter, setShowTagFilter] = useState(false)
+  const [statusFilter, setStatusFilter] = useState('all') // all | unread | unreplied | replied
+  const [agents, setAgents] = useState([])
+  const [agentFilter, setAgentFilter] = useState(null)
+  const [showAgentFilter, setShowAgentFilter] = useState(false)
+  const [now, setNow] = useState(() => Date.now())
   const { newMessages } = useSocket()
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
@@ -42,16 +55,25 @@ export default function InboxPage() {
 
   const fetch = useCallback(async () => {
     try {
-      const agentId = user?.role === 'agent' ? user.id : null
+      // agent biasa hanya lihat chat miliknya; admin bisa filter per agent
+      const agentId = user?.role === 'agent' ? user.id : agentFilter
       const data = await getConversations(agentId)
       setConversations(Array.isArray(data) ? data : [])
     } catch {}
     finally { setLoading(false) }
-  }, [user])
+  }, [user, agentFilter])
 
   useEffect(() => { fetch() }, [fetch])
   useEffect(() => { if (newMessages.length > 0) fetch() }, [newMessages, fetch])
   useEffect(() => { getTags().then(d => setTags(Array.isArray(d) ? d : [])).catch(() => {}) }, [])
+  useEffect(() => {
+    if (isAdmin) getAgents().then(d => setAgents(Array.isArray(d) ? d.filter(a => a.role === 'agent') : [])).catch(() => {})
+  }, [isAdmin])
+  // Tick tiap 30 detik supaya indikator ">5 menit" & urutan prioritas selalu update
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 30000)
+    return () => clearInterval(t)
+  }, [])
   useEffect(() => {
     const handler = () => fetch()
     window.addEventListener('cv:conversation-updated', handler)
@@ -63,6 +85,11 @@ export default function InboxPage() {
     navigate(`/chat/${convId}`)
   }
 
+  const isFail = (c) => (c.tags || []).some(t => (t.name || '').toLowerCase() === 'fail')
+  // Chat overdue = customer menunggu > 5 menit & belum dibalas, kecuali yang sudah ditandai "fail"
+  const isOverdue = (c) => !!c.awaitingSince && c.lastFromMe === false && !isFail(c) &&
+    (now - new Date(c.awaitingSince).getTime()) > RESPONSE_KPI_MS
+
   const filtered = conversations.filter(c => {
     const q = search.toLowerCase()
     const matchesSearch = !search ||
@@ -70,11 +97,32 @@ export default function InboxPage() {
       c.contact?.phone?.includes(q) ||
       c.lastMessage?.toLowerCase().includes(q)
     const matchesTag = !activeTagFilter || c.tags?.some(t => t.id === activeTagFilter)
-    return matchesSearch && matchesTag
+    let matchesStatus = true
+    if (statusFilter === 'unread') matchesStatus = !!c.unread
+    else if (statusFilter === 'unreplied') matchesStatus = c.lastFromMe === false
+    else if (statusFilter === 'replied') matchesStatus = c.lastFromMe === true
+    return matchesSearch && matchesTag && matchesStatus
   })
 
+  // Urutkan: chat overdue (>5 menit) paling atas, yang paling lama menunggu duluan;
+  // sisanya berdasarkan pesan terakhir terbaru.
+  const sorted = [...filtered].sort((a, b) => {
+    const ao = isOverdue(a), bo = isOverdue(b)
+    if (ao && bo) return new Date(a.awaitingSince) - new Date(b.awaitingSince)
+    if (ao) return -1
+    if (bo) return 1
+    return new Date(b.lastMessageAt || b.updated_at || 0) - new Date(a.lastMessageAt || a.updated_at || 0)
+  })
+
+  const STATUS_FILTERS = [
+    { key: 'all', label: 'Semua' },
+    { key: 'unread', label: 'Belum Dibaca' },
+    { key: 'unreplied', label: 'Belum Dibalas' },
+    { key: 'replied', label: 'Sudah Dibalas' },
+  ]
+
   return (
-    <div className="cl-root" onClick={() => showTagFilter && setShowTagFilter(false)}>
+    <div className="cl-root" onClick={() => { if (showTagFilter) setShowTagFilter(false); if (showAgentFilter) setShowAgentFilter(false) }}>
       {/* Header */}
       <div className="cl-header">
         <div className="cl-header-top">
@@ -93,10 +141,20 @@ export default function InboxPage() {
             onChange={e => setSearch(e.target.value)}
           />
         </div>
-        {/* Tag filter */}
+        {/* Status filter chips */}
+        <div className="cl-statusfilter-row">
+          {STATUS_FILTERS.map(f => (
+            <button
+              key={f.key}
+              className={`cl-statuschip${statusFilter === f.key ? ' active' : ''}`}
+              onClick={() => setStatusFilter(f.key)}
+            >{f.label}</button>
+          ))}
+        </div>
+        {/* Tag + Agent filter */}
         <div className="cl-tagfilter-row" onClick={e => e.stopPropagation()}>
           <div className="cv-dd">
-            <button className={`cl-tagfilter-btn${activeTagFilter ? ' active' : ''}`} onClick={() => setShowTagFilter(s => !s)}>
+            <button className={`cl-tagfilter-btn${activeTagFilter ? ' active' : ''}`} onClick={() => { setShowTagFilter(s => !s); setShowAgentFilter(false) }}>
               <TagIcon size={13} />
               <span>{activeTagFilter ? (tags.find(t => t.id === activeTagFilter)?.name || 'Tag') : 'Semua Tag'}</span>
               <ChevronDown size={12} />
@@ -114,6 +172,27 @@ export default function InboxPage() {
               </div>
             )}
           </div>
+          {isAdmin && (
+            <div className="cv-dd">
+              <button className={`cl-tagfilter-btn${agentFilter ? ' active' : ''}`} onClick={() => { setShowAgentFilter(s => !s); setShowTagFilter(false) }}>
+                <UserCheck size={13} />
+                <span>{agentFilter ? (agents.find(a => a.id === agentFilter)?.name || 'Agent') : 'Semua Agent'}</span>
+                <ChevronDown size={12} />
+              </button>
+              {showAgentFilter && (
+                <div className="cv-menu" style={{ minWidth: 180 }}>
+                  <button className={`cv-mi${!agentFilter ? ' active' : ''}`} onClick={() => { setAgentFilter(null); setShowAgentFilter(false) }}>
+                    Semua Agent
+                  </button>
+                  {agents.map(a => (
+                    <button key={a.id} className={`cv-mi${agentFilter === a.id ? ' active' : ''}`} onClick={() => { setAgentFilter(a.id); setShowAgentFilter(false) }}>
+                      {a.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -123,12 +202,12 @@ export default function InboxPage() {
           [...Array(6)].map((_, i) => (
             <div key={i} className="cl-skel" style={{ animationDelay: `${i * 0.06}s` }} />
           ))
-        ) : filtered.length === 0 ? (
+        ) : sorted.length === 0 ? (
           <div className="cl-empty">
-            {search ? 'Tidak ditemukan' : 'Belum ada percakapan'}
+            {search || statusFilter !== 'all' || activeTagFilter || agentFilter ? 'Tidak ditemukan' : 'Belum ada percakapan'}
           </div>
         ) : (
-          filtered.map(conv => {
+          sorted.map(conv => {
             const isActive = String(conv.id) === String(activeChatId)
             const name = conv.contact?.name || conv.contact?.phone || 'Unknown'
             const initial = name[0].toUpperCase()
@@ -138,11 +217,13 @@ export default function InboxPage() {
               ? assignedAgent.name.slice(0, 12) + '…'
               : assignedAgent?.name
             const isUnread = !!conv.unread && !isActive
+            const overdue = isOverdue(conv) && !isActive
+            const waitMins = overdue ? waitMinutes(conv.awaitingSince, now) : 0
 
             return (
               <div
                 key={conv.id}
-                className={`cl-item${isActive ? ' active' : ''}${isUnread ? ' unread' : ''}`}
+                className={`cl-item${isActive ? ' active' : ''}${isUnread ? ' unread' : ''}${overdue ? ' overdue' : ''}`}
                 onClick={() => handleOpenConversation(conv.id)}
               >
                 <div
@@ -153,6 +234,11 @@ export default function InboxPage() {
                   <div className="cl-row">
                     <span className="cl-name">{name}</span>
                     <span className="cl-row-right">
+                      {overdue && (
+                        <span className="cl-overdue-badge" title={`Belum dibalas ${waitMins} menit (lewat KPI 5 menit)`}>
+                          <Clock size={10} />{waitMins}m
+                        </span>
+                      )}
                       {isUnread && <span className="cl-unread-dot" />}
                       <span className="cl-time">{timeStr(conv.lastMessageAt || conv.updated_at)}</span>
                     </span>
@@ -274,6 +360,16 @@ export default function InboxPage() {
         .cl-unread-dot { width: 8px; height: 8px; border-radius: 50%; background: #3563e9; flex-shrink: 0; }
         .cl-item.unread .cl-name { font-weight: 800; color: #0d1730; }
         .cl-item.unread .cl-preview { color: #1a2540; font-weight: 600; }
+        .cl-statusfilter-row { display: flex; gap: 6px; padding: 0 0 4px; overflow-x: auto; scrollbar-width: none; }
+        .cl-statusfilter-row::-webkit-scrollbar { display: none; }
+        .cl-statuschip { flex-shrink: 0; padding: 5px 11px; border-radius: 20px; font-size: 12px; font-weight: 500; color: #4f607a; background: #f7f9fd; border: 1px solid #e4eaf5; white-space: nowrap; transition: all 0.15s; }
+        .cl-statuschip:hover { background: #eef4fd; }
+        .cl-statuschip.active { background: #3563e9; color: #fff; border-color: #3563e9; }
+        .cl-tagfilter-row { gap: 8px; }
+        .cl-overdue-badge { display: inline-flex; align-items: center; gap: 2px; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 20px; background: #e53e3e; color: #fff; white-space: nowrap; }
+        .cl-item.overdue { background: rgba(229,62,62,0.05); box-shadow: inset 3px 0 0 #e53e3e; }
+        .cl-item.overdue:hover { background: rgba(229,62,62,0.09); }
+        .cl-item.active .cl-overdue-badge { background: #fff; color: #e53e3e; }
       `}</style>
     </div>
   )
