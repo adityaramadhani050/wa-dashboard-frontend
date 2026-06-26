@@ -3,11 +3,13 @@ import {
   getTemplates, createTemplate, updateTemplate, deleteTemplate,
   getQuickMedia, uploadQuickMedia, deleteQuickMedia,
   getTags, createTag, updateTag, deleteTag,
+  getProducts, createProduct, updateProduct, deleteProduct,
 } from '../hooks/useApi'
-import { Plus, Pencil, Trash2, X, MessageSquareText, Image as ImageIcon, FileText, Tag as TagIcon } from 'lucide-react'
+import { Plus, Pencil, Trash2, X, MessageSquareText, Image as ImageIcon, FileText, Tag as TagIcon, Package } from 'lucide-react'
 
 const EMPTY_TEMPLATE = { title: '', body: '', shortcut: '', category: '' }
 const EMPTY_TAG = { name: '', color: '#3563e9' }
+const EMPTY_PRODUCT = { name: '', category: '', capacity: '', price: '', specs: '', active: true }
 
 function Modal({ title, onClose, children }) {
   return (
@@ -146,8 +148,58 @@ function TagForm({ initial, onSave, onClose, loading, error }) {
   )
 }
 
+function ProductForm({ initial, onSave, onClose, loading, error }) {
+  const [form, setForm] = useState(initial || EMPTY_PRODUCT)
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    if (!form.name.trim()) return
+    onSave(form)
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="am-form">
+      <div className="am-field">
+        <label>Nama Produk <span className="req">*</span></label>
+        <input value={form.name} onChange={e => set('name', e.target.value)} placeholder="contoh: Paket PLTS Hybrid 2000W" required />
+      </div>
+      <div className="am-field">
+        <label>Kategori <span style={{fontSize:11,color:'#94a3b8'}}>(opsional)</span></label>
+        <input value={form.category || ''} onChange={e => set('category', e.target.value)} placeholder="contoh: Hybrid / On-grid / Paket Rumah" />
+      </div>
+      <div className="am-field">
+        <label>Kapasitas <span style={{fontSize:11,color:'#94a3b8'}}>(opsional)</span></label>
+        <input value={form.capacity || ''} onChange={e => set('capacity', e.target.value)} placeholder="contoh: 2000W / 3 kWp" />
+      </div>
+      <div className="am-field">
+        <label>Harga <span style={{fontSize:11,color:'#94a3b8'}}>(opsional)</span></label>
+        <input value={form.price || ''} onChange={e => set('price', e.target.value)} placeholder="contoh: Rp 30.000.000 atau mulai 25jt" />
+      </div>
+      <div className="am-field">
+        <label>Spesifikasi & Poin Jual <span style={{fontSize:11,color:'#94a3b8'}}>(opsional)</span></label>
+        <textarea value={form.specs || ''} onChange={e => set('specs', e.target.value)} placeholder="contoh: panel 4x550W, inverter hybrid, baterai 5kWh, garansi 25 tahun, hemat s/d 40%" rows={4} />
+        <span className="am-hint">Dipakai AI sebagai sumber harga/spek saat membuat saran balasan</span>
+      </div>
+      <div className="am-field">
+        <label style={{display:'flex',alignItems:'center',gap:8,cursor:'pointer'}}>
+          <input type="checkbox" checked={form.active !== false} onChange={e => set('active', e.target.checked)} style={{width:16,height:16}} />
+          Aktif (dipakai AI)
+        </label>
+      </div>
+      {error && <div className="am-form-err">{error}</div>}
+      <div className="am-form-actions">
+        <button type="button" className="am-btn secondary" onClick={onClose}>Batal</button>
+        <button type="submit" className="am-btn primary" disabled={loading}>
+          {loading ? 'Menyimpan...' : 'Simpan'}
+        </button>
+      </div>
+    </form>
+  )
+}
+
 export default function TemplatesPage() {
-  const [tab, setTab] = useState('templates') // 'templates' | 'media' | 'tags'
+  const [tab, setTab] = useState('templates') // 'templates' | 'media' | 'tags' | 'products'
 
   // Templates state
   const [templates, setTemplates] = useState([])
@@ -176,6 +228,15 @@ export default function TemplatesPage() {
   const [tagDeleteTarget, setTagDeleteTarget] = useState(null)
   const [tagDeleting, setTagDeleting] = useState(false)
 
+  // Products state
+  const [products, setProducts] = useState([])
+  const [loadingProducts, setLoadingProducts] = useState(true)
+  const [prodModal, setProdModal] = useState(null)
+  const [prodSaving, setProdSaving] = useState(false)
+  const [prodError, setProdError] = useState('')
+  const [prodDeleteTarget, setProdDeleteTarget] = useState(null)
+  const [prodDeleting, setProdDeleting] = useState(false)
+
   const loadTemplates = useCallback(async () => {
     setLoadingTemplates(true)
     try { setTemplates(await getTemplates()) } catch {}
@@ -194,7 +255,13 @@ export default function TemplatesPage() {
     finally { setLoadingTags(false) }
   }, [])
 
-  useEffect(() => { loadTemplates(); loadMedia(); loadTags() }, [loadTemplates, loadMedia, loadTags])
+  const loadProducts = useCallback(async () => {
+    setLoadingProducts(true)
+    try { setProducts(await getProducts()) } catch {}
+    finally { setLoadingProducts(false) }
+  }, [])
+
+  useEffect(() => { loadTemplates(); loadMedia(); loadTags(); loadProducts() }, [loadTemplates, loadMedia, loadTags, loadProducts])
 
   const handleCreateTemplate = async (form) => {
     setTplSaving(true); setTplError('')
@@ -276,6 +343,36 @@ export default function TemplatesPage() {
     finally { setTagDeleting(false) }
   }
 
+  const handleCreateProduct = async (form) => {
+    setProdSaving(true); setProdError('')
+    try {
+      const p = await createProduct(form)
+      setProducts(prev => [p, ...prev])
+      setProdModal(null)
+    } catch (e) { setProdError(e.response?.data?.error || 'Gagal membuat produk') }
+    finally { setProdSaving(false) }
+  }
+
+  const handleUpdateProduct = async (form) => {
+    setProdSaving(true); setProdError('')
+    try {
+      const updated = await updateProduct(prodModal.product.id, form)
+      setProducts(prev => prev.map(p => p.id === updated.id ? updated : p))
+      setProdModal(null)
+    } catch (e) { setProdError(e.response?.data?.error || 'Gagal mengupdate produk') }
+    finally { setProdSaving(false) }
+  }
+
+  const handleDeleteProduct = async () => {
+    setProdDeleting(true)
+    try {
+      await deleteProduct(prodDeleteTarget.id)
+      setProducts(prev => prev.filter(p => p.id !== prodDeleteTarget.id))
+      setProdDeleteTarget(null)
+    } catch {}
+    finally { setProdDeleting(false) }
+  }
+
   return (
     <div className="am-page">
       <div className="am-header">
@@ -298,6 +395,11 @@ export default function TemplatesPage() {
             <Plus size={16} /> Tambah Tag
           </button>
         )}
+        {tab === 'products' && (
+          <button className="am-btn primary" onClick={() => { setProdError(''); setProdModal('create') }}>
+            <Plus size={16} /> Tambah Produk
+          </button>
+        )}
       </div>
 
       <div className="tp-tabs">
@@ -309,6 +411,9 @@ export default function TemplatesPage() {
         </button>
         <button className={`tp-tab${tab === 'tags' ? ' active' : ''}`} onClick={() => setTab('tags')}>
           <TagIcon size={15} /> Tag Percakapan
+        </button>
+        <button className={`tp-tab${tab === 'products' ? ' active' : ''}`} onClick={() => setTab('products')}>
+          <Package size={15} /> Katalog Produk
         </button>
       </div>
 
@@ -438,6 +543,90 @@ export default function TemplatesPage() {
             </div>
           )}
         </div>
+      )}
+
+      {tab === 'products' && (
+        <div className="am-table-box">
+          {loadingProducts ? (
+            <div className="am-loading">
+              {[...Array(3)].map((_, i) => <div key={i} className="am-skel" style={{ animationDelay: `${i * 0.08}s` }} />)}
+            </div>
+          ) : products.length === 0 ? (
+            <div className="am-empty">
+              <Package size={40} style={{ opacity: 0.2, marginBottom: 12 }} />
+              <p>Belum ada produk. Klik "Tambah Produk" untuk mengisi katalog yang dipakai AI.</p>
+            </div>
+          ) : (
+            <div className="am-table-wrap">
+              <table className="am-table">
+                <thead>
+                  <tr>
+                    <th>Nama</th>
+                    <th>Kategori</th>
+                    <th>Kapasitas</th>
+                    <th>Harga</th>
+                    <th>Spesifikasi</th>
+                    <th>Status</th>
+                    <th>Aksi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {products.map(p => (
+                    <tr key={p.id}>
+                      <td>{p.name}</td>
+                      <td>{p.category || <span style={{color:'#cbd5e1'}}>-</span>}</td>
+                      <td>{p.capacity || <span style={{color:'#cbd5e1'}}>-</span>}</td>
+                      <td>{p.price || <span style={{color:'#cbd5e1'}}>-</span>}</td>
+                      <td className="tp-body-cell">{p.specs || <span style={{color:'#cbd5e1'}}>-</span>}</td>
+                      <td>
+                        {p.active !== false
+                          ? <span className="tag-chip" style={{ background: '#27a87a' }}>Aktif</span>
+                          : <span className="tag-chip" style={{ background: '#94a3b8' }}>Nonaktif</span>}
+                      </td>
+                      <td>
+                        <div className="am-actions">
+                          <button className="am-icon-btn edit" onClick={() => { setProdError(''); setProdModal({ product: p }) }} title="Edit">
+                            <Pencil size={15} />
+                          </button>
+                          <button className="am-icon-btn del" onClick={() => setProdDeleteTarget(p)} title="Hapus">
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {prodModal === 'create' && (
+        <Modal title="Tambah Produk Baru" onClose={() => setProdModal(null)}>
+          <ProductForm onSave={handleCreateProduct} onClose={() => setProdModal(null)} loading={prodSaving} error={prodError} />
+        </Modal>
+      )}
+
+      {prodModal?.product && (
+        <Modal title="Edit Produk" onClose={() => setProdModal(null)}>
+          <ProductForm initial={prodModal.product} onSave={handleUpdateProduct} onClose={() => setProdModal(null)} loading={prodSaving} error={prodError} />
+        </Modal>
+      )}
+
+      {prodDeleteTarget && (
+        <Modal title="Hapus Produk" onClose={() => setProdDeleteTarget(null)}>
+          <div className="am-confirm">
+            <p>Yakin ingin menghapus produk <strong>{prodDeleteTarget.name}</strong>?</p>
+            <p className="am-confirm-sub">Tindakan ini tidak dapat dibatalkan.</p>
+            <div className="am-form-actions">
+              <button className="am-btn secondary" onClick={() => setProdDeleteTarget(null)}>Batal</button>
+              <button className="am-btn danger" onClick={handleDeleteProduct} disabled={prodDeleting}>
+                {prodDeleting ? 'Menghapus...' : 'Hapus'}
+              </button>
+            </div>
+          </div>
+        </Modal>
       )}
 
       {tplModal === 'create' && (

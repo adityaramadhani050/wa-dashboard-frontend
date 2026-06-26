@@ -46,6 +46,12 @@ export const deleteTemplate = (id) => api.delete(`/templates/${id}`).then(r => r
 export const getTopTemplates = (limit) => api.get('/templates/top', limit ? { params: { limit } } : {}).then(r => r.data)
 export const useTemplate = (id) => api.post(`/templates/${id}/use`).then(r => r.data)
 
+// Katalog Produk (knowledge base AI)
+export const getProducts = () => api.get('/products').then(r => r.data)
+export const createProduct = (payload) => api.post('/products', payload).then(r => r.data)
+export const updateProduct = (id, payload) => api.put(`/products/${id}`, payload).then(r => r.data)
+export const deleteProduct = (id) => api.delete(`/products/${id}`).then(r => r.data)
+
 // Galeri Produk / Quick Media
 export const getQuickMedia = () => api.get('/messages/quick-media').then(r => r.data)
 export const uploadQuickMedia = (file, label, category) => {
