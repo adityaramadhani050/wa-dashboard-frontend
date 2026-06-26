@@ -165,6 +165,12 @@ function MediaContent({ msg, sent, onImageClick }) {
   const { media_type, media_url, media_filename, body } = msg
   const caption = body && !body.startsWith('[') ? body : null
   if (!media_url && !media_type) return <p>{msg.body || msg.content || msg.text}</p>
+  if (media_type && !media_url) {
+    // Media sedang diunduh di server, URL menyusul
+    if (media_type === 'image' || media_type === 'video')
+      return <div className="cv-media-wrap"><div className="cv-media-skeleton"><div className="cv-media-skel-inner" /></div></div>
+    return <div className="cv-media-placeholder"><Paperclip size={16} /><span>Memuat {media_type}…</span></div>
+  }
   if (media_type === 'image') return <ImgMedia url={media_url} caption={caption} sent={sent} onImageClick={onImageClick} />
   if (media_type === 'video') return <VideoMedia url={media_url} caption={caption} sent={sent} />
   if (media_type === 'audio') return <div className="cv-media-audio-wrap"><audio src={media_url} controls className="cv-media-audio" /></div>
@@ -184,7 +190,15 @@ function ImageLightbox({ url, onClose }) {
 
 function mergeMessage(prev, message) {
   if (!message?.id) return prev
-  if (prev.some(m => String(m.id) === String(message.id))) return prev
+  const existingIdx = prev.findIndex(m => String(m.id) === String(message.id))
+  if (existingIdx !== -1) {
+    // Sudah ada (mis. update media_url menyusul) — gabungkan field non-null saja
+    const next = [...prev]
+    const merged = { ...next[existingIdx] }
+    for (const k in message) { if (message[k] != null) merged[k] = message[k] }
+    next[existingIdx] = merged
+    return next
+  }
   if (isFromMe(message)) {
     const tmpIdx = prev.findIndex(m => String(m.id).startsWith('tmp-'))
     if (tmpIdx !== -1) {
@@ -250,7 +264,7 @@ export default function ChatPage({ chatId }) {
   const messagesRef = useRef(null)
   const fileInputRef = useRef(null)
   const textareaRef = useRef(null)
-  const { newMessages, statusUpdates } = useSocket()
+  const { newMessages, statusUpdates, messageUpdates } = useSocket()
   const [showScrollBtn, setShowScrollBtn] = useState(false)
 
   const fetchData = useCallback(async () => {
@@ -302,6 +316,16 @@ export default function ChatPage({ chatId }) {
       return upd ? { ...msg, status: upd.status } : msg
     }))
   }, [statusUpdates])
+
+  useEffect(() => {
+    const relevant = messageUpdates.filter(m => String(m.conversationId) === String(id))
+    if (!relevant.length) return
+    setMessages(prev => {
+      let next = prev
+      for (const { message } of relevant) next = mergeMessage(next, message)
+      return next
+    })
+  }, [messageUpdates, id])
 
   const scrolledForRef = useRef(null)
 

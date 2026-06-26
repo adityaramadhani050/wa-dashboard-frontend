@@ -39,6 +39,7 @@ export function SocketProvider({ children }) {
   const [qrCode, setQrCode] = useState(null)
   const [newMessages, setNewMessages] = useState([])
   const [statusUpdates, setStatusUpdates] = useState([])
+  const [messageUpdates, setMessageUpdates] = useState([])
   const socketRef = useRef(null)
   const baseTitleRef = useRef('WA Dashboard')
 
@@ -116,6 +117,8 @@ export function SocketProvider({ children }) {
       notifyNewMessage(data)
     })
     s.on('message_status', (data) => setStatusUpdates(prev => [...prev.slice(-99), data]))
+    // Update field pesan yang menyusul (mis. media_url selesai diunggah) — tanpa notifikasi
+    s.on('message_updated', (data) => setMessageUpdates(prev => [...prev.slice(-99), data]))
 
     return () => s.disconnect()
   }, [])
@@ -125,7 +128,7 @@ export function SocketProvider({ children }) {
       socket, socketConnected, socketError,
       waConnected, qrCode, setQrCode,
       newMessages, clearNewMessages: () => setNewMessages([]),
-      statusUpdates,
+      statusUpdates, messageUpdates,
     }}>
       {children}
     </SocketContext.Provider>
