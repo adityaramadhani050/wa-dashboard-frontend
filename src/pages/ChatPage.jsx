@@ -548,11 +548,11 @@ export default function ChatPage({ chatId }) {
         <div className="cv-actions" onClick={e => e.stopPropagation()}>
           {isAdmin && (
             <div className="cv-dd">
-              <button className="cv-assign-btn" onClick={() => { setShowAgentMenu(!showAgentMenu) }}>
+              <button className="cv-assign-btn" onClick={() => { setShowAgentMenu(!showAgentMenu); setShowReminderMenu(false) }}>
                 <UserCheck size={15} /><span className="cv-btn-label">Assign</span>
               </button>
               {showAgentMenu && (
-                <div className="cv-menu" style={{minWidth:200}}>
+                <div className="cv-menu cv-header-menu" style={{minWidth:200}}>
                   <div className="cv-menu-lbl">Assign ke Agent</div>
                   {agents.length === 0
                     ? <div className="cv-mi muted">Tidak ada agent</div>
@@ -575,7 +575,7 @@ export default function ChatPage({ chatId }) {
               <BellPlus size={15} />
             </button>
             {showReminderMenu && (
-              <div className="cv-menu cv-reminder-menu" style={{ width: 'min(240px, calc(100vw - 32px))' }}>
+              <div className="cv-menu cv-header-menu cv-reminder-menu" style={{ width: 'min(240px, calc(100vw - 32px))' }}>
                 <div className="cv-menu-lbl">Ingatkan Follow-up</div>
                 <div className="cv-reminder-form">
                   <input
@@ -920,7 +920,7 @@ export default function ChatPage({ chatId }) {
         .cv-unassigned { font-size: 11px; padding: 1px 7px; border-radius: 10px; background: rgba(208,139,40,0.1); color: #d08b28; }
         .cv-actions { position: relative; display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
         .cv-dd { position: relative; }
-        .cv-reminder-dd { position: static; }
+        .cv-header-menu { position: fixed !important; top: 66px !important; right: 16px !important; left: auto !important; }
         .cv-assign-btn { display: flex; align-items: center; gap: 5px; padding: 7px 14px; border-radius: 8px; font-size: 13px; font-weight: 500; color: #4f607a; background: #f0f3fa; border: 1px solid #e4eaf5; transition: all 0.15s; }
         .cv-assign-btn:hover { background: #e8eef8; }
         .cv-del-conv-btn { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #a8b8d0; transition: all 0.15s; }
@@ -1051,7 +1051,7 @@ export default function ChatPage({ chatId }) {
           .cv-attach-group { display: none; }
           .cv-more-dd { display: block; }
           .cv-notes-sidebar { position: fixed !important; inset: 0 !important; width: 100% !important; height: 100% !important; z-index: 400; border-left: none; animation: slideInRight 0.22s ease-out; }
-          .cv-reminder-menu { position: fixed !important; top: 58px !important; right: 8px !important; left: auto !important; }
+          .cv-header-menu { top: 58px !important; right: 8px !important; }
         }
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
