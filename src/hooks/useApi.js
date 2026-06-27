@@ -122,6 +122,10 @@ export const suggestAiTags = (conversationId) =>
 export const suggestAiNote = (conversationId) =>
   api.post('/ai/suggest-note', { conversation_id: conversationId }, { timeout: 30000 }).then(r => r.data)
 
+// Auto-assign chat (round-robin / least-loaded)
+export const getAutoAssign = () => api.get('/settings/auto-assign').then(r => r.data)
+export const setAutoAssign = (enabled) => api.put('/settings/auto-assign', { enabled }).then(r => r.data)
+
 // VAPID public key untuk web push (endpoint terbuka)
 export const getVapidPublicKey = () => api.get('/push/vapid-public-key').then(r => r.data)
 

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
-import { getAgents, createAgent, updateAgent, deleteAgent } from '../hooks/useApi'
-import { Plus, Pencil, Trash2, X, Eye, EyeOff, Users } from 'lucide-react'
+import { getAgents, createAgent, updateAgent, deleteAgent, getAutoAssign, setAutoAssign } from '../hooks/useApi'
+import { Plus, Pencil, Trash2, X, Eye, EyeOff, Users, Shuffle } from 'lucide-react'
 
 const EMPTY_FORM = { name: '', username: '', email: '', role: 'agent', password: '', confirmPassword: '' }
 
@@ -117,6 +117,8 @@ export default function AgentManagementPage() {
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState('')
+  const [autoAssign, setAutoAssignState] = useState(false)
+  const [autoAssignBusy, setAutoAssignBusy] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -125,6 +127,24 @@ export default function AgentManagementPage() {
   }, [])
 
   useEffect(() => { load() }, [load])
+  useEffect(() => { getAutoAssign().then(d => setAutoAssignState(!!d.enabled)).catch(() => {}) }, [])
+
+  const handleToggleAutoAssign = async () => {
+    if (autoAssignBusy) return
+    const next = !autoAssign
+    setAutoAssignBusy(true)
+    try {
+      const res = await setAutoAssign(next)
+      setAutoAssignState(!!res.enabled)
+      if (res.enabled) {
+        alert(res.distributed > 0
+          ? `Auto-assign aktif. ${res.distributed} percakapan belum ter-assign langsung dibagikan ke agent secara seimbang.`
+          : 'Auto-assign aktif. Chat baru akan otomatis dibagi rata ke agent.')
+      }
+    } catch (e) {
+      alert(e?.response?.data?.error || 'Gagal mengubah auto-assign')
+    } finally { setAutoAssignBusy(false) }
+  }
 
   const handleCreate = async (form) => {
     setSaving(true); setFormError('')
@@ -178,6 +198,26 @@ export default function AgentManagementPage() {
         </div>
         <button className="am-btn primary" onClick={() => { setFormError(''); setModal('create') }}>
           <Plus size={16} /> Tambah Agent
+        </button>
+      </div>
+
+      <div className="aa-card">
+        <div className="aa-info">
+          <div className="aa-icon"><Shuffle size={18} /></div>
+          <div>
+            <div className="aa-title">Auto-assign Chat (Round-robin)</div>
+            <div className="aa-desc">Bagi chat masuk ke agent secara seimbang berdasarkan jumlah chat aktif yang sedang ditangani. Saat diaktifkan, chat yang belum ter-assign langsung dibagikan.</div>
+          </div>
+        </div>
+        <button
+          className={`aa-switch${autoAssign ? ' on' : ''}`}
+          onClick={handleToggleAutoAssign}
+          disabled={autoAssignBusy}
+          role="switch"
+          aria-checked={autoAssign}
+          title={autoAssign ? 'Nonaktifkan' : 'Aktifkan'}
+        >
+          <span className="aa-knob" />
         </button>
       </div>
 
@@ -288,6 +328,16 @@ export default function AgentManagementPage() {
         }
         .am-header h1 { font-size: 20px; font-weight: 700; margin-bottom: 3px; color: #1e293b; }
         .am-header p { font-size: 13px; color: #64748b; }
+        .aa-card { display: flex; align-items: center; justify-content: space-between; gap: 16px; background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px 18px; margin-bottom: 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .aa-info { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
+        .aa-icon { width: 38px; height: 38px; border-radius: 10px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: rgba(53,99,233,0.1); color: #3563e9; }
+        .aa-title { font-size: 14px; font-weight: 600; color: #1e293b; margin-bottom: 2px; }
+        .aa-desc { font-size: 12px; color: #64748b; line-height: 1.5; max-width: 640px; }
+        .aa-switch { position: relative; width: 46px; height: 26px; border-radius: 999px; background: #cbd5e1; flex-shrink: 0; transition: background 0.2s; }
+        .aa-switch.on { background: #27a87a; }
+        .aa-switch:disabled { opacity: 0.6; cursor: not-allowed; }
+        .aa-knob { position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.2); transition: transform 0.2s; }
+        .aa-switch.on .aa-knob { transform: translateX(20px); }
         .am-btn {
           display: inline-flex; align-items: center; gap: 6px;
           padding: 8px 16px; border-radius: 8px;
