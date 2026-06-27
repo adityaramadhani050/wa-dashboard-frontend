@@ -42,9 +42,9 @@ function getDateKey(dateStr) {
 }
 
 function statusLabel(s) {
-  if (s === 'in_progress') return 'Diproses'
-  if (s === 'resolved') return 'Selesai'
-  return 'Aktif'
+  if (s === 'in_progress') return 'Aktif'
+  if (s === 'resolved') return 'Resolved'
+  return 'Open'
 }
 
 function cleanPhone(phone) {
@@ -400,6 +400,8 @@ export default function ChatPage({ chatId }) {
       id: tempId, body: msg, from_me: true,
       timestamp: new Date().toISOString(), status: 'sending',
     }])
+    // Agent membalas -> chat jadi "Aktif" (optimistic, biar badge langsung berubah)
+    setConversation(prev => prev && prev.status !== 'in_progress' ? { ...prev, status: 'in_progress' } : prev)
     try { await sendMessage(id, msg) }
     catch (e) {
       setError(e?.response?.data?.error || 'Gagal mengirim.')
@@ -598,6 +600,9 @@ export default function ChatPage({ chatId }) {
         <div className="cv-contact" onClick={handleToggleNotesPanel} role="button" tabIndex={0}>
           <div className="cv-name">{name}</div>
           <div className="cv-sub">
+            {conversation?.status && (
+              <span className={`cv-status-badge st-${conversation.status}`}>{statusLabel(conversation.status)}</span>
+            )}
             {isAdmin && assignedAgent && <span className="cv-assigned"><UserCheck size={10} />{assignedAgent.name}</span>}
             {isAdmin && !assignedAgent && <span className="cv-unassigned">Unassigned</span>}
             {conversationTags.map(t => (
@@ -994,6 +999,10 @@ export default function ChatPage({ chatId }) {
         .cv-sub { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 1px; }
         .cv-assigned { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 10px; background: rgba(39,168,122,0.1); color: #27a87a; }
         .cv-unassigned { font-size: 11px; padding: 1px 7px; border-radius: 10px; background: rgba(208,139,40,0.1); color: #d08b28; }
+        .cv-status-badge { font-size: 11px; font-weight: 600; padding: 1px 8px; border-radius: 10px; }
+        .cv-status-badge.st-open { background: rgba(208,139,40,0.12); color: #d08b28; }
+        .cv-status-badge.st-in_progress { background: rgba(53,99,233,0.12); color: #3563e9; }
+        .cv-status-badge.st-resolved { background: rgba(39,168,122,0.12); color: #27a87a; }
         .cv-actions { position: relative; display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
         .cv-dd { position: relative; }
         .cv-header-menu { position: fixed !important; top: 66px !important; right: 16px !important; left: auto !important; }
