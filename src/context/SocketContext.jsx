@@ -64,13 +64,16 @@ export function SocketProvider({ children }) {
 
     playBeep()
 
-    if (document.visibilityState !== 'visible') {
-      document.title = `🔔 Pesan baru • ${baseTitleRef.current}`
-    }
-
     // Di aplikasi native, notifikasi ditangani FCM (tray) — hindari notifikasi dobel.
     if (isNative()) return
 
+    if (document.visibilityState !== 'visible') {
+      // App di background/tertutup → notifikasi tray ditangani Web Push (service worker).
+      document.title = `🔔 Pesan baru • ${baseTitleRef.current}`
+      return
+    }
+
+    // App sedang dibuka & fokus → tampilkan notifikasi in-app (web push di-skip oleh SW).
     if ('Notification' in window && Notification.permission === 'granted') {
       try {
         const title = data.contactName || 'Pesan baru'

@@ -122,6 +122,9 @@ export const suggestAiTags = (conversationId) =>
 export const suggestAiNote = (conversationId) =>
   api.post('/ai/suggest-note', { conversation_id: conversationId }, { timeout: 30000 }).then(r => r.data)
 
+// VAPID public key untuk web push (endpoint terbuka)
+export const getVapidPublicKey = () => api.get('/push/vapid-public-key').then(r => r.data)
+
 // Device token untuk push notification (mobile)
 export const registerDevice = (token, platform = 'android') =>
   api.post('/devices', { token, platform }).then(r => r.data)

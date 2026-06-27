@@ -24,6 +24,8 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // Impor handler Web Push ke service worker
+        importScripts: ['push-sw.js'],
         // Jangan cache panggilan API/socket — biar data selalu realtime
         navigateFallbackDenylist: [/^\/api/, /socket\.io/],
         runtimeCaching: [

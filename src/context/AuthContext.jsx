@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import api, { registerDevice, unregisterDevice } from '../hooks/useApi'
 import { initPushNotifications, getDeviceToken, isNative } from '../native/push'
+import { initWebPush, teardownWebPush } from '../native/webpush'
 
 const AuthContext = createContext(null)
 
@@ -20,12 +21,16 @@ function loadUser() {
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(loadUser)
 
-  // Saat sudah login & di aplikasi native, daftarkan push token ke backend
+  // Saat sudah login, daftarkan push: native -> FCM, web -> Web Push (VAPID)
   useEffect(() => {
-    if (!user || !isNative()) return
-    initPushNotifications({
-      onToken: (token) => { registerDevice(token).catch(() => {}) },
-    })
+    if (!user) return
+    if (isNative()) {
+      initPushNotifications({
+        onToken: (token) => { registerDevice(token).catch(() => {}) },
+      })
+    } else {
+      initWebPush()
+    }
   }, [user])
 
   const login = async (username, password) => {
@@ -38,8 +43,12 @@ export function AuthProvider({ children }) {
   }
 
   const logout = () => {
-    const dt = getDeviceToken()
-    if (dt) unregisterDevice(dt).catch(() => {})
+    if (isNative()) {
+      const dt = getDeviceToken()
+      if (dt) unregisterDevice(dt).catch(() => {})
+    } else {
+      teardownWebPush()
+    }
     localStorage.removeItem('wa_user')
     localStorage.removeItem('wa_token')
     setUser(null)
