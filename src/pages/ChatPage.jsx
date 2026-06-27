@@ -268,7 +268,7 @@ export default function ChatPage({ chatId }) {
   const messagesRef = useRef(null)
   const fileInputRef = useRef(null)
   const textareaRef = useRef(null)
-  const { newMessages, statusUpdates, messageUpdates } = useSocket()
+  const { newMessages, statusUpdates, messageUpdates, assignmentUpdates } = useSocket()
   const [showScrollBtn, setShowScrollBtn] = useState(false)
 
   const fetchData = useCallback(async () => {
@@ -330,6 +330,14 @@ export default function ChatPage({ chatId }) {
       return next
     })
   }, [messageUpdates, id])
+
+  // Auto-assign realtime: update badge agent di header chat yang sedang dibuka
+  useEffect(() => {
+    const relevant = assignmentUpdates.filter(a => String(a.conversationId) === String(id))
+    if (!relevant.length) return
+    const last = relevant[relevant.length - 1]
+    setConversation(prev => prev ? { ...prev, agents: last.agent } : prev)
+  }, [assignmentUpdates, id])
 
   const scrolledForRef = useRef(null)
 

@@ -41,6 +41,7 @@ export function SocketProvider({ children }) {
   const [newMessages, setNewMessages] = useState([])
   const [statusUpdates, setStatusUpdates] = useState([])
   const [messageUpdates, setMessageUpdates] = useState([])
+  const [assignmentUpdates, setAssignmentUpdates] = useState([])
   const socketRef = useRef(null)
   const baseTitleRef = useRef('RenusPro Chat')
 
@@ -126,6 +127,8 @@ export function SocketProvider({ children }) {
     s.on('message_status', (data) => setStatusUpdates(prev => [...prev.slice(-99), data]))
     // Update field pesan yang menyusul (mis. media_url selesai diunggah) — tanpa notifikasi
     s.on('message_updated', (data) => setMessageUpdates(prev => [...prev.slice(-99), data]))
+    // Chat ter-assign otomatis (auto-assign) — update badge agent realtime
+    s.on('conversation_assigned', (data) => setAssignmentUpdates(prev => [...prev.slice(-99), data]))
 
     return () => s.disconnect()
   }, [])
@@ -135,7 +138,7 @@ export function SocketProvider({ children }) {
       socket, socketConnected, socketError,
       waConnected, qrCode, setQrCode,
       newMessages, clearNewMessages: () => setNewMessages([]),
-      statusUpdates, messageUpdates,
+      statusUpdates, messageUpdates, assignmentUpdates,
     }}>
       {children}
     </SocketContext.Provider>

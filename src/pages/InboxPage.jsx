@@ -46,7 +46,7 @@ export default function InboxPage() {
   const [agentFilter, setAgentFilter] = useState(null)
   const [showAgentFilter, setShowAgentFilter] = useState(false)
   const [now, setNow] = useState(() => Date.now())
-  const { newMessages } = useSocket()
+  const { newMessages, assignmentUpdates } = useSocket()
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
   const navigate = useNavigate()
@@ -101,6 +101,29 @@ export default function InboxPage() {
     })
     if (needFetch) fetch()
   }, [newMessages, fetch, activeChatId])
+
+  // Auto-assign realtime: update badge agent tanpa refresh
+  const processedAssignRef = useRef(null)
+  useEffect(() => {
+    if (processedAssignRef.current === null) { processedAssignRef.current = assignmentUpdates.length; return }
+    const fresh = assignmentUpdates.slice(processedAssignRef.current)
+    processedAssignRef.current = assignmentUpdates.length
+    if (!fresh.length) return
+    let needFetch = false
+    setConversations(prev => {
+      let list = prev
+      for (const evt of fresh) {
+        const cid = String(evt.conversationId ?? '')
+        const idx = list.findIndex(c => String(c.id) === cid)
+        if (idx === -1) { needFetch = true; continue }
+        list = list.map((c, i) => i === idx ? { ...c, agents: evt.agent, assigned_to: evt.agent?.id } : c)
+      }
+      return list
+    })
+    // Agent: chat yang baru di-assign ke dirinya mungkin belum ada di daftar
+    if (needFetch && user?.role === 'agent') fetch()
+  }, [assignmentUpdates, fetch, user])
+
   useEffect(() => { getTags().then(d => setTags(Array.isArray(d) ? d : [])).catch(() => {}) }, [])
   useEffect(() => {
     if (isAdmin) getAgents().then(d => setAgents(Array.isArray(d) ? d.filter(a => a.role === 'agent') : [])).catch(() => {})
