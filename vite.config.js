@@ -9,9 +9,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.png', 'apple-touch-icon.png'],
       manifest: {
-        name: 'WA Dashboard',
-        short_name: 'WA Dashboard',
-        description: 'Dashboard chat WhatsApp untuk tim sales',
+        name: 'RenusPro Chat',
+        short_name: 'RenusPro Chat',
+        description: 'Dashboard chat WhatsApp untuk tim sales RenusPro',
         theme_color: '#3563e9',
         background_color: '#f0f3fa',
         display: 'standalone',

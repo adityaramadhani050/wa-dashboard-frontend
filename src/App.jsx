@@ -30,7 +30,7 @@ function WelcomeView() {
         </svg>
       </div>
       <div style={{textAlign:'center'}}>
-        <p style={{fontSize:17,fontWeight:600,color:'#4f607a',marginBottom:6}}>WA Dashboard</p>
+        <p style={{fontSize:17,fontWeight:600,color:'#4f607a',marginBottom:6}}>RenusPro Chat</p>
         <p style={{fontSize:13,lineHeight:1.7,color:'#8a9bb8',maxWidth:240}}>Pilih percakapan untuk mulai membalas pesan</p>
       </div>
     </div>

@@ -42,7 +42,7 @@ export function SocketProvider({ children }) {
   const [statusUpdates, setStatusUpdates] = useState([])
   const [messageUpdates, setMessageUpdates] = useState([])
   const socketRef = useRef(null)
-  const baseTitleRef = useRef('WA Dashboard')
+  const baseTitleRef = useRef('RenusPro Chat')
 
   // Minta izin notifikasi browser sekali di awal
   useEffect(() => {
