@@ -13,6 +13,12 @@ function waitMinutes(awaitingSince, now) {
   return Math.floor((now - new Date(awaitingSince).getTime()) / 60000)
 }
 
+function statusLabel(s) {
+  if (s === 'in_progress') return 'Aktif'
+  if (s === 'resolved') return 'Resolved'
+  return 'Open'
+}
+
 const AVATAR_COLORS = ['#3563e9','#27a87a','#d08b28','#e05c8a','#7c5cd6','#2aaccc']
 function avatarStyle(name) {
   const letter = (name || '?')[0].toUpperCase()
@@ -42,6 +48,8 @@ export default function InboxPage() {
   const [activeTagFilter, setActiveTagFilter] = useState(null)
   const [showTagFilter, setShowTagFilter] = useState(false)
   const [statusFilter, setStatusFilter] = useState('all') // all | unread | unreplied | replied
+  const [lifecycleFilter, setLifecycleFilter] = useState('all') // all | open | in_progress | resolved
+  const [showLifecycleFilter, setShowLifecycleFilter] = useState(false)
   const [agents, setAgents] = useState([])
   const [agentFilter, setAgentFilter] = useState(null)
   const [showAgentFilter, setShowAgentFilter] = useState(false)
@@ -101,6 +109,7 @@ export default function InboxPage() {
         const msg = evt.message || {}
         const fromMe = !!msg.from_me
         const ts = msg.timestamp || new Date().toISOString()
+        const prevStatus = list[idx].status
         const updated = {
           ...list[idx],
           lastMessage: msg.body ?? list[idx].lastMessage,
@@ -108,6 +117,9 @@ export default function InboxPage() {
           lastFromMe: fromMe,
           unread: fromMe ? false : (String(activeChatId) !== cid),
           awaitingSince: fromMe ? null : (list[idx].awaitingSince || ts),
+          // agent membalas -> Aktif; pesan customer pada chat resolved -> reaktivasi
+          status: fromMe ? 'in_progress'
+            : (prevStatus === 'resolved' ? (list[idx].assigned_to ? 'in_progress' : 'open') : prevStatus),
         }
         list = [updated, ...list.slice(0, idx), ...list.slice(idx + 1)]
       }
@@ -130,7 +142,7 @@ export default function InboxPage() {
         const cid = String(evt.conversationId ?? '')
         const idx = list.findIndex(c => String(c.id) === cid)
         if (idx === -1) { needFetch = true; continue }
-        list = list.map((c, i) => i === idx ? { ...c, agents: evt.agent, assigned_to: evt.agent?.id } : c)
+        list = list.map((c, i) => i === idx ? { ...c, agents: evt.agent, assigned_to: evt.agent?.id, status: 'in_progress' } : c)
       }
       return list
     })
@@ -174,7 +186,12 @@ export default function InboxPage() {
     if (statusFilter === 'unread') matchesStatus = !!c.unread
     else if (statusFilter === 'unreplied') matchesStatus = c.lastFromMe === false
     else if (statusFilter === 'replied') matchesStatus = c.lastFromMe === true
-    return matchesSearch && matchesTag && matchesStatus
+    let matchesLifecycle = true
+    if (lifecycleFilter !== 'all') {
+      const st = c.status || 'open'
+      matchesLifecycle = st === lifecycleFilter
+    }
+    return matchesSearch && matchesTag && matchesStatus && matchesLifecycle
   })
 
   // Urutkan: chat overdue (>5 menit) paling atas, yang paling lama menunggu duluan;
@@ -193,9 +210,16 @@ export default function InboxPage() {
     { key: 'unreplied', label: 'Belum Dibalas' },
     { key: 'replied', label: 'Sudah Dibalas' },
   ]
+  const LIFECYCLE_OPTIONS = [
+    { key: 'all', label: 'Semua Status' },
+    { key: 'open', label: 'Open' },
+    { key: 'in_progress', label: 'Aktif' },
+    { key: 'resolved', label: 'Resolved' },
+  ]
+  const lifecycleLabel = LIFECYCLE_OPTIONS.find(o => o.key === lifecycleFilter)?.label || 'Semua Status'
 
   return (
-    <div className="cl-root" onClick={() => { if (showTagFilter) setShowTagFilter(false); if (showAgentFilter) setShowAgentFilter(false) }}>
+    <div className="cl-root" onClick={() => { if (showTagFilter) setShowTagFilter(false); if (showAgentFilter) setShowAgentFilter(false); if (showLifecycleFilter) setShowLifecycleFilter(false) }}>
       {/* Header */}
       <div className="cl-header">
         <div className="cl-header-top">
@@ -266,6 +290,22 @@ export default function InboxPage() {
               )}
             </div>
           )}
+          {/* Status chat (Open/Aktif/Resolved) */}
+          <div className="cv-dd">
+            <button className={`cl-tagfilter-btn${lifecycleFilter !== 'all' ? ' active' : ''}`} onClick={() => { setShowLifecycleFilter(s => !s); setShowTagFilter(false); setShowAgentFilter(false) }}>
+              <span>{lifecycleLabel}</span>
+              <ChevronDown size={12} />
+            </button>
+            {showLifecycleFilter && (
+              <div className="cv-menu" style={{ minWidth: 150 }}>
+                {LIFECYCLE_OPTIONS.map(o => (
+                  <button key={o.key} className={`cv-mi${lifecycleFilter === o.key ? ' active' : ''}`} onClick={() => { setLifecycleFilter(o.key); setShowLifecycleFilter(false) }}>
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -324,13 +364,12 @@ export default function InboxPage() {
                       </span>
                     )}
                   </div>
-                  {conv.tags?.length > 0 && (
-                    <div className="cl-tags-row">
-                      {conv.tags.slice(0, 3).map(t => (
-                        <span key={t.id} className="tag-chip" style={{ background: t.color }}>{t.name}</span>
-                      ))}
-                    </div>
-                  )}
+                  <div className="cl-tags-row">
+                    <span className={`cl-status-badge st-${conv.status || 'open'}`}>{statusLabel(conv.status)}</span>
+                    {conv.tags?.slice(0, 3).map(t => (
+                      <span key={t.id} className="tag-chip" style={{ background: t.color }}>{t.name}</span>
+                    ))}
+                  </div>
                 </div>
               </div>
             )
@@ -430,8 +469,13 @@ export default function InboxPage() {
         .cv-mi { display: flex; align-items: center; width: 100%; text-align: left; padding: 9px 14px; font-size: 13px; color: #1a2540; transition: background 0.1s; }
         .cv-mi:hover { background: #f7f9fd; }
         .cv-mi.active { background: rgba(53,99,233,0.06); color: #3563e9; }
-        .cl-tags-row { display: flex; gap: 4px; margin-top: 4px; flex-wrap: wrap; }
+        .cl-tags-row { display: flex; gap: 4px; margin-top: 4px; flex-wrap: wrap; align-items: center; }
         .tag-chip { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 600; color: #fff; white-space: nowrap; }
+        .cl-status-badge { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+        .cl-status-badge.st-open { background: rgba(208,139,40,0.12); color: #d08b28; }
+        .cl-status-badge.st-in_progress { background: rgba(53,99,233,0.12); color: #3563e9; }
+        .cl-status-badge.st-resolved { background: rgba(39,168,122,0.12); color: #27a87a; }
+        .cl-item.active .cl-status-badge { background: rgba(255,255,255,0.22); color: #fff; }
         .cl-row-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
         .cl-unread-dot { width: 8px; height: 8px; border-radius: 50%; background: #3563e9; flex-shrink: 0; }
         .cl-item.unread .cl-name { font-weight: 800; color: #0d1730; }
