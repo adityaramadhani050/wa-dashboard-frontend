@@ -165,8 +165,10 @@ export default function AnalyticsPage() {
 
   const agentChart = agents.map(a => ({
     name: a.name || 'Agent',
-    Ditangani: a.total || 0,
-    Resolved: a.resolved || 0,
+    Lead: a.lead != null ? a.lead : (a.total || 0),
+    Penawaran: a.penawaran || 0,
+    Survey: a.survey || 0,
+    Deal: a.deal || 0,
   }))
 
   return (
@@ -317,7 +319,7 @@ export default function AnalyticsPage() {
 
         <div className="an-chart-box">
           <h3>Performa Agent</h3>
-          <p className="an-chart-sub">Percakapan ditangani per agent</p>
+          <p className="an-chart-sub">Funnel per agent (Lead → Penawaran → Survey → Deal)</p>
           {loading ? <div className="an-skel" /> : agents.length === 0 ? (
             <div className="an-chart-empty">Belum ada percakapan yang di-assign</div>
           ) : (
@@ -328,8 +330,10 @@ export default function AnalyticsPage() {
                 <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} allowDecimals={false} />
                 <Tooltip content={<Tip />} />
                 <Legend wrapperStyle={{ fontSize: 12, color: '#64748b' }} />
-                <Bar dataKey="Ditangani" fill="#2563eb" radius={[4,4,0,0]} />
-                <Bar dataKey="Resolved" fill="#10b981" radius={[4,4,0,0]} />
+                <Bar dataKey="Lead" fill="#2563eb" radius={[4,4,0,0]} />
+                <Bar dataKey="Penawaran" fill="#6366f1" radius={[4,4,0,0]} />
+                <Bar dataKey="Survey" fill="#f59e0b" radius={[4,4,0,0]} />
+                <Bar dataKey="Deal" fill="#10b981" radius={[4,4,0,0]} />
               </BarChart>
             </ResponsiveContainer>
           )}
