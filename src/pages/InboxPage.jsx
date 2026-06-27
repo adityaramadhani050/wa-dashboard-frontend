@@ -46,7 +46,8 @@ export default function InboxPage() {
   const [agentFilter, setAgentFilter] = useState(null)
   const [showAgentFilter, setShowAgentFilter] = useState(false)
   const [now, setNow] = useState(() => Date.now())
-  const { newMessages, assignmentUpdates } = useSocket()
+  const { newMessages, assignmentUpdates, socketConnected } = useSocket()
+  const [refreshing, setRefreshing] = useState(false)
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
   const navigate = useNavigate()
@@ -64,6 +65,19 @@ export default function InboxPage() {
   }, [user, agentFilter])
 
   useEffect(() => { fetch() }, [fetch])
+
+  // Refetch saat socket reconnect (menyusul update yang terlewat saat offline)
+  const wasConnectedRef = useRef(socketConnected)
+  useEffect(() => {
+    if (socketConnected && !wasConnectedRef.current) fetch()
+    wasConnectedRef.current = socketConnected
+  }, [socketConnected, fetch])
+
+  const handleRefresh = useCallback(async () => {
+    if (refreshing) return
+    setRefreshing(true)
+    try { await fetch() } finally { setTimeout(() => setRefreshing(false), 400) }
+  }, [refreshing, fetch])
 
   // Update list secara instan saat ada pesan baru (tanpa refetch seluruh daftar
   // yang berat). Hanya fallback fetch() bila percakapannya belum ada di list.
@@ -186,8 +200,8 @@ export default function InboxPage() {
       <div className="cl-header">
         <div className="cl-header-top">
           <h2>Chats</h2>
-          <button className="cl-icon-btn" onClick={fetch} title="Refresh">
-            <RefreshCw size={15} />
+          <button className="cl-icon-btn" onClick={handleRefresh} disabled={refreshing} title="Refresh">
+            <RefreshCw size={15} className={refreshing ? 'cl-spin' : ''} />
           </button>
         </div>
         {/* Search */}
@@ -346,6 +360,9 @@ export default function InboxPage() {
           color: #a8b8d0; transition: all 0.15s;
         }
         .cl-icon-btn:hover { background: #f0f3fa; color: #4f607a; }
+        .cl-icon-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .cl-spin { animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
         .cl-search {
           display: flex; align-items: center; gap: 8px;
           padding: 8px 12px; margin-bottom: 12px;
