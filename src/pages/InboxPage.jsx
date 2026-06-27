@@ -297,7 +297,7 @@ export default function InboxPage() {
               <ChevronDown size={12} />
             </button>
             {showLifecycleFilter && (
-              <div className="cv-menu" style={{ minWidth: 150 }}>
+              <div className="cv-menu" style={{ minWidth: 150, right: 0, left: 'auto' }}>
                 {LIFECYCLE_OPTIONS.map(o => (
                   <button key={o.key} className={`cv-mi${lifecycleFilter === o.key ? ' active' : ''}`} onClick={() => { setLifecycleFilter(o.key); setShowLifecycleFilter(false) }}>
                     {o.label}
@@ -485,7 +485,7 @@ export default function InboxPage() {
         .cl-statuschip { flex-shrink: 0; padding: 5px 11px; border-radius: 20px; font-size: 12px; font-weight: 500; color: #4f607a; background: #f7f9fd; border: 1px solid #e4eaf5; white-space: nowrap; transition: all 0.15s; }
         .cl-statuschip:hover { background: #eef4fd; }
         .cl-statuschip.active { background: #3563e9; color: #fff; border-color: #3563e9; }
-        .cl-tagfilter-row { gap: 8px; }
+        .cl-tagfilter-row { gap: 8px; flex-wrap: wrap; }
         .cl-overdue-badge { display: inline-flex; align-items: center; gap: 2px; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 20px; background: #e53e3e; color: #fff; white-space: nowrap; }
         .cl-item.overdue { background: rgba(229,62,62,0.05); box-shadow: inset 3px 0 0 #e53e3e; }
         .cl-item.overdue:hover { background: rgba(229,62,62,0.09); }
