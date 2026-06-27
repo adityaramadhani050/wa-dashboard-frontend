@@ -290,14 +290,16 @@ export default function InboxPage() {
               )}
             </div>
           )}
-          {/* Status chat (Open/Aktif/Resolved) */}
+        </div>
+        {/* Status chat (Open/Aktif/Resolved) — baris sendiri, menu buka ke kanan */}
+        <div className="cl-tagfilter-row" onClick={e => e.stopPropagation()}>
           <div className="cv-dd">
             <button className={`cl-tagfilter-btn${lifecycleFilter !== 'all' ? ' active' : ''}`} onClick={() => { setShowLifecycleFilter(s => !s); setShowTagFilter(false); setShowAgentFilter(false) }}>
               <span>{lifecycleLabel}</span>
               <ChevronDown size={12} />
             </button>
             {showLifecycleFilter && (
-              <div className="cv-menu" style={{ minWidth: 150, right: 0, left: 'auto' }}>
+              <div className="cv-menu" style={{ minWidth: 150 }}>
                 {LIFECYCLE_OPTIONS.map(o => (
                   <button key={o.key} className={`cv-mi${lifecycleFilter === o.key ? ' active' : ''}`} onClick={() => { setLifecycleFilter(o.key); setShowLifecycleFilter(false) }}>
                     {o.label}
