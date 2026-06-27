@@ -21,17 +21,25 @@ function supported() {
     'Notification' in window
 }
 
-export async function initWebPush() {
-  if (subscribed || !supported()) return
+// Status untuk UI: 'unsupported' | 'denied' | 'default' | 'granted'
+export function getNotificationStatus() {
+  if (!supported()) return 'unsupported'
+  return Notification.permission // 'default' | 'granted' | 'denied'
+}
+
+// Dipakai tombol "Aktifkan Notifikasi". Mengembalikan { ok, reason }.
+export async function enableWebPush() {
+  if (!supported()) return { ok: false, reason: 'unsupported' }
   try {
     const perm = await Notification.requestPermission()
-    if (perm !== 'granted') return
+    if (perm === 'denied') return { ok: false, reason: 'denied' }
+    if (perm !== 'granted') return { ok: false, reason: 'dismissed' }
 
     const reg = await navigator.serviceWorker.ready
     let sub = await reg.pushManager.getSubscription()
     if (!sub) {
       const { key } = await getVapidPublicKey().catch(() => ({ key: null }))
-      if (!key) return // server belum set VAPID
+      if (!key) return { ok: false, reason: 'no-vapid' } // server belum set VAPID
       sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(key),
@@ -39,9 +47,18 @@ export async function initWebPush() {
     }
     await registerDevice(JSON.stringify(sub), 'web')
     subscribed = true
+    return { ok: true }
   } catch (e) {
-    console.warn('[WebPush] init gagal:', e?.message || e)
+    console.warn('[WebPush] enable gagal:', e?.message || e)
+    return { ok: false, reason: 'error' }
   }
+}
+
+// Dipanggil otomatis setelah login (silent — tidak memunculkan prompt bila sudah granted)
+export async function initWebPush() {
+  if (subscribed || !supported()) return
+  if (Notification.permission !== 'granted') return // jangan prompt otomatis; biarkan tombol
+  await enableWebPush()
 }
 
 export async function teardownWebPush() {

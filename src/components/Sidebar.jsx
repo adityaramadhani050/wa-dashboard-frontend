@@ -3,7 +3,8 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useSocket } from '../context/SocketContext'
 import { getDueReminders, markReminderDone } from '../hooks/useApi'
-import { MessageSquare, BarChart2, QrCode, LogOut, Users, BookUser, Zap, Bell } from 'lucide-react'
+import { enableWebPush, getNotificationStatus } from '../native/webpush'
+import { MessageSquare, BarChart2, QrCode, LogOut, Users, BookUser, Zap, Bell, BellRing } from 'lucide-react'
 
 function formatReminderTime(dateStr) {
   if (!dateStr) return ''
@@ -20,6 +21,30 @@ export default function IconBar() {
   const [showReminders, setShowReminders] = useState(false)
   const [completing, setCompleting] = useState(null)
   const panelRef = useRef(null)
+  const [notifStatus, setNotifStatus] = useState('granted') // sembunyikan tombol default
+  const [enabling, setEnabling] = useState(false)
+
+  useEffect(() => { setNotifStatus(getNotificationStatus()) }, [])
+
+  const handleEnableNotif = async () => {
+    if (enabling) return
+    setEnabling(true)
+    try {
+      const res = await enableWebPush()
+      if (res.ok) {
+        setNotifStatus('granted')
+        alert('Notifikasi berhasil diaktifkan! Anda akan menerima pesan baru walau aplikasi tertutup.')
+      } else if (res.reason === 'denied') {
+        alert('Notifikasi diblokir. Aktifkan lewat: Setelan HP → Aplikasi → RenusPro Chat → Notifikasi → Izinkan.')
+      } else if (res.reason === 'no-vapid') {
+        alert('Server notifikasi belum dikonfigurasi (VAPID). Hubungi admin.')
+      } else if (res.reason === 'unsupported') {
+        alert('Browser ini tidak mendukung notifikasi. Coba install aplikasi (Add to Home Screen) di Chrome.')
+      } else {
+        alert('Gagal mengaktifkan notifikasi, coba lagi.')
+      }
+    } finally { setEnabling(false) }
+  }
 
   const loadDueReminders = useCallback(async () => {
     try { setDueReminders(await getDueReminders()) } catch {}
@@ -77,6 +102,12 @@ export default function IconBar() {
       </div>
 
       <div className="ib-bottom">
+        {notifStatus !== 'granted' && notifStatus !== 'unsupported' && (
+          <button className="ib-btn ib-notif-enable" onClick={handleEnableNotif} disabled={enabling} title="Aktifkan notifikasi pesan baru">
+            <BellRing size={18} />
+            <span className="ib-notif-dot" />
+          </button>
+        )}
         <div className="ib-reminder-wrap" ref={panelRef}>
           <button className="ib-btn ib-bell-btn" onClick={() => setShowReminders(s => !s)} title="Pengingat Follow-up">
             <Bell size={18} />
@@ -122,6 +153,10 @@ export default function IconBar() {
         .ib-reminder-wrap { position: relative; }
         .ib-bell-btn { position: relative; }
         .ib-badge { position: absolute; top: 2px; right: 2px; min-width: 16px; height: 16px; border-radius: 999px; background: var(--danger, #e53e3e); color: #fff; font-size: 9px; font-weight: 700; display: flex; align-items: center; justify-content: center; padding: 0 3px; line-height: 1; }
+        .ib-notif-enable { position: relative; color: var(--warning, #d08b28); }
+        .ib-notif-enable:hover { background: rgba(208,139,40,0.12); color: var(--warning, #d08b28); }
+        .ib-notif-enable:disabled { opacity: 0.6; cursor: not-allowed; }
+        .ib-notif-dot { position: absolute; top: 6px; right: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--warning, #d08b28); animation: pulse 1.6s ease infinite; }
         .ib-reminder-panel { position: absolute; bottom: calc(100% + 8px); left: 0; width: 280px; max-height: 360px; overflow-y: auto; background: #fff; border: 1px solid #e4eaf5; border-radius: 12px; box-shadow: 0 8px 24px rgba(26,37,64,0.15); z-index: 300; }
         .ib-reminder-panel-title { padding: 12px 14px 8px; font-size: 12px; font-weight: 700; color: #1a2540; border-bottom: 1px solid #f0f3fa; }
         .ib-reminder-empty { padding: 16px 14px; font-size: 12px; color: #a8b8d0; }
