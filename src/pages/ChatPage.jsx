@@ -258,11 +258,6 @@ function SwipeMessageRow({ msg, sent, isSending, hasMedia, hasReply, name, onRep
           <Reply size={16} />
         </span>
       )}
-      {!isSending && (
-        <button className="cv-reply-btn" title="Balas pesan ini" onClick={() => onReply()}>
-          <Reply size={14} />
-        </button>
-      )}
       <div
         className={`cv-bubble ${sent ? 'bsent' : 'brecv'} ${hasMedia ? 'media' : ''} ${isSending ? 'sending' : ''}`}
         style={{ transform: dragX ? `translateX(${dragX}px)` : undefined, transition: dragX ? 'none' : 'transform 0.18s ease' }}
@@ -1168,11 +1163,6 @@ export default function ChatPage({ chatId }) {
         .cv-swipe-cue.left { left: 4px; }
         .cv-swipe-cue.right { right: 4px; }
         .cv-swipe-cue.active { background: #3563e9; color: #fff; }
-        .cv-reply-btn { order: 2; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #a8b8d0; background: transparent; flex-shrink: 0; opacity: 0; transition: opacity 0.12s, background 0.12s; }
-        .cv-row:hover .cv-reply-btn { opacity: 1; }
-        .cv-reply-btn:hover { background: #e4eaf5; color: #3563e9; }
-        .cv-row.recv .cv-reply-btn { order: 2; }
-        .cv-row.sent .cv-reply-btn { order: 0; }
         .cv-quote { display: flex; flex-direction: column; gap: 1px; border-left: 3px solid; padding: 4px 8px; margin-bottom: 5px; border-radius: 5px; max-width: 100%; overflow: hidden; }
         .cv-quote.on-sent { border-color: rgba(255,255,255,0.7); background: rgba(255,255,255,0.14); }
         .cv-quote.on-recv { border-color: #3563e9; background: #f0f3fa; }
