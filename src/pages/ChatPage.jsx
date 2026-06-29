@@ -210,6 +210,85 @@ function mergeMessage(prev, message) {
   return [...prev, message]
 }
 
+// Baris pesan dengan gesture geser-untuk-balas (recv: geser kanan, sent: geser kiri)
+function SwipeMessageRow({ msg, sent, isSending, hasMedia, hasReply, name, onReply, onImageClick }) {
+  const [dragX, setDragX] = useState(0)
+  const start = useRef(null)
+  const swiping = useRef(false)
+  const THRESHOLD = 55
+  const MAX = 80
+
+  const onTouchStart = (e) => {
+    if (isSending) return
+    const t = e.touches[0]
+    start.current = { x: t.clientX, y: t.clientY }
+    swiping.current = false
+  }
+  const onTouchMove = (e) => {
+    if (!start.current) return
+    const t = e.touches[0]
+    const dx = t.clientX - start.current.x
+    const dy = t.clientY - start.current.y
+    if (!swiping.current) {
+      if (Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy)) swiping.current = true
+      else return
+    }
+    // recv hanya boleh geser kanan (dx>0), sent hanya geser kiri (dx<0)
+    let d = sent ? Math.min(0, dx) : Math.max(0, dx)
+    d = Math.max(-MAX, Math.min(MAX, d))
+    setDragX(d)
+  }
+  const onTouchEnd = () => {
+    if (Math.abs(dragX) >= THRESHOLD && !isSending) onReply()
+    setDragX(0)
+    start.current = null
+    swiping.current = false
+  }
+
+  const showCue = Math.abs(dragX) > 12
+  return (
+    <div
+      className={`cv-row ${sent ? 'sent' : 'recv'}`}
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+    >
+      {showCue && (
+        <span className={`cv-swipe-cue ${sent ? 'right' : 'left'}${Math.abs(dragX) >= THRESHOLD ? ' active' : ''}`}>
+          <Reply size={16} />
+        </span>
+      )}
+      {!isSending && (
+        <button className="cv-reply-btn" title="Balas pesan ini" onClick={() => onReply()}>
+          <Reply size={14} />
+        </button>
+      )}
+      <div
+        className={`cv-bubble ${sent ? 'bsent' : 'brecv'} ${hasMedia ? 'media' : ''} ${isSending ? 'sending' : ''}`}
+        style={{ transform: dragX ? `translateX(${dragX}px)` : undefined, transition: dragX ? 'none' : 'transform 0.18s ease' }}
+      >
+        {hasReply && (
+          <div className={`cv-quote ${sent ? 'on-sent' : 'on-recv'}`}>
+            <span className="cv-quote-who">{msg.reply_to_from_me ? 'Anda' : name}</span>
+            <span className="cv-quote-text">{msg.reply_to_body || 'Pesan'}</span>
+          </div>
+        )}
+        {hasMedia
+          ? <MediaContent msg={msg} sent={sent} onImageClick={onImageClick} />
+          : <p>{msg.body || msg.content || msg.text}</p>
+        }
+        <div className="cv-meta">
+          {isSending
+            ? <Clock size={11} style={{ color: 'rgba(255,255,255,0.5)', flexShrink: 0 }} />
+            : <span className="cv-time">{formatTime(msg.timestamp || msg.createdAt)}</span>
+          }
+          {sent && !isSending && <MessageTick status={msg.status} />}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function ChatPage({ chatId }) {
   const id = chatId
   const navigate = useNavigate()
@@ -745,36 +824,19 @@ export default function ChatPage({ chatId }) {
             if (item.type === 'date') return <DateSeparator key={item.key} label={item.label} />
             const msg = item.msg
             const sent = isFromMe(msg)
-            const hasMedia = !!msg.media_type
             const isSending = String(msg.id).startsWith('tmp-')
-            const hasReply = !!(msg.reply_to_body || msg.reply_to_wa_id)
             return (
-              <div key={msg.id || i} className={`cv-row ${sent?'sent':'recv'}`}>
-                {!isSending && (
-                  <button className="cv-reply-btn" title="Balas pesan ini" onClick={() => handleReplyTo(msg)}>
-                    <Reply size={14} />
-                  </button>
-                )}
-                <div className={`cv-bubble ${sent?'bsent':'brecv'} ${hasMedia?'media':''} ${isSending?'sending':''}`}>
-                  {hasReply && (
-                    <div className={`cv-quote ${sent?'on-sent':'on-recv'}`}>
-                      <span className="cv-quote-who">{msg.reply_to_from_me ? 'Anda' : (name)}</span>
-                      <span className="cv-quote-text">{msg.reply_to_body || 'Pesan'}</span>
-                    </div>
-                  )}
-                  {hasMedia
-                    ? <MediaContent msg={msg} sent={sent} onImageClick={setLightboxUrl} />
-                    : <p>{msg.body || msg.content || msg.text}</p>
-                  }
-                  <div className="cv-meta">
-                    {isSending
-                      ? <Clock size={11} style={{color:'rgba(255,255,255,0.5)',flexShrink:0}} />
-                      : <span className="cv-time">{formatTime(msg.timestamp || msg.createdAt)}</span>
-                    }
-                    {sent && !isSending && <MessageTick status={msg.status} />}
-                  </div>
-                </div>
-              </div>
+              <SwipeMessageRow
+                key={msg.id || i}
+                msg={msg}
+                sent={sent}
+                isSending={isSending}
+                hasMedia={!!msg.media_type}
+                hasReply={!!(msg.reply_to_body || msg.reply_to_wa_id)}
+                name={name}
+                onReply={() => handleReplyTo(msg)}
+                onImageClick={setLightboxUrl}
+              />
             )
           })
         )}
@@ -1076,9 +1138,13 @@ export default function ChatPage({ chatId }) {
         .cv-empty { margin: auto; color: #a8b8d0; font-size: 14px; text-align: center; padding: 32px; }
         .cv-date-sep { display: flex; align-items: center; justify-content: center; margin: 12px 0 8px; }
         .cv-date-sep span { background: #dce8fb; color: #5a7ab5; font-size: 11px; font-weight: 600; padding: 4px 14px; border-radius: 20px; }
-        .cv-row { display: flex; margin-bottom: 3px; align-items: center; gap: 6px; }
+        .cv-row { display: flex; margin-bottom: 3px; align-items: center; gap: 6px; position: relative; touch-action: pan-y; }
         .cv-row.sent { justify-content: flex-end; }
         .cv-row.recv { justify-content: flex-start; }
+        .cv-swipe-cue { position: absolute; top: 50%; transform: translateY(-50%); width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #e4eaf5; color: #8a9bb8; transition: background 0.12s, color 0.12s; }
+        .cv-swipe-cue.left { left: 4px; }
+        .cv-swipe-cue.right { right: 4px; }
+        .cv-swipe-cue.active { background: #3563e9; color: #fff; }
         .cv-reply-btn { order: 2; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #a8b8d0; background: transparent; flex-shrink: 0; opacity: 0; transition: opacity 0.12s, background 0.12s; }
         .cv-row:hover .cv-reply-btn { opacity: 1; }
         .cv-reply-btn:hover { background: #e4eaf5; color: #3563e9; }
