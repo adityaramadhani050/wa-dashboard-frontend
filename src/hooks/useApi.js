@@ -47,6 +47,7 @@ export const sendMedia = (conversationId, file, caption, replyTo) => {
   }).then(r => r.data)
 }
 export const assignAgent = (id, agent_id) => api.post(`/conversations/${id}/assign`, { agent_id }).then(r => r.data)
+export const unassignAgent = (id) => api.post(`/conversations/${id}/unassign`).then(r => r.data)
 export const updateStatus = (id, status) => api.patch(`/conversations/${id}/status`, { status }).then(r => r.data)
 export const deleteConversation = (id) => api.delete(`/conversations/${id}`).then(r => r.data)
 export const getContacts = (agentId) =>

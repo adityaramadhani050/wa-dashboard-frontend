@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useSocket } from '../context/SocketContext'
 import { useAuth } from '../context/AuthContext'
 import {
-  getMessages, sendMessage, sendMedia, assignAgent, getConversation, getAgents,
+  getMessages, sendMessage, sendMedia, assignAgent, unassignAgent, getConversation, getAgents,
   getTemplates, getQuickMedia, sendQuickMedia, useTemplate,
   getTags, addTagToConversation, removeTagFromConversation,
   getContactNotes, createContactNote, createReminder, getContactConversations,
@@ -416,7 +416,11 @@ export default function ChatPage({ chatId }) {
     const relevant = assignmentUpdates.filter(a => String(a.conversationId) === String(id))
     if (!relevant.length) return
     const last = relevant[relevant.length - 1]
-    setConversation(prev => prev ? { ...prev, agents: last.agent } : prev)
+    setConversation(prev => {
+      if (!prev) return prev
+      if (last.agent) return { ...prev, agents: last.agent, status: 'in_progress' }
+      return { ...prev, agents: null, status: prev.status === 'in_progress' ? 'open' : prev.status }
+    })
   }, [assignmentUpdates, id])
 
   const scrolledForRef = useRef(null)
@@ -579,8 +583,14 @@ export default function ChatPage({ chatId }) {
 
   const handleAgentAssign = async (agent) => {
     closeMenus()
-    try { await assignAgent(id, agent.id); setConversation(p => p ? { ...p, agents: agent } : p) }
+    try { await assignAgent(id, agent.id); setConversation(p => p ? { ...p, agents: agent, status: 'in_progress' } : p) }
     catch { setError('Gagal assign agent.') }
+  }
+
+  const handleUnassign = async () => {
+    closeMenus()
+    try { await unassignAgent(id); setConversation(p => p ? { ...p, agents: null, status: p.status === 'in_progress' ? 'open' : p.status } : p) }
+    catch { setError('Gagal menghapus assign.') }
   }
 
   const conversationTags = conversation?.tags || []
@@ -737,6 +747,11 @@ export default function ChatPage({ chatId }) {
                       </button>
                     ))
                   }
+                  {assignedAgent && (
+                    <button className="cv-mi cv-mi-unassign" onClick={handleUnassign}>
+                      <span><X size={13} style={{verticalAlign:-2,marginRight:5}} />Hapus assign</span>
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -1128,6 +1143,8 @@ export default function ChatPage({ chatId }) {
         .cv-mi { display: flex; flex-direction: column; align-items: flex-start; width: 100%; text-align: left; padding: 9px 14px; font-size: 13px; color: #1a2540; transition: background 0.1s; }
         .cv-mi:hover { background: #f7f9fd; }
         .cv-mi.muted { color: #a8b8d0; cursor: default; }
+        .cv-mi-unassign { color: #e53e3e; border-top: 1px solid #f0f3fa; }
+        .cv-mi-unassign:hover { background: rgba(229,62,62,0.06); }
         .cv-mi.active { background: rgba(39,168,122,0.06); color: #27a87a; }
         .cv-mi-title { display: flex; align-items: baseline; justify-content: flex-start; gap: 6px; width: 100%; text-align: left; }
         .cv-mi-title-text { text-align: left; }

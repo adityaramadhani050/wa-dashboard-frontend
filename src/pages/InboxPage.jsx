@@ -157,7 +157,12 @@ export default function InboxPage() {
         const cid = String(evt.conversationId ?? '')
         const idx = list.findIndex(c => String(c.id) === cid)
         if (idx === -1) { needFetch = true; continue }
-        list = list.map((c, i) => i === idx ? { ...c, agents: evt.agent, assigned_to: evt.agent?.id, status: 'in_progress' } : c)
+        list = list.map((c, i) => {
+          if (i !== idx) return c
+          if (evt.agent) return { ...c, agents: evt.agent, assigned_to: evt.agent.id, status: 'in_progress' }
+          // unassign: badge agent hilang, status balik Open (kecuali resolved)
+          return { ...c, agents: null, assigned_to: null, status: c.status === 'in_progress' ? 'open' : c.status }
+        })
       }
       return list
     })
