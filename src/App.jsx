@@ -1,16 +1,25 @@
-import { useEffect } from 'react'
+import { useEffect, lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useMatch, useNavigate, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { SocketProvider } from './context/SocketContext'
 import IconBar from './components/Sidebar'
 import LoginPage from './pages/LoginPage'
-import QRSetupPage from './pages/QRSetupPage'
 import InboxPage from './pages/InboxPage'
 import ChatPage from './pages/ChatPage'
-import AnalyticsPage from './pages/AnalyticsPage'
-import AgentManagementPage from './pages/AgentManagementPage'
-import ContactsPage from './pages/ContactsPage'
-import TemplatesPage from './pages/TemplatesPage'
+// Halaman berat/jarang dibuka -> dimuat saat dibutuhkan (kurangi bundle awal)
+const QRSetupPage = lazy(() => import('./pages/QRSetupPage'))
+const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage'))
+const AgentManagementPage = lazy(() => import('./pages/AgentManagementPage'))
+const ContactsPage = lazy(() => import('./pages/ContactsPage'))
+const TemplatesPage = lazy(() => import('./pages/TemplatesPage'))
+
+function PageLoader() {
+  return (
+    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8a9bb8', fontSize: 14 }}>
+      Memuat…
+    </div>
+  )
+}
 
 function WelcomeView() {
   return (
@@ -61,11 +70,13 @@ function ProtectedShell() {
         <IconBar />
         {isFullPage ? (
           <div className="wa-full-panel">
-            {matchQR       && <QRSetupPage />}
-            {matchAnalytics && <AnalyticsPage />}
-            {matchAgents   && <AgentManagementPage />}
-            {matchContacts && <ContactsPage />}
-            {matchTemplates && <TemplatesPage />}
+            <Suspense fallback={<PageLoader />}>
+              {matchQR       && <QRSetupPage />}
+              {matchAnalytics && <AnalyticsPage />}
+              {matchAgents   && <AgentManagementPage />}
+              {matchContacts && <ContactsPage />}
+              {matchTemplates && <TemplatesPage />}
+            </Suspense>
           </div>
         ) : (
           <>

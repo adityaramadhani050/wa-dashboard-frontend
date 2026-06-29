@@ -38,6 +38,17 @@ export default defineConfig({
       },
     }),
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        // Pisahkan library besar ke chunk sendiri supaya caching lebih baik
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          charts: ['recharts'],
+        },
+      },
+    },
+  },
   server: {
     host: '0.0.0.0',
     port: 5000,
