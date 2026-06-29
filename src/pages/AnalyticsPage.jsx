@@ -150,6 +150,9 @@ export default function AnalyticsPage() {
   const totalOutgoing = daily.reduce((s, d) => s + (d.outgoing || 0), 0)
   const totalResolved = agents.reduce((s, a) => s + (a.resolved || 0), 0)
   const totalHandled = agents.reduce((s, a) => s + (a.total || 0), 0)
+  // Chat aktif yang sedang dihandle = open + in_progress (belum resolved)
+  const totalActive = agents.reduce((s, a) => s + (a.open || 0) + (a.in_progress || 0), 0)
+  const totalOpen = agents.reduce((s, a) => s + (a.open || 0), 0)
 
   const responseTimes = agents.filter(a => a.avgResponse != null).map(a => a.avgResponse)
   const globalAvgResponse = responseTimes.length > 0
@@ -226,6 +229,13 @@ export default function AnalyticsPage() {
           value={contacts?.total ?? '—'}
           sub={contacts?.newToday != null ? `+${contacts.newToday} hari ini` : null}
           color="#2563eb"
+        />
+        <StatCard
+          icon={MessageSquare}
+          label="Sedang Dihandle"
+          value={totalActive}
+          sub={`${totalOpen} open`}
+          color="#0ea5e9"
         />
         <StatCard icon={UserCheck} label="Resolved" value={totalResolved} color="#10b981" />
         <StatCard icon={Users} label="Di-assign" value={totalHandled} color="#6366f1" />
@@ -368,6 +378,7 @@ export default function AnalyticsPage() {
               <thead>
                 <tr>
                   <th>Agent</th>
+                  <th>Aktif</th><th>Open</th><th>Resolved</th>
                   <th>Lead</th><th>Penawaran</th><th>Survey</th><th>Deal</th>
                   <th>Avg Respons</th><th>Deal Rate</th>
                 </tr>
@@ -376,6 +387,7 @@ export default function AnalyticsPage() {
                 {agents.map((a, i) => {
                   const lead = a.lead != null ? a.lead : (a.total || 0)
                   const rate = lead > 0 ? Math.round(((a.deal || 0) / lead) * 100) : 0
+                  const active = (a.open || 0) + (a.in_progress || 0)
                   return (
                     <tr key={i}>
                       <td>
@@ -387,6 +399,9 @@ export default function AnalyticsPage() {
                           </div>
                         </div>
                       </td>
+                      <td><span className="an-badge active" title={`${a.open||0} open + ${a.in_progress||0} in progress`}>{active}</span></td>
+                      <td><span className="an-badge open">{a.open || 0}</span></td>
+                      <td><span className="an-badge resolved">{a.resolved || 0}</span></td>
                       <td><span className="an-badge lead">{lead}</span></td>
                       <td><span className="an-badge penawaran">{a.penawaran || 0}</span></td>
                       <td><span className="an-badge survey">{a.survey || 0}</span></td>
@@ -484,7 +499,7 @@ export default function AnalyticsPage() {
           display: grid;
           gap: 10px; margin-bottom: 20px;
         }
-        @media (min-width: 1200px) { .an-cards { grid-template-columns: repeat(7, 1fr); } }
+        @media (min-width: 1200px) { .an-cards { grid-template-columns: repeat(4, 1fr); } }
         @media (max-width: 1199px) and (min-width: 800px) { .an-cards { grid-template-columns: repeat(4, 1fr); } }
         @media (max-width: 799px) { .an-cards { grid-template-columns: repeat(2, 1fr); } }
 
@@ -557,6 +572,7 @@ export default function AnalyticsPage() {
         .an-agent-name { font-size: 13px; font-weight: 500; color: #1e293b; }
         .an-agent-email { font-size: 11px; color: #94a3b8; }
         .an-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; }
+        .an-badge.active { background: #e0f2fe; color: #0284c7; }
         .an-badge.open { background: #eff6ff; color: #2563eb; }
         .an-badge.progress { background: #fffbeb; color: #d97706; }
         .an-badge.resolved { background: #f0fdf4; color: #10b981; }
