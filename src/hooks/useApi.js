@@ -34,7 +34,7 @@ export const getConversations = (agentId) =>
   api.get('/conversations', agentId ? { params: { agent_id: agentId } } : {}).then(r => r.data)
 export const getConversation = (id) => api.get(`/conversations/${id}`).then(r => r.data)
 export const getMessages = (id) => api.get(`/conversations/${id}/messages`).then(r => r.data)
-export const sendMessage = (id, message) => api.post(`/conversations/${id}/messages`, { message }).then(r => r.data)
+export const sendMessage = (id, message, replyTo) => api.post(`/conversations/${id}/messages`, { message, reply_to: replyTo || undefined }).then(r => r.data)
 export const sendMedia = (conversationId, file, caption) => {
   const form = new FormData()
   form.append('file', file)

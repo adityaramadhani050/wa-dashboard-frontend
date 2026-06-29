@@ -10,7 +10,7 @@ import {
   generateAiSuggestion, suggestAiTags, suggestAiNote,
 } from '../hooks/useApi'
 import { supabase } from '../lib/supabase'
-import { Send, ArrowLeft, ArrowDown, UserCheck, Paperclip, X, FileText, Play, Download, Check, Image, Film, Clock, Zap, Images, Tag as TagIcon, StickyNote, BellPlus, MoreVertical, Sparkles } from 'lucide-react'
+import { Send, ArrowLeft, ArrowDown, UserCheck, Paperclip, X, FileText, Play, Download, Check, Image, Film, Clock, Zap, Images, Tag as TagIcon, StickyNote, BellPlus, MoreVertical, Sparkles, Reply } from 'lucide-react'
 
 
 const AVATAR_COLORS = ['#3563e9','#27a87a','#d08b28','#e05c8a','#7c5cd6','#2aaccc']
@@ -220,6 +220,7 @@ export default function ChatPage({ chatId }) {
   const [conversation, setConversation] = useState(null)
   const [agents, setAgents] = useState([])
   const [text, setText] = useState('')
+  const [replyTo, setReplyTo] = useState(null) // { wa_message_id, body, from_me }
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
@@ -393,21 +394,37 @@ export default function ChatPage({ chatId }) {
   const handleSend = async () => {
     if (!text.trim() || sending) return
     const msg = text.trim()
+    const currentReply = replyTo
     setText('')
+    setReplyTo(null)
     setSending(true)
     const tempId = `tmp-${Date.now()}`
     setMessages(prev => [...prev, {
       id: tempId, body: msg, from_me: true,
       timestamp: new Date().toISOString(), status: 'sending',
+      reply_to_body: currentReply?.body || null,
+      reply_to_from_me: currentReply?.from_me ?? null,
+      reply_to_wa_id: currentReply?.wa_message_id || null,
     }])
     // Agent membalas -> chat jadi "Aktif" (optimistic, biar badge langsung berubah)
     setConversation(prev => prev && prev.status !== 'in_progress' ? { ...prev, status: 'in_progress' } : prev)
-    try { await sendMessage(id, msg) }
+    try { await sendMessage(id, msg, currentReply) }
     catch (e) {
       setError(e?.response?.data?.error || 'Gagal mengirim.')
       setMessages(prev => prev.filter(m => m.id !== tempId))
       setText(msg)
+      setReplyTo(currentReply)
     } finally { setSending(false) }
+  }
+
+  // Pilih pesan untuk dibalas (quote)
+  const handleReplyTo = (m) => {
+    setReplyTo({
+      wa_message_id: m.wa_message_id || null,
+      body: m.body || (m.media_type ? `[${m.media_type}]` : ''),
+      from_me: !!isFromMe(m),
+    })
+    textareaRef.current?.focus()
   }
 
   const handleFileSelect = (e) => {
@@ -726,9 +743,21 @@ export default function ChatPage({ chatId }) {
             const sent = isFromMe(msg)
             const hasMedia = !!msg.media_type
             const isSending = String(msg.id).startsWith('tmp-')
+            const hasReply = !!(msg.reply_to_body || msg.reply_to_wa_id)
             return (
               <div key={msg.id || i} className={`cv-row ${sent?'sent':'recv'}`}>
+                {!isSending && (
+                  <button className="cv-reply-btn" title="Balas pesan ini" onClick={() => handleReplyTo(msg)}>
+                    <Reply size={14} />
+                  </button>
+                )}
                 <div className={`cv-bubble ${sent?'bsent':'brecv'} ${hasMedia?'media':''} ${isSending?'sending':''}`}>
+                  {hasReply && (
+                    <div className={`cv-quote ${sent?'on-sent':'on-recv'}`}>
+                      <span className="cv-quote-who">{msg.reply_to_from_me ? 'Anda' : (name)}</span>
+                      <span className="cv-quote-text">{msg.reply_to_body || 'Pesan'}</span>
+                    </div>
+                  )}
                   {hasMedia
                     ? <MediaContent msg={msg} sent={sent} onImageClick={setLightboxUrl} />
                     : <p>{msg.body || msg.content || msg.text}</p>
@@ -763,6 +792,17 @@ export default function ChatPage({ chatId }) {
             <span className="cv-file-name">{selectedFile.file.name}</span>
           </div>
           <button className="cv-file-remove" onClick={() => setSelectedFile(null)}><X size={15} /></button>
+        </div>
+      )}
+
+      {replyTo && (
+        <div className="cv-reply-preview" onClick={e => e.stopPropagation()}>
+          <div className="cv-reply-preview-bar" />
+          <div className="cv-reply-preview-content">
+            <span className="cv-reply-preview-who">{replyTo.from_me ? 'Anda' : name}</span>
+            <span className="cv-reply-preview-text">{replyTo.body || 'Pesan'}</span>
+          </div>
+          <button className="cv-reply-preview-x" onClick={() => setReplyTo(null)}><X size={16} /></button>
         </div>
       )}
 
@@ -1032,9 +1072,30 @@ export default function ChatPage({ chatId }) {
         .cv-empty { margin: auto; color: #a8b8d0; font-size: 14px; text-align: center; padding: 32px; }
         .cv-date-sep { display: flex; align-items: center; justify-content: center; margin: 12px 0 8px; }
         .cv-date-sep span { background: #dce8fb; color: #5a7ab5; font-size: 11px; font-weight: 600; padding: 4px 14px; border-radius: 20px; }
-        .cv-row { display: flex; margin-bottom: 3px; }
+        .cv-row { display: flex; margin-bottom: 3px; align-items: center; gap: 6px; }
         .cv-row.sent { justify-content: flex-end; }
         .cv-row.recv { justify-content: flex-start; }
+        .cv-reply-btn { order: 2; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #a8b8d0; background: transparent; flex-shrink: 0; opacity: 0; transition: opacity 0.12s, background 0.12s; }
+        .cv-row:hover .cv-reply-btn { opacity: 1; }
+        .cv-reply-btn:hover { background: #e4eaf5; color: #3563e9; }
+        .cv-row.recv .cv-reply-btn { order: 2; }
+        .cv-row.sent .cv-reply-btn { order: 0; }
+        .cv-quote { display: flex; flex-direction: column; gap: 1px; border-left: 3px solid; padding: 4px 8px; margin-bottom: 5px; border-radius: 5px; max-width: 100%; overflow: hidden; }
+        .cv-quote.on-sent { border-color: rgba(255,255,255,0.7); background: rgba(255,255,255,0.14); }
+        .cv-quote.on-recv { border-color: #3563e9; background: #f0f3fa; }
+        .cv-quote-who { font-size: 11px; font-weight: 700; }
+        .cv-quote.on-sent .cv-quote-who { color: rgba(255,255,255,0.95); }
+        .cv-quote.on-recv .cv-quote-who { color: #3563e9; }
+        .cv-quote-text { font-size: 12px; opacity: 0.85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 240px; }
+        .cv-quote.on-sent .cv-quote-text { color: rgba(255,255,255,0.85); }
+        .cv-quote.on-recv .cv-quote-text { color: #4f607a; }
+        .cv-reply-preview { display: flex; align-items: center; gap: 10px; padding: 8px 14px; background: #eef4fd; border-top: 1px solid #c8d4ec; }
+        .cv-reply-preview-bar { width: 3px; align-self: stretch; background: #3563e9; border-radius: 2px; flex-shrink: 0; }
+        .cv-reply-preview-content { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+        .cv-reply-preview-who { font-size: 12px; font-weight: 700; color: #3563e9; }
+        .cv-reply-preview-text { font-size: 12px; color: #4f607a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .cv-reply-preview-x { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #8a9bb8; flex-shrink: 0; }
+        .cv-reply-preview-x:hover { background: #dce8fb; color: #3563e9; }
         .cv-bubble { max-width: 62%; padding: 10px 14px 7px; border-radius: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); word-break: break-word; }
         .cv-bubble.media { padding: 4px 4px 7px; }
         .cv-bubble.sending { opacity: 0.65; }
