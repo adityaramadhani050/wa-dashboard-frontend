@@ -992,7 +992,7 @@ export default function ChatPage({ chatId }) {
         <textarea
           ref={textareaRef}
           className="cv-input"
-          placeholder={selectedFile ? 'Tambah keterangan (opsional)...' : 'Ketik pesan... (gunakan / untuk template)'}
+          placeholder={selectedFile ? 'Tambah keterangan (opsional)...' : 'Ketik pesan...'}
           value={text}
           onChange={handleTextChange}
           onKeyDown={handleKeyDown}

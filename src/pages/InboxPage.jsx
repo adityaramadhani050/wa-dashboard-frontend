@@ -185,11 +185,11 @@ export default function InboxPage() {
     navigate(`/chat/${convId}`)
   }
 
-  // Chat yang dikecualikan dari KPI overdue: "fail" (lead mati) & "deal"
-  // (sudah closing -> chat hanya untuk koordinasi, bukan respons sales)
+  // Chat yang dikecualikan dari KPI overdue: "fail" (lead mati), "deal"
+  // (sudah closing -> koordinasi), & "no need reply" (tak perlu balasan cepat)
   const isOverdueExempt = (c) => (c.tags || []).some(t => {
     const n = (t.name || '').toLowerCase()
-    return n === 'fail' || n === 'deal'
+    return n === 'fail' || n === 'deal' || /no[\s_-]*need[\s_-]*reply/.test(n)
   })
   // Chat overdue = customer menunggu > 5 menit & belum dibalas, kecuali fail/deal
   const isOverdue = (c) => !!c.awaitingSince && c.lastFromMe === false && !isOverdueExempt(c) &&
