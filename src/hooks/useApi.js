@@ -126,6 +126,9 @@ export const suggestAiTags = (conversationId) =>
 export const suggestAiNote = (conversationId) =>
   api.post('/ai/suggest-note', { conversation_id: conversationId }, { timeout: 30000 }).then(r => r.data)
 
+// Token bot/service untuk integrasi mesin-ke-mesin (mis. WA Bot RenusPro)
+export const generateBotToken = (name) => api.post('/auth/bot-token', name ? { name } : {}).then(r => r.data)
+
 // Auto-assign chat (round-robin / least-loaded)
 export const getAutoAssign = () => api.get('/settings/auto-assign').then(r => r.data)
 export const setAutoAssign = (enabled) => api.put('/settings/auto-assign', { enabled }).then(r => r.data)

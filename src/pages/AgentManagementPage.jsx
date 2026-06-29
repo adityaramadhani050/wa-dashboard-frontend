@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
-import { getAgents, createAgent, updateAgent, deleteAgent, getAutoAssign, setAutoAssign } from '../hooks/useApi'
-import { Plus, Pencil, Trash2, X, Eye, EyeOff, Users, Shuffle } from 'lucide-react'
+import { getAgents, createAgent, updateAgent, deleteAgent, getAutoAssign, setAutoAssign, generateBotToken } from '../hooks/useApi'
+import { Plus, Pencil, Trash2, X, Eye, EyeOff, Users, Shuffle, KeyRound, Copy, Check } from 'lucide-react'
 
 const EMPTY_FORM = { name: '', username: '', email: '', role: 'agent', password: '', confirmPassword: '' }
 
@@ -119,6 +119,10 @@ export default function AgentManagementPage() {
   const [deleteError, setDeleteError] = useState('')
   const [autoAssign, setAutoAssignState] = useState(false)
   const [autoAssignBusy, setAutoAssignBusy] = useState(false)
+  const [botToken, setBotToken] = useState('')
+  const [botTokenBusy, setBotTokenBusy] = useState(false)
+  const [botTokenCopied, setBotTokenCopied] = useState(false)
+  const [botTokenError, setBotTokenError] = useState('')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -144,6 +148,28 @@ export default function AgentManagementPage() {
     } catch (e) {
       alert(e?.response?.data?.error || 'Gagal mengubah auto-assign')
     } finally { setAutoAssignBusy(false) }
+  }
+
+  const handleGenerateBotToken = async () => {
+    if (botTokenBusy) return
+    setBotTokenBusy(true); setBotTokenError(''); setBotTokenCopied(false)
+    try {
+      const res = await generateBotToken('Bot Notif WA')
+      setBotToken(res.token || '')
+    } catch (e) {
+      setBotTokenError(e?.response?.data?.error || 'Gagal membuat token bot')
+    } finally { setBotTokenBusy(false) }
+  }
+
+  const handleCopyBotToken = async () => {
+    if (!botToken) return
+    try {
+      await navigator.clipboard.writeText(botToken)
+      setBotTokenCopied(true)
+      setTimeout(() => setBotTokenCopied(false), 2000)
+    } catch {
+      setBotTokenError('Gagal menyalin. Salin manual dari kotak di atas.')
+    }
   }
 
   const handleCreate = async (form) => {
@@ -220,6 +246,37 @@ export default function AgentManagementPage() {
           <span className="aa-knob" />
         </button>
       </div>
+
+      <div className="aa-card bt-card">
+        <div className="aa-info">
+          <div className="aa-icon"><KeyRound size={18} /></div>
+          <div>
+            <div className="aa-title">Token Bot WA (Integrasi RenusPro)</div>
+            <div className="aa-desc">Buat token JWT statis (tanpa kedaluwarsa) untuk sistem eksternal seperti WA Bot Notifikasi RenusPro. Tempel token ke Pengaturan RenusPro. Perlakukan seperti password.</div>
+          </div>
+        </div>
+        <button className="am-btn primary" onClick={handleGenerateBotToken} disabled={botTokenBusy}>
+          <KeyRound size={15} /> {botTokenBusy ? 'Membuat...' : 'Generate Token'}
+        </button>
+      </div>
+
+      {(botToken || botTokenError) && (
+        <div className="bt-result">
+          {botTokenError && <div className="bt-error">{botTokenError}</div>}
+          {botToken && (
+            <>
+              <div className="bt-warn">⚠️ Salin sekarang & simpan aman. Token tidak ditampilkan lagi setelah halaman ditutup.</div>
+              <div className="bt-token-row">
+                <textarea className="bt-token" readOnly value={botToken} rows={3} onFocus={e => e.target.select()} />
+                <button className="am-btn" onClick={handleCopyBotToken} title="Salin token">
+                  {botTokenCopied ? <Check size={15} /> : <Copy size={15} />}
+                  {botTokenCopied ? 'Tersalin' : 'Salin'}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       <div className="am-table-box">
         {loading ? (
@@ -329,6 +386,11 @@ export default function AgentManagementPage() {
         .am-header h1 { font-size: 20px; font-weight: 700; margin-bottom: 3px; color: #1e293b; }
         .am-header p { font-size: 13px; color: #64748b; }
         .aa-card { display: flex; align-items: center; justify-content: space-between; gap: 16px; background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px 18px; margin-bottom: 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .bt-result { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px 18px; margin-bottom: 18px; margin-top: -8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .bt-error { color: #dc2626; font-size: 13px; }
+        .bt-warn { color: #b45309; font-size: 12px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 8px 10px; margin-bottom: 10px; }
+        .bt-token-row { display: flex; align-items: flex-start; gap: 10px; flex-wrap: wrap; }
+        .bt-token { flex: 1; min-width: 220px; font-family: ui-monospace, monospace; font-size: 12px; color: #1e293b; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 10px; resize: vertical; word-break: break-all; }
         .aa-info { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
         .aa-icon { width: 38px; height: 38px; border-radius: 10px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: rgba(53,99,233,0.1); color: #3563e9; }
         .aa-title { font-size: 14px; font-weight: 600; color: #1e293b; margin-bottom: 2px; }
