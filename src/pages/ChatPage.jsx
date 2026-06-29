@@ -441,9 +441,11 @@ export default function ChatPage({ chatId }) {
     if (!selectedFile || sending) return
     setSending(true)
     const f = selectedFile
+    const currentReply = replyTo
     setSelectedFile(null)
-    try { await sendMedia(id, f.file, text.trim() || undefined); setText(''); await fetchData() }
-    catch (e) { setError(e?.response?.data?.error || 'Gagal mengirim file.'); setSelectedFile(f) }
+    setReplyTo(null)
+    try { await sendMedia(id, f.file, text.trim() || undefined, currentReply); setText(''); await fetchData() }
+    catch (e) { setError(e?.response?.data?.error || 'Gagal mengirim file.'); setSelectedFile(f); setReplyTo(currentReply) }
     finally { setSending(false) }
   }
 
@@ -489,8 +491,10 @@ export default function ChatPage({ chatId }) {
     if (sendingQuickMediaId) return
     setSendingQuickMediaId(item.id)
     setShowMediaGallery(false)
-    try { await sendQuickMedia(id, item.id); await fetchData() }
-    catch (e) { setError(e?.response?.data?.error || 'Gagal mengirim media.') }
+    const currentReply = replyTo
+    setReplyTo(null)
+    try { await sendQuickMedia(id, item.id, undefined, currentReply); await fetchData() }
+    catch (e) { setError(e?.response?.data?.error || 'Gagal mengirim media.'); setReplyTo(currentReply) }
     finally { setSendingQuickMediaId(null) }
   }
 

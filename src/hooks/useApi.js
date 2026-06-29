@@ -35,11 +35,12 @@ export const getConversations = (agentId) =>
 export const getConversation = (id) => api.get(`/conversations/${id}`).then(r => r.data)
 export const getMessages = (id) => api.get(`/conversations/${id}/messages`).then(r => r.data)
 export const sendMessage = (id, message, replyTo) => api.post(`/conversations/${id}/messages`, { message, reply_to: replyTo || undefined }).then(r => r.data)
-export const sendMedia = (conversationId, file, caption) => {
+export const sendMedia = (conversationId, file, caption, replyTo) => {
   const form = new FormData()
   form.append('file', file)
   form.append('conversation_id', String(conversationId))
   if (caption) form.append('caption', caption)
+  if (replyTo) form.append('reply_to', JSON.stringify(replyTo))
   return api.post('/messages/send-media', form, {
     headers: { 'Content-Type': 'multipart/form-data' },
     timeout: 60000,
@@ -89,11 +90,12 @@ export const uploadQuickMedia = (file, label, category) => {
   }).then(r => r.data)
 }
 export const deleteQuickMedia = (id) => api.delete(`/messages/quick-media/${id}`).then(r => r.data)
-export const sendQuickMedia = (conversationId, quickMediaId, caption) =>
+export const sendQuickMedia = (conversationId, quickMediaId, caption, replyTo) =>
   api.post('/messages/send-quick-media', {
     conversation_id: conversationId,
     quick_media_id: quickMediaId,
     caption,
+    reply_to: replyTo || undefined,
   }).then(r => r.data)
 
 // Catatan Kontak (Contact Notes)
