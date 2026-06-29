@@ -681,7 +681,13 @@ export default function ChatPage({ chatId }) {
 
   const messageItems = []
   let lastDateKey = null
-  for (const msg of messages) {
+  // Urutkan kronologis (pesan hasil sinkronisasi bisa masuk tidak berurutan)
+  const orderedMessages = [...messages].sort((a, b) => {
+    const ta = new Date(a.timestamp || a.createdAt || 0).getTime()
+    const tb = new Date(b.timestamp || b.createdAt || 0).getTime()
+    return ta - tb
+  })
+  for (const msg of orderedMessages) {
     const ts = msg.timestamp || msg.createdAt
     const dk = getDateKey(ts)
     if (dk && dk !== lastDateKey) { messageItems.push({ type: 'date', key: dk, label: formatDateLabel(ts) }); lastDateKey = dk }
