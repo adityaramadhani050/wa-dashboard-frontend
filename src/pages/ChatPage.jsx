@@ -10,7 +10,7 @@ import {
   generateAiSuggestion, suggestAiTags, suggestAiNote,
 } from '../hooks/useApi'
 import { supabase } from '../lib/supabase'
-import { Send, ArrowLeft, ArrowDown, UserCheck, Paperclip, X, FileText, Play, Download, Check, Image, Film, Clock, Zap, Images, Tag as TagIcon, StickyNote, BellPlus, MoreVertical, Sparkles, Reply } from 'lucide-react'
+import { Send, ArrowLeft, ArrowDown, UserCheck, Paperclip, X, FileText, Play, Download, Check, Image, Film, Clock, Zap, Package, Tag as TagIcon, StickyNote, BellPlus, MoreVertical, Sparkles, Reply } from 'lucide-react'
 
 
 const AVATAR_COLORS = ['#3563e9','#27a87a','#d08b28','#e05c8a','#7c5cd6','#2aaccc']
@@ -911,7 +911,7 @@ export default function ChatPage({ chatId }) {
                 <span className="cv-mi-title"><Zap size={14} /><span className="cv-mi-title-text">Template Pesan</span></span>
               </button>
               <button className="cv-mi" onClick={() => { setShowMoreMenu(false); setShowMediaGallery(true) }}>
-                <span className="cv-mi-title"><Images size={14} /><span className="cv-mi-title-text">Produk / Katalog</span></span>
+                <span className="cv-mi-title"><Package size={14} /><span className="cv-mi-title-text">Produk / Katalog</span></span>
               </button>
               <button className="cv-mi" onClick={() => { setShowMoreMenu(false); handleRequestAiSuggestion() }}>
                 <span className="cv-mi-title"><Sparkles size={14} /><span className="cv-mi-title-text">Saran AI</span></span>
@@ -930,7 +930,7 @@ export default function ChatPage({ chatId }) {
         </button>
 
         <button className="cv-attach-btn" title="Produk/Katalog" onClick={() => { setShowMediaGallery(!showMediaGallery); setShowTemplateMenu(false) }}>
-          <Images size={19} />
+          <Package size={19} />
         </button>
 
         <button className="cv-attach-btn" title="Saran Balasan AI" onClick={() => { showAiMenu ? setShowAiMenu(false) : handleRequestAiSuggestion() }}>
