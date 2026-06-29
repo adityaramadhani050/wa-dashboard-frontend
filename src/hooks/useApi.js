@@ -62,6 +62,7 @@ export const createAgent = (payload) => api.post('/agents', payload).then(r => r
 export const updateAgent = (id, payload) => api.put(`/agents/${id}`, payload).then(r => r.data)
 export const deleteAgent = (id) => api.delete(`/agents/${id}`).then(r => r.data)
 export const resetWASession = () => api.post('/wa/reset').then(r => r.data)
+export const syncMessages = () => api.post('/wa/sync').then(r => r.data)
 
 // Template Pesan / Quick Reply
 export const getTemplates = () => api.get('/templates').then(r => r.data)

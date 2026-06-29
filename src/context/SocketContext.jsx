@@ -35,6 +35,7 @@ function activeChatId() {
 export function SocketProvider({ children }) {
   const [socket, setSocket] = useState(null)
   const [waConnected, setWaConnected] = useState(false)
+  const [syncing, setSyncing] = useState(false)
   const [socketConnected, setSocketConnected] = useState(false)
   const [socketError, setSocketError] = useState(null)
   const [qrCode, setQrCode] = useState(null)
@@ -114,6 +115,7 @@ export function SocketProvider({ children }) {
     s.io.on('reconnect', () => setSocketError(null))
     s.io.on('reconnect_failed', () => setSocketError('Failed to reconnect — check backend'))
 
+    s.on('wa_sync', (data) => setSyncing(!!data?.syncing))
     s.on('qr', (data) => { setQrCode(data); setWaConnected(false) })
     s.on('wa_status', (data) => {
       const connected = data === true || data?.connected === true
@@ -136,7 +138,7 @@ export function SocketProvider({ children }) {
   return (
     <SocketContext.Provider value={{
       socket, socketConnected, socketError,
-      waConnected, qrCode, setQrCode,
+      waConnected, syncing, qrCode, setQrCode,
       newMessages, clearNewMessages: () => setNewMessages([]),
       statusUpdates, messageUpdates, assignmentUpdates,
     }}>

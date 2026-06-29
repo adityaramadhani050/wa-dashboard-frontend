@@ -2,8 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate, useMatch } from 'react-router-dom'
 import { useSocket } from '../context/SocketContext'
 import { useAuth } from '../context/AuthContext'
-import { getConversations, getTags, getAgents } from '../hooks/useApi'
-import { Search, RefreshCw, UserCheck, Tag as TagIcon, ChevronDown, Clock } from 'lucide-react'
+import { getConversations, getTags, getAgents, syncMessages } from '../hooks/useApi'
+import { Search, RefreshCw, UserCheck, Tag as TagIcon, ChevronDown, Clock, RotateCw } from 'lucide-react'
 
 // KPI response time: customer harus dibalas dalam 5 menit
 const RESPONSE_KPI_MS = 5 * 60 * 1000
@@ -54,8 +54,9 @@ export default function InboxPage() {
   const [agentFilter, setAgentFilter] = useState(null)
   const [showAgentFilter, setShowAgentFilter] = useState(false)
   const [now, setNow] = useState(() => Date.now())
-  const { newMessages, assignmentUpdates, socketConnected } = useSocket()
+  const { newMessages, assignmentUpdates, socketConnected, waConnected, syncing } = useSocket()
   const [refreshing, setRefreshing] = useState(false)
+  const [syncRequesting, setSyncRequesting] = useState(false)
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
   const navigate = useNavigate()
@@ -86,6 +87,20 @@ export default function InboxPage() {
     setRefreshing(true)
     try { await fetch() } finally { setTimeout(() => setRefreshing(false), 400) }
   }, [refreshing, fetch])
+
+  const handleSync = useCallback(async () => {
+    if (syncRequesting || syncing) return
+    setSyncRequesting(true)
+    try { await syncMessages() } catch {}
+    finally { setTimeout(() => setSyncRequesting(false), 1500) }
+  }, [syncRequesting, syncing])
+
+  // Setelah sinkronisasi selesai (syncing true -> false), muat ulang daftar chat
+  const wasSyncingRef = useRef(false)
+  useEffect(() => {
+    if (wasSyncingRef.current && !syncing) fetch()
+    wasSyncingRef.current = syncing
+  }, [syncing, fetch])
 
   // Update list secara instan saat ada pesan baru (tanpa refetch seluruh daftar
   // yang berat). Hanya fallback fetch() bila percakapannya belum ada di list.
@@ -229,10 +244,26 @@ export default function InboxPage() {
       <div className="cl-header">
         <div className="cl-header-top">
           <h2>Chats</h2>
-          <button className="cl-icon-btn" onClick={handleRefresh} disabled={refreshing} title="Refresh">
-            <RefreshCw size={15} className={refreshing ? 'cl-spin' : ''} />
-          </button>
+          <div className="cl-header-actions">
+            <button
+              className="cl-icon-btn"
+              onClick={handleSync}
+              disabled={syncing || syncRequesting}
+              title={waConnected ? 'Sinkronkan pesan' : 'WA terputus — sinkronkan / sambungkan ulang'}
+            >
+              <RotateCw size={15} className={(syncing || syncRequesting) ? 'cl-spin' : ''} />
+            </button>
+            <button className="cl-icon-btn" onClick={handleRefresh} disabled={refreshing} title="Refresh daftar">
+              <RefreshCw size={15} className={refreshing ? 'cl-spin' : ''} />
+            </button>
+          </div>
         </div>
+        {syncing && (
+          <div className="cl-sync-banner">
+            <RotateCw size={13} className="cl-spin" />
+            <span>Menyinkronkan pesan…</span>
+          </div>
+        )}
         {/* Search */}
         <div className="cl-search">
           <Search size={14} />
@@ -407,6 +438,8 @@ export default function InboxPage() {
         }
         .cl-icon-btn:hover { background: #f0f3fa; color: #4f607a; }
         .cl-icon-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .cl-header-actions { display: flex; align-items: center; gap: 2px; }
+        .cl-sync-banner { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; padding: 7px 12px; border-radius: 8px; background: rgba(53,99,233,0.08); color: #3563e9; font-size: 12px; font-weight: 600; }
         .cl-spin { animation: spin 0.8s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
         .cl-search {
