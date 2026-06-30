@@ -141,23 +141,26 @@ function VideoMedia({ url, caption, sent }) {
   )
 }
 
-function DocMedia({ url, filename, sent }) {
+function DocMedia({ url, filename, caption, sent }) {
   const [dlStatus, setDlStatus] = useState('idle')
   const handleClick = () => { if (dlStatus !== 'idle') return; setDlStatus('downloading'); setTimeout(() => setDlStatus('done'), 2200) }
   const ext = filename?.split('.').pop()?.toUpperCase() || 'FILE'
   return (
-    <a href={url} target="_blank" rel="noreferrer" download={filename}
-      className={`cv-media-doc ${sent ? 'sent' : 'recv'}`} onClick={handleClick}>
-      <div className="cv-media-doc-icon-wrap">
-        {dlStatus === 'idle' && <div className="cv-media-doc-icon"><FileText size={22} /><span className="cv-media-doc-ext">{ext}</span></div>}
-        {dlStatus === 'downloading' && <div className="cv-media-doc-icon dl-active"><div className="cv-dl-ring" /><Download size={14} className="cv-dl-icon" /></div>}
-        {dlStatus === 'done' && <div className="cv-media-doc-icon dl-done"><Check size={20} /></div>}
-      </div>
-      <div className="cv-media-doc-info">
-        <span className="cv-media-doc-name">{filename || 'Download file'}</span>
-        <span className="cv-media-doc-sub">{dlStatus === 'idle' ? 'Tap untuk unduh' : dlStatus === 'downloading' ? 'Mengunduh...' : 'Terunduh ✓'}</span>
-      </div>
-    </a>
+    <div className="cv-media-wrap">
+      <a href={url} target="_blank" rel="noreferrer" download={filename}
+        className={`cv-media-doc ${sent ? 'sent' : 'recv'}`} onClick={handleClick}>
+        <div className="cv-media-doc-icon-wrap">
+          {dlStatus === 'idle' && <div className="cv-media-doc-icon"><FileText size={22} /><span className="cv-media-doc-ext">{ext}</span></div>}
+          {dlStatus === 'downloading' && <div className="cv-media-doc-icon dl-active"><div className="cv-dl-ring" /><Download size={14} className="cv-dl-icon" /></div>}
+          {dlStatus === 'done' && <div className="cv-media-doc-icon dl-done"><Check size={20} /></div>}
+        </div>
+        <div className="cv-media-doc-info">
+          <span className="cv-media-doc-name">{filename || 'Download file'}</span>
+          <span className="cv-media-doc-sub">{dlStatus === 'idle' ? 'Tap untuk unduh' : dlStatus === 'downloading' ? 'Mengunduh...' : 'Terunduh ✓'}</span>
+        </div>
+      </a>
+      {caption && <p className="cv-media-caption">{caption}</p>}
+    </div>
   )
 }
 
@@ -173,8 +176,8 @@ function MediaContent({ msg, sent, onImageClick }) {
   }
   if (media_type === 'image') return <ImgMedia url={media_url} caption={caption} sent={sent} onImageClick={onImageClick} />
   if (media_type === 'video') return <VideoMedia url={media_url} caption={caption} sent={sent} />
-  if (media_type === 'audio') return <div className="cv-media-audio-wrap"><audio src={media_url} controls className="cv-media-audio" /></div>
-  if (media_type === 'document') return <DocMedia url={media_url} filename={media_filename} sent={sent} />
+  if (media_type === 'audio') return <div className="cv-media-audio-wrap"><audio src={media_url} controls className="cv-media-audio" />{caption && <p className="cv-media-caption">{caption}</p>}</div>
+  if (media_type === 'document') return <DocMedia url={media_url} filename={media_filename} caption={caption} sent={sent} />
   return <div className="cv-media-placeholder"><Paperclip size={16} /><span>{media_filename || body || '[media]'}</span></div>
 }
 
