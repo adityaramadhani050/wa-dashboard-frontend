@@ -56,7 +56,6 @@ export default function InboxPage() {
   const [now, setNow] = useState(() => Date.now())
   const { newMessages, assignmentUpdates, socketConnected, waConnected, syncing } = useSocket()
   const [refreshing, setRefreshing] = useState(false)
-  const [syncRequesting, setSyncRequesting] = useState(false)
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
   const navigate = useNavigate()
@@ -88,12 +87,32 @@ export default function InboxPage() {
     try { await fetch() } finally { setTimeout(() => setRefreshing(false), 400) }
   }, [refreshing, fetch])
 
-  const handleSync = useCallback(async () => {
-    if (syncRequesting || syncing) return
-    setSyncRequesting(true)
-    try { await syncMessages() } catch {}
-    finally { setTimeout(() => setSyncRequesting(false), 1500) }
-  }, [syncRequesting, syncing])
+  // Sinkronisasi otomatis: saat aplikasi dibuka & tiap WA tersambung kembali
+  // (reconnect / scan ulang QR). Tidak ada tombol manual lagi.
+  const lastSyncRef = useRef(0)
+  const triggerAutoSync = useCallback(() => {
+    const now = Date.now()
+    if (now - lastSyncRef.current < 30000) return // throttle 30 dtk
+    lastSyncRef.current = now
+    syncMessages().catch(() => {})
+  }, [])
+
+  // 1) Saat aplikasi pertama dibuka
+  useEffect(() => { triggerAutoSync() }, [triggerAutoSync])
+
+  // 2) Saat WA berpindah dari terputus -> tersambung
+  const prevWaConnected = useRef(waConnected)
+  useEffect(() => {
+    if (waConnected && !prevWaConnected.current) triggerAutoSync()
+    prevWaConnected.current = waConnected
+  }, [waConnected, triggerAutoSync])
+
+  // 3) Saat aplikasi dibuka lagi dari background (PWA/mobile)
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === 'visible') triggerAutoSync() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [triggerAutoSync])
 
   // Setelah sinkronisasi selesai (syncing true -> false), muat ulang daftar chat
   const wasSyncingRef = useRef(false)
@@ -250,14 +269,6 @@ export default function InboxPage() {
         <div className="cl-header-top">
           <h2>Chats</h2>
           <div className="cl-header-actions">
-            <button
-              className="cl-icon-btn"
-              onClick={handleSync}
-              disabled={syncing || syncRequesting}
-              title={waConnected ? 'Sinkronkan pesan' : 'WA terputus — sinkronkan / sambungkan ulang'}
-            >
-              <RotateCw size={15} className={(syncing || syncRequesting) ? 'cl-spin' : ''} />
-            </button>
             <button className="cl-icon-btn" onClick={handleRefresh} disabled={refreshing} title="Refresh daftar">
               <RefreshCw size={15} className={refreshing ? 'cl-spin' : ''} />
             </button>
