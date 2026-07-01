@@ -87,32 +87,13 @@ export default function InboxPage() {
     try { await fetch() } finally { setTimeout(() => setRefreshing(false), 400) }
   }, [refreshing, fetch])
 
-  // Sinkronisasi otomatis: saat aplikasi dibuka & tiap WA tersambung kembali
-  // (reconnect / scan ulang QR). Tidak ada tombol manual lagi.
-  const lastSyncRef = useRef(0)
-  const triggerAutoSync = useCallback(() => {
-    const now = Date.now()
-    if (now - lastSyncRef.current < 30000) return // throttle 30 dtk
-    lastSyncRef.current = now
-    syncMessages().catch(() => {})
-  }, [])
-
-  // 1) Saat aplikasi pertama dibuka
-  useEffect(() => { triggerAutoSync() }, [triggerAutoSync])
-
-  // 2) Saat WA berpindah dari terputus -> tersambung
+  // Sinkronisasi otomatis HANYA saat WA tersambung kembali (reconnect /
+  // setelah scan ulang QR). Tidak ada tombol manual & tidak sync saat buka app.
   const prevWaConnected = useRef(waConnected)
   useEffect(() => {
-    if (waConnected && !prevWaConnected.current) triggerAutoSync()
+    if (waConnected && !prevWaConnected.current) syncMessages().catch(() => {})
     prevWaConnected.current = waConnected
-  }, [waConnected, triggerAutoSync])
-
-  // 3) Saat aplikasi dibuka lagi dari background (PWA/mobile)
-  useEffect(() => {
-    const onVisible = () => { if (document.visibilityState === 'visible') triggerAutoSync() }
-    document.addEventListener('visibilitychange', onVisible)
-    return () => document.removeEventListener('visibilitychange', onVisible)
-  }, [triggerAutoSync])
+  }, [waConnected])
 
   // Setelah sinkronisasi selesai (syncing true -> false), muat ulang daftar chat
   const wasSyncingRef = useRef(false)
