@@ -290,9 +290,10 @@ export default function InboxPage() {
           ))}
         </div>
         {/* Tag + Agent filter */}
+        {/* Baris 1: Tag + Status (selalu tampil, termasuk untuk agent) */}
         <div className="cl-tagfilter-row" onClick={e => e.stopPropagation()}>
           <div className="cv-dd">
-            <button className={`cl-tagfilter-btn${activeTagFilter ? ' active' : ''}`} onClick={() => { setShowTagFilter(s => !s); setShowAgentFilter(false) }}>
+            <button className={`cl-tagfilter-btn${activeTagFilter ? ' active' : ''}`} onClick={() => { setShowTagFilter(s => !s); setShowAgentFilter(false); setShowLifecycleFilter(false) }}>
               <TagIcon size={13} />
               <span>{activeTagFilter ? (tags.find(t => t.id === activeTagFilter)?.name || 'Tag') : 'Semua Tag'}</span>
               <ChevronDown size={12} />
@@ -310,9 +311,27 @@ export default function InboxPage() {
               </div>
             )}
           </div>
-          {isAdmin && (
+          <div className="cv-dd">
+            <button className={`cl-tagfilter-btn${lifecycleFilter !== 'all' ? ' active' : ''}`} onClick={() => { setShowLifecycleFilter(s => !s); setShowTagFilter(false); setShowAgentFilter(false) }}>
+              <span>{lifecycleLabel}</span>
+              <ChevronDown size={12} />
+            </button>
+            {showLifecycleFilter && (
+              <div className="cv-menu" style={{ minWidth: 150 }}>
+                {LIFECYCLE_OPTIONS.map(o => (
+                  <button key={o.key} className={`cv-mi${lifecycleFilter === o.key ? ' active' : ''}`} onClick={() => { setLifecycleFilter(o.key); setShowLifecycleFilter(false) }}>
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+        {/* Baris 2: filter Agent — hanya admin */}
+        {isAdmin && (
+          <div className="cl-tagfilter-row" onClick={e => e.stopPropagation()}>
             <div className="cv-dd">
-              <button className={`cl-tagfilter-btn${agentFilter ? ' active' : ''}`} onClick={() => { setShowAgentFilter(s => !s); setShowTagFilter(false) }}>
+              <button className={`cl-tagfilter-btn${agentFilter ? ' active' : ''}`} onClick={() => { setShowAgentFilter(s => !s); setShowTagFilter(false); setShowLifecycleFilter(false) }}>
                 <UserCheck size={13} />
                 <span>{agentFilter ? (agents.find(a => a.id === agentFilter)?.name || 'Agent') : 'Semua Agent'}</span>
                 <ChevronDown size={12} />
@@ -330,26 +349,8 @@ export default function InboxPage() {
                 </div>
               )}
             </div>
-          )}
-        </div>
-        {/* Status chat (Open/Aktif/Resolved) — baris sendiri, menu buka ke kanan */}
-        <div className="cl-tagfilter-row" onClick={e => e.stopPropagation()}>
-          <div className="cv-dd">
-            <button className={`cl-tagfilter-btn${lifecycleFilter !== 'all' ? ' active' : ''}`} onClick={() => { setShowLifecycleFilter(s => !s); setShowTagFilter(false); setShowAgentFilter(false) }}>
-              <span>{lifecycleLabel}</span>
-              <ChevronDown size={12} />
-            </button>
-            {showLifecycleFilter && (
-              <div className="cv-menu" style={{ minWidth: 150 }}>
-                {LIFECYCLE_OPTIONS.map(o => (
-                  <button key={o.key} className={`cv-mi${lifecycleFilter === o.key ? ' active' : ''}`} onClick={() => { setLifecycleFilter(o.key); setShowLifecycleFilter(false) }}>
-                    {o.label}
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
-        </div>
+        )}
       </div>
 
       {/* List */}
