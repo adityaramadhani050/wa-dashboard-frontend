@@ -1379,7 +1379,7 @@ export default function ChatPage({ chatId }) {
         .cv-notes-contact-name { font-size: 14px; font-weight: 700; color: #1a2540; }
         .cv-contact-edit-btn { width: 26px; height: 26px; border-radius: 7px; display: flex; align-items: center; justify-content: center; background: #f0f3fa; color: #3563e9; flex-shrink: 0; transition: background 0.12s; }
         .cv-contact-edit-btn:hover { background: #e4eaf5; }
-        .cv-edit-contact { display: flex; flex-direction: column; }
+        .cv-edit-contact { display: flex; flex-direction: column; padding: 18px 20px 20px; }
         .cv-edit-label { font-size: 12px; font-weight: 600; color: #4f607a; margin-bottom: 5px; }
         .cv-edit-input { border: 1px solid #e4eaf5; border-radius: 8px; padding: 9px 11px; font-size: 14px; color: #1a2540; outline: none; margin-bottom: 12px; transition: border 0.12s; }
         .cv-edit-input:focus { border-color: #3563e9; }
