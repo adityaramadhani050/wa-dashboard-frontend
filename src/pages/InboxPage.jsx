@@ -87,12 +87,21 @@ export default function InboxPage() {
     try { await fetch() } finally { setTimeout(() => setRefreshing(false), 400) }
   }, [refreshing, fetch])
 
-  // Sinkronisasi otomatis HANYA saat WA tersambung kembali (reconnect /
-  // setelah scan ulang QR). Tidak ada tombol manual & tidak sync saat buka app.
-  const prevWaConnected = useRef(waConnected)
+  // Sinkronisasi otomatis HANYA saat WA benar-benar tersambung KEMBALI
+  // (setelah sempat terputus di sesi ini, mis. scan ulang QR).
+  // Bukan saat koneksi pertama/reload halaman — itu tidak memicu sync.
+  const hasConnectedOnce = useRef(false)
+  const sawDisconnect = useRef(false)
   useEffect(() => {
-    if (waConnected && !prevWaConnected.current) syncMessages().catch(() => {})
-    prevWaConnected.current = waConnected
+    if (waConnected) {
+      if (hasConnectedOnce.current && sawDisconnect.current) {
+        syncMessages().catch(() => {})   // reconnect nyata -> sync
+      }
+      hasConnectedOnce.current = true
+      sawDisconnect.current = false
+    } else if (hasConnectedOnce.current) {
+      sawDisconnect.current = true       // sempat terputus setelah tersambung
+    }
   }, [waConnected])
 
   // Setelah sinkronisasi selesai (syncing true -> false), muat ulang daftar chat
