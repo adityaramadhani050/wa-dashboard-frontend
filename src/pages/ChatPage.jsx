@@ -7,10 +7,10 @@ import {
   getTemplates, getQuickMedia, sendQuickMedia, useTemplate,
   getTags, addTagToConversation, removeTagFromConversation,
   getContactNotes, createContactNote, createReminder, getContactConversations,
-  generateAiSuggestion, suggestAiTags, suggestAiNote,
+  generateAiSuggestion, suggestAiTags, suggestAiNote, updateContact,
 } from '../hooks/useApi'
 import { supabase } from '../lib/supabase'
-import { Send, ArrowLeft, ArrowDown, UserCheck, Paperclip, X, FileText, Play, Download, Check, Image, Film, Clock, Zap, Package, Tag as TagIcon, StickyNote, BellPlus, MoreVertical, Sparkles, Reply } from 'lucide-react'
+import { Send, ArrowLeft, ArrowDown, UserCheck, Paperclip, X, FileText, Play, Download, Check, Image, Film, Clock, Zap, Package, Tag as TagIcon, StickyNote, BellPlus, MoreVertical, Sparkles, Reply, Pencil } from 'lucide-react'
 
 
 const AVATAR_COLORS = ['#3563e9','#27a87a','#d08b28','#e05c8a','#7c5cd6','#2aaccc']
@@ -322,6 +322,13 @@ export default function ChatPage({ chatId }) {
   const [showTagModal, setShowTagModal] = useState(false)
   const [tagToggling, setTagToggling] = useState(null)
 
+  // Edit kontak (dari panel detail)
+  const [showEditContact, setShowEditContact] = useState(false)
+  const [editName, setEditName] = useState('')
+  const [editWa, setEditWa] = useState('')
+  const [savingContact, setSavingContact] = useState(false)
+  const [editContactError, setEditContactError] = useState('')
+
   // Contact notes panel
   const [showNotesPanel, setShowNotesPanel] = useState(false)
   const [notes, setNotes] = useState([])
@@ -591,6 +598,30 @@ export default function ChatPage({ chatId }) {
     catch { setError('Gagal menghapus assign.') }
   }
 
+  const openEditContact = () => {
+    const c = conversation?.contact
+    setEditName(c?.name || '')
+    setEditWa(c?.manual_wa_number || '')
+    setEditContactError('')
+    setShowEditContact(true)
+  }
+
+  const handleSaveContact = async () => {
+    const contactId = conversation?.contact?.id
+    if (!contactId) { setEditContactError('Kontak tidak ditemukan.'); return }
+    setSavingContact(true); setEditContactError('')
+    try {
+      const updated = await updateContact(contactId, {
+        name: editName.trim(),
+        manual_wa_number: editWa.trim(),
+      })
+      setConversation(p => p ? { ...p, contact: { ...p.contact, ...updated } } : p)
+      setShowEditContact(false)
+    } catch (e) {
+      setEditContactError(e?.response?.data?.error || 'Gagal menyimpan kontak.')
+    } finally { setSavingContact(false) }
+  }
+
   const conversationTags = conversation?.tags || []
 
   const handleToggleTag = async (tag) => {
@@ -822,6 +853,36 @@ export default function ChatPage({ chatId }) {
         </Modal>
       )}
 
+      {showEditContact && (
+        <Modal title="Edit Kontak" onClose={() => setShowEditContact(false)}>
+          <div className="cv-edit-contact">
+            <label className="cv-edit-label">Nama Kontak</label>
+            <input
+              className="cv-edit-input"
+              value={editName}
+              onChange={e => setEditName(e.target.value)}
+              placeholder="Nama kontak"
+              autoFocus
+            />
+            <label className="cv-edit-label">Nomor WA Manual</label>
+            <input
+              className="cv-edit-input"
+              value={editWa}
+              onChange={e => setEditWa(e.target.value)}
+              placeholder="contoh: 6281234567890"
+            />
+            <p className="cv-edit-hint">Nomor WA manual dipakai bila nomor terdeteksi berbeda dari nomor asli kontak.</p>
+            {editContactError && <div className="cv-edit-error">{editContactError}</div>}
+            <div className="cv-edit-actions">
+              <button className="cv-edit-cancel" onClick={() => setShowEditContact(false)} disabled={savingContact}>Batal</button>
+              <button className="cv-edit-save" onClick={handleSaveContact} disabled={savingContact || !editName.trim()}>
+                {savingContact ? 'Menyimpan...' : 'Simpan'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
       {error && (
         <div className="cv-error">
           {error}<button onClick={() => setError('')} style={{marginLeft:8,fontWeight:700}}>×</button>
@@ -1031,7 +1092,14 @@ export default function ChatPage({ chatId }) {
             <button className="cv-notes-sidebar-close" onClick={handleToggleNotesPanel}><X size={16} /></button>
           </div>
           <div className="cv-notes-contact">
-            <div className="cv-notes-contact-name">{name}</div>
+            <div className="cv-notes-contact-name-row">
+              <div className="cv-notes-contact-name">{name}</div>
+              {isAdmin && (
+                <button className="cv-contact-edit-btn" title="Edit kontak" onClick={openEditContact}>
+                  <Pencil size={13} />
+                </button>
+              )}
+            </div>
             {phone && <div className="cv-notes-contact-phone">{phone}</div>}
             <div className="cv-notes-contact-row">
               <span className="cv-notes-contact-label">Agent</span>
@@ -1307,7 +1375,21 @@ export default function ChatPage({ chatId }) {
         .cv-notes-sidebar-close { width: 26px; height: 26px; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #a8b8d0; transition: all 0.15s; flex-shrink: 0; }
         .cv-notes-sidebar-close:hover { background: #f0f3fa; color: #4f607a; }
         .cv-notes-contact { margin-bottom: 10px; display: flex; flex-direction: column; gap: 8px; }
+        .cv-notes-contact-name-row { display: flex; align-items: center; gap: 8px; }
         .cv-notes-contact-name { font-size: 14px; font-weight: 700; color: #1a2540; }
+        .cv-contact-edit-btn { width: 26px; height: 26px; border-radius: 7px; display: flex; align-items: center; justify-content: center; background: #f0f3fa; color: #3563e9; flex-shrink: 0; transition: background 0.12s; }
+        .cv-contact-edit-btn:hover { background: #e4eaf5; }
+        .cv-edit-contact { display: flex; flex-direction: column; }
+        .cv-edit-label { font-size: 12px; font-weight: 600; color: #4f607a; margin-bottom: 5px; }
+        .cv-edit-input { border: 1px solid #e4eaf5; border-radius: 8px; padding: 9px 11px; font-size: 14px; color: #1a2540; outline: none; margin-bottom: 12px; transition: border 0.12s; }
+        .cv-edit-input:focus { border-color: #3563e9; }
+        .cv-edit-hint { font-size: 11px; color: #8a9bb8; margin: -6px 0 12px; line-height: 1.4; }
+        .cv-edit-error { font-size: 12px; color: #dc2626; margin-bottom: 10px; }
+        .cv-edit-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+        .cv-edit-cancel { padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; color: #4f607a; background: #f0f3fa; }
+        .cv-edit-cancel:disabled { opacity: 0.5; }
+        .cv-edit-save { padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; color: #fff; background: #3563e9; }
+        .cv-edit-save:disabled { opacity: 0.5; }
         .cv-notes-contact-phone { font-size: 12px; color: #a8b8d0; margin-top: -4px; }
         .cv-notes-contact-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
         .cv-notes-contact-label { font-size: 11px; font-weight: 600; color: #a8b8d0; text-transform: uppercase; letter-spacing: 0.4px; min-width: 48px; flex-shrink: 0; }
