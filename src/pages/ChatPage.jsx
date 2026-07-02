@@ -4,14 +4,14 @@ import { useSocket } from '../context/SocketContext'
 import { useAuth } from '../context/AuthContext'
 import {
   getMessages, sendMessage, sendMedia, assignAgent, unassignAgent, getConversation, getConversations, getAgents,
-  forwardMessage,
+  forwardMessage, deleteMessage,
   getTemplates, getQuickMedia, sendQuickMedia, useTemplate,
   getTags, addTagToConversation, removeTagFromConversation,
   getContactNotes, createContactNote, createReminder, getContactConversations,
   generateAiSuggestion, suggestAiTags, suggestAiNote, updateContact,
 } from '../hooks/useApi'
 import { supabase } from '../lib/supabase'
-import { Send, ArrowLeft, ArrowDown, UserCheck, Paperclip, X, FileText, Play, Download, Check, Image, Film, Clock, Zap, Package, Tag as TagIcon, StickyNote, BellPlus, MoreVertical, Sparkles, Reply, Pencil, Forward, Search as SearchIcon } from 'lucide-react'
+import { Send, ArrowLeft, ArrowDown, UserCheck, Paperclip, X, FileText, Play, Download, Check, Image, Film, Clock, Zap, Package, Tag as TagIcon, StickyNote, BellPlus, MoreVertical, Sparkles, Reply, Pencil, Forward, Search as SearchIcon, Trash2 } from 'lucide-react'
 
 
 const AVATAR_COLORS = ['#3563e9','#27a87a','#d08b28','#e05c8a','#7c5cd6','#2aaccc']
@@ -215,7 +215,7 @@ function mergeMessage(prev, message) {
 }
 
 // Baris pesan dengan gesture geser-untuk-balas (recv: geser kanan, sent: geser kiri)
-function SwipeMessageRow({ msg, sent, isSending, hasMedia, hasReply, name, onReply, onForward, onImageClick }) {
+function SwipeMessageRow({ msg, sent, isSending, hasMedia, hasReply, name, onReply, onForward, onDelete, onMenu, onImageClick }) {
   const [dragX, setDragX] = useState(0)
   const start = useRef(null)
   const swiping = useRef(false)
@@ -237,7 +237,7 @@ function SwipeMessageRow({ msg, sent, isSending, hasMedia, hasReply, name, onRep
     longPressTimer.current = setTimeout(() => {
       longPressed.current = true
       if (navigator.vibrate) navigator.vibrate(15)
-      onForward()
+      onMenu()
     }, 500)
   }
   const onTouchMove = (e) => {
@@ -281,6 +281,7 @@ function SwipeMessageRow({ msg, sent, isSending, hasMedia, hasReply, name, onRep
         <div className="cv-hover-actions">
           <button className="cv-hover-btn" title="Balas" onClick={onReply}><Reply size={14} /></button>
           <button className="cv-hover-btn" title="Teruskan" onClick={onForward}><Forward size={14} /></button>
+          <button className="cv-hover-btn danger" title="Hapus" onClick={onDelete}><Trash2 size={14} /></button>
         </div>
       )}
       <div
@@ -344,6 +345,10 @@ export default function ChatPage({ chatId }) {
   const [showTagModal, setShowTagModal] = useState(false)
   const [tagToggling, setTagToggling] = useState(null)
 
+  // Menu aksi pesan (long-press mobile)
+  const [actionMsg, setActionMsg] = useState(null)
+  const [deletingMsg, setDeletingMsg] = useState(false)
+
   // Forward pesan
   const [forwardMsg, setForwardMsg] = useState(null)
   const [forwardList, setForwardList] = useState([])
@@ -382,7 +387,7 @@ export default function ChatPage({ chatId }) {
   const messagesRef = useRef(null)
   const fileInputRef = useRef(null)
   const textareaRef = useRef(null)
-  const { newMessages, statusUpdates, messageUpdates, assignmentUpdates } = useSocket()
+  const { newMessages, statusUpdates, messageUpdates, assignmentUpdates, deletedMessages } = useSocket()
   const [showScrollBtn, setShowScrollBtn] = useState(false)
 
   const fetchData = useCallback(async () => {
@@ -444,6 +449,14 @@ export default function ChatPage({ chatId }) {
       return next
     })
   }, [messageUpdates, id])
+
+  // Pesan dihapus dari sisi lain / perangkat lain -> hilangkan dari daftar
+  useEffect(() => {
+    const relevant = deletedMessages.filter(m => String(m.conversationId) === String(id))
+    if (!relevant.length) return
+    const ids = new Set(relevant.map(m => String(m.id)))
+    setMessages(prev => prev.filter(m => !ids.has(String(m.id))))
+  }, [deletedMessages, id])
 
   // Auto-assign realtime: update badge agent di header chat yang sedang dibuka
   useEffect(() => {
@@ -625,6 +638,19 @@ export default function ChatPage({ chatId }) {
     closeMenus()
     try { await unassignAgent(id); setConversation(p => p ? { ...p, agents: null, status: p.status === 'in_progress' ? 'open' : p.status } : p) }
     catch { setError('Gagal menghapus assign.') }
+  }
+
+  const handleDeleteMessage = async (msg) => {
+    setActionMsg(null)
+    if (!msg?.id || String(msg.id).startsWith('tmp-')) return
+    if (!window.confirm('Hapus pesan ini?')) return
+    setDeletingMsg(true)
+    try {
+      await deleteMessage(msg.id)
+      setMessages(prev => prev.filter(m => String(m.id) !== String(msg.id)))
+    } catch (e) {
+      setError(e?.response?.data?.error || 'Gagal menghapus pesan.')
+    } finally { setDeletingMsg(false) }
   }
 
   const openForward = async (msg) => {
@@ -904,6 +930,24 @@ export default function ChatPage({ chatId }) {
         </Modal>
       )}
 
+      {actionMsg && (
+        <div className="cv-sheet-overlay" onClick={() => setActionMsg(null)}>
+          <div className="cv-sheet" onClick={e => e.stopPropagation()}>
+            <div className="cv-sheet-preview">{actionMsg.body || (actionMsg.media_type ? `[${actionMsg.media_type}]` : 'Pesan')}</div>
+            <button className="cv-sheet-item" onClick={() => { const m = actionMsg; setActionMsg(null); handleReplyTo(m) }}>
+              <Reply size={18} /> Balas
+            </button>
+            <button className="cv-sheet-item" onClick={() => { const m = actionMsg; setActionMsg(null); openForward(m) }}>
+              <Forward size={18} /> Teruskan
+            </button>
+            <button className="cv-sheet-item danger" onClick={() => handleDeleteMessage(actionMsg)}>
+              <Trash2 size={18} /> Hapus
+            </button>
+            <button className="cv-sheet-cancel" onClick={() => setActionMsg(null)}>Batal</button>
+          </div>
+        </div>
+      )}
+
       {forwardMsg && (
         <Modal title="Teruskan pesan ke" onClose={() => setForwardMsg(null)}>
           <div className="cv-forward">
@@ -1009,6 +1053,8 @@ export default function ChatPage({ chatId }) {
                 name={name}
                 onReply={() => handleReplyTo(msg)}
                 onForward={() => openForward(msg)}
+                onDelete={() => handleDeleteMessage(msg)}
+                onMenu={() => setActionMsg(msg)}
                 onImageClick={setLightboxUrl}
               />
             )
@@ -1330,10 +1376,25 @@ export default function ChatPage({ chatId }) {
         .cv-row.recv .cv-hover-actions { order: 2; }
         .cv-hover-btn { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #8a9bb8; background: transparent; }
         .cv-hover-btn:hover { background: #e4eaf5; color: #3563e9; }
+        .cv-hover-btn.danger:hover { background: #fde8e8; color: #e53e3e; }
         @media (hover: hover) and (pointer: fine) {
           .cv-hover-actions { display: flex; }
           .cv-row:hover .cv-hover-actions { opacity: 1; }
         }
+        /* Perangkat sentuh: matikan seleksi teks & callout agar long-press = menu aksi */
+        @media (pointer: coarse) {
+          .cv-bubble { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+        }
+        /* Action sheet (long-press mobile) */
+        .cv-sheet-overlay { position: fixed; inset: 0; z-index: 600; background: rgba(15,23,42,0.45); display: flex; align-items: flex-end; justify-content: center; animation: fadeIn 0.15s ease; }
+        .cv-sheet { width: 100%; max-width: 460px; background: #fff; border-radius: 16px 16px 0 0; padding: 8px; display: flex; flex-direction: column; gap: 2px; animation: sheetUp 0.2s ease-out; padding-bottom: max(8px, env(safe-area-inset-bottom)); }
+        .cv-sheet-preview { font-size: 12px; color: #8a9bb8; padding: 10px 14px 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-bottom: 1px solid #f0f3fa; margin-bottom: 4px; }
+        .cv-sheet-item { display: flex; align-items: center; gap: 14px; padding: 14px 16px; font-size: 15px; color: #1a2540; border-radius: 10px; text-align: left; }
+        .cv-sheet-item:active { background: #f0f3fa; }
+        .cv-sheet-item.danger { color: #e53e3e; }
+        .cv-sheet-cancel { margin-top: 4px; padding: 13px; font-size: 15px; font-weight: 600; color: #4f607a; background: #f0f3fa; border-radius: 10px; }
+        @keyframes sheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         /* Forward modal */
         .cv-forward { display: flex; flex-direction: column; padding: 14px 16px 16px; gap: 10px; }
         .cv-forward-preview { background: #f0f3fa; border-left: 3px solid #3563e9; border-radius: 6px; padding: 7px 10px; font-size: 13px; color: #4f607a; display: flex; flex-direction: column; gap: 2px; }

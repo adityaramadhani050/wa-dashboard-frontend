@@ -133,6 +133,9 @@ export const generateBotToken = (name) => api.post('/auth/bot-token', name ? { n
 export const forwardMessage = (messageId, targetConversationId) =>
   api.post('/messages/forward', { message_id: messageId, target_conversation_id: targetConversationId }).then(r => r.data)
 
+// Hapus pesan
+export const deleteMessage = (messageId) => api.delete(`/messages/${messageId}`).then(r => r.data)
+
 // Auto-assign chat (round-robin / least-loaded)
 export const getAutoAssign = () => api.get('/settings/auto-assign').then(r => r.data)
 export const setAutoAssign = (enabled) => api.put('/settings/auto-assign', { enabled }).then(r => r.data)
