@@ -11,7 +11,7 @@ import {
   generateAiSuggestion, suggestAiTags, suggestAiNote, updateContact,
 } from '../hooks/useApi'
 import { supabase } from '../lib/supabase'
-import { Send, ArrowLeft, ArrowDown, UserCheck, Paperclip, X, FileText, Play, Download, Check, Image, Film, Clock, Zap, Package, Tag as TagIcon, StickyNote, BellPlus, MoreVertical, Sparkles, Reply, Pencil, Forward, Search as SearchIcon, Trash2 } from 'lucide-react'
+import { Send, ArrowLeft, ArrowDown, UserCheck, Paperclip, X, FileText, Play, Download, Check, Image, Film, Clock, Zap, Package, Tag as TagIcon, StickyNote, BellPlus, MoreVertical, Sparkles, Reply, Pencil, Forward, Search as SearchIcon, Trash2, Copy } from 'lucide-react'
 
 
 const AVATAR_COLORS = ['#3563e9','#27a87a','#d08b28','#e05c8a','#7c5cd6','#2aaccc']
@@ -641,6 +641,14 @@ export default function ChatPage({ chatId }) {
     catch { setError('Gagal menghapus assign.') }
   }
 
+  const handleCopyMessage = async (msg) => {
+    setActionMsg(null)
+    const text = msg?.body || msg?.content || msg?.text || ''
+    if (!text) return
+    try { await navigator.clipboard.writeText(text) }
+    catch { setError('Gagal menyalin pesan.') }
+  }
+
   const handleDeleteMessage = async (msg) => {
     setActionMsg(null)
     if (!msg?.id || String(msg.id).startsWith('tmp-')) return
@@ -941,6 +949,11 @@ export default function ChatPage({ chatId }) {
             <button className="cv-sheet-item" onClick={() => { const m = actionMsg; setActionMsg(null); handleReplyTo(m) }}>
               <Reply size={18} /> Balas
             </button>
+            {(actionMsg.body && !actionMsg.body.startsWith('[')) && (
+              <button className="cv-sheet-item" onClick={() => handleCopyMessage(actionMsg)}>
+                <Copy size={18} /> Salin
+              </button>
+            )}
             <button className="cv-sheet-item" onClick={() => { const m = actionMsg; setActionMsg(null); openForward(m) }}>
               <Forward size={18} /> Teruskan
             </button>
