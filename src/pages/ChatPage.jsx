@@ -222,17 +222,31 @@ function SwipeMessageRow({ msg, sent, isSending, hasMedia, hasReply, name, onRep
   const THRESHOLD = 55
   const MAX = 80
 
+  const longPressTimer = useRef(null)
+  const longPressed = useRef(false)
+  const clearLongPress = () => { if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null } }
+
   const onTouchStart = (e) => {
     if (isSending) return
     const t = e.touches[0]
     start.current = { x: t.clientX, y: t.clientY }
     swiping.current = false
+    longPressed.current = false
+    // Tekan-tahan (±500ms) tanpa menggeser -> buka menu forward
+    clearLongPress()
+    longPressTimer.current = setTimeout(() => {
+      longPressed.current = true
+      if (navigator.vibrate) navigator.vibrate(15)
+      onForward()
+    }, 500)
   }
   const onTouchMove = (e) => {
     if (!start.current) return
     const t = e.touches[0]
     const dx = t.clientX - start.current.x
     const dy = t.clientY - start.current.y
+    // gerakan sedikit saja -> batalkan long-press
+    if (Math.abs(dx) > 8 || Math.abs(dy) > 8) clearLongPress()
     if (!swiping.current) {
       if (Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy)) swiping.current = true
       else return
@@ -243,7 +257,8 @@ function SwipeMessageRow({ msg, sent, isSending, hasMedia, hasReply, name, onRep
     setDragX(d)
   }
   const onTouchEnd = () => {
-    if (Math.abs(dragX) >= THRESHOLD && !isSending) onReply()
+    clearLongPress()
+    if (!longPressed.current && Math.abs(dragX) >= THRESHOLD && !isSending) onReply()
     setDragX(0)
     start.current = null
     swiping.current = false
