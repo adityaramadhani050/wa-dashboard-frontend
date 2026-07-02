@@ -351,6 +351,7 @@ export default function ChatPage({ chatId }) {
 
   // Forward pesan
   const [forwardMsg, setForwardMsg] = useState(null)
+  const [forwardLoading, setForwardLoading] = useState(false)
   const [forwardList, setForwardList] = useState([])
   const [forwardSearch, setForwardSearch] = useState('')
   const [forwardingId, setForwardingId] = useState(null)
@@ -657,10 +658,13 @@ export default function ChatPage({ chatId }) {
     setForwardMsg(msg)
     setForwardSearch('')
     setForwardDone(null)
+    setForwardList([])
+    setForwardLoading(true)
     try {
       const list = await getConversations(isAdmin ? undefined : user?.id)
       setForwardList(Array.isArray(list) ? list.filter(c => String(c.id) !== String(id)) : [])
     } catch { setForwardList([]) }
+    finally { setForwardLoading(false) }
   }
 
   const handleForwardTo = async (targetId) => {
@@ -960,7 +964,12 @@ export default function ChatPage({ chatId }) {
               <input value={forwardSearch} onChange={e => setForwardSearch(e.target.value)} placeholder="Cari kontak/percakapan..." autoFocus />
             </div>
             <div className="cv-forward-list">
-              {forwardList.length === 0 ? (
+              {forwardLoading ? (
+                <div className="cv-forward-loading">
+                  <div className="cv-forward-spinner" />
+                  <span>Memuat daftar chat…</span>
+                </div>
+              ) : forwardList.length === 0 ? (
                 <div className="cv-forward-empty">Tidak ada percakapan lain.</div>
               ) : (
                 forwardList
@@ -1404,6 +1413,9 @@ export default function ChatPage({ chatId }) {
         .cv-forward-search input { flex: 1; border: none; outline: none; font-size: 14px; color: #1a2540; background: transparent; }
         .cv-forward-list { display: flex; flex-direction: column; max-height: 320px; overflow-y: auto; }
         .cv-forward-empty { text-align: center; color: #8a9bb8; font-size: 13px; padding: 20px 0; }
+        .cv-forward-loading { display: flex; flex-direction: column; align-items: center; gap: 10px; color: #8a9bb8; font-size: 13px; padding: 28px 0; }
+        .cv-forward-spinner { width: 26px; height: 26px; border-radius: 50%; border: 3px solid #e4eaf5; border-top-color: #3563e9; animation: cvspin 0.7s linear infinite; }
+        @keyframes cvspin { to { transform: rotate(360deg); } }
         .cv-forward-item { display: flex; align-items: center; gap: 10px; padding: 9px 8px; border-radius: 8px; text-align: left; transition: background 0.12s; }
         .cv-forward-item:hover:not(:disabled) { background: #f0f3fa; }
         .cv-forward-item:disabled { opacity: 0.6; }
