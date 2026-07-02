@@ -347,6 +347,7 @@ export default function ChatPage({ chatId }) {
 
   // Menu aksi pesan (long-press mobile)
   const [actionMsg, setActionMsg] = useState(null)
+  const [toast, setToast] = useState('')
   const [deletingMsg, setDeletingMsg] = useState(false)
 
   // Forward pesan
@@ -645,7 +646,11 @@ export default function ChatPage({ chatId }) {
     setActionMsg(null)
     const text = msg?.body || msg?.content || msg?.text || ''
     if (!text) return
-    try { await navigator.clipboard.writeText(text) }
+    try {
+      await navigator.clipboard.writeText(text)
+      setToast('Pesan disalin')
+      setTimeout(() => setToast(''), 1800)
+    }
     catch { setError('Gagal menyalin pesan.') }
   }
 
@@ -940,6 +945,10 @@ export default function ChatPage({ chatId }) {
             })}
           </div>
         </Modal>
+      )}
+
+      {toast && (
+        <div className="cv-toast"><Check size={14} /> {toast}</div>
       )}
 
       {actionMsg && (
@@ -1417,6 +1426,9 @@ export default function ChatPage({ chatId }) {
         .cv-sheet-cancel { margin-top: 4px; padding: 13px; font-size: 15px; font-weight: 600; color: #4f607a; background: #f0f3fa; border-radius: 10px; }
         @keyframes sheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        /* Toast kecil (mis. pesan disalin) */
+        .cv-toast { position: fixed; left: 50%; bottom: 84px; transform: translateX(-50%); z-index: 700; display: flex; align-items: center; gap: 7px; background: rgba(26,37,64,0.94); color: #fff; font-size: 13px; font-weight: 500; padding: 9px 16px; border-radius: 999px; box-shadow: 0 6px 20px rgba(0,0,0,0.2); animation: cvToastIn 0.18s ease-out; }
+        @keyframes cvToastIn { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
         /* Forward modal */
         .cv-forward { display: flex; flex-direction: column; padding: 14px 16px 16px; gap: 10px; }
         .cv-forward-preview { background: #f0f3fa; border-left: 3px solid #3563e9; border-radius: 6px; padding: 7px 10px; font-size: 13px; color: #4f607a; display: flex; flex-direction: column; gap: 2px; }
