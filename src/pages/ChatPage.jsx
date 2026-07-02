@@ -3,14 +3,15 @@ import { useNavigate } from 'react-router-dom'
 import { useSocket } from '../context/SocketContext'
 import { useAuth } from '../context/AuthContext'
 import {
-  getMessages, sendMessage, sendMedia, assignAgent, unassignAgent, getConversation, getAgents,
+  getMessages, sendMessage, sendMedia, assignAgent, unassignAgent, getConversation, getConversations, getAgents,
+  forwardMessage,
   getTemplates, getQuickMedia, sendQuickMedia, useTemplate,
   getTags, addTagToConversation, removeTagFromConversation,
   getContactNotes, createContactNote, createReminder, getContactConversations,
   generateAiSuggestion, suggestAiTags, suggestAiNote, updateContact,
 } from '../hooks/useApi'
 import { supabase } from '../lib/supabase'
-import { Send, ArrowLeft, ArrowDown, UserCheck, Paperclip, X, FileText, Play, Download, Check, Image, Film, Clock, Zap, Package, Tag as TagIcon, StickyNote, BellPlus, MoreVertical, Sparkles, Reply, Pencil } from 'lucide-react'
+import { Send, ArrowLeft, ArrowDown, UserCheck, Paperclip, X, FileText, Play, Download, Check, Image, Film, Clock, Zap, Package, Tag as TagIcon, StickyNote, BellPlus, MoreVertical, Sparkles, Reply, Pencil, Forward, Search as SearchIcon } from 'lucide-react'
 
 
 const AVATAR_COLORS = ['#3563e9','#27a87a','#d08b28','#e05c8a','#7c5cd6','#2aaccc']
@@ -214,7 +215,7 @@ function mergeMessage(prev, message) {
 }
 
 // Baris pesan dengan gesture geser-untuk-balas (recv: geser kanan, sent: geser kiri)
-function SwipeMessageRow({ msg, sent, isSending, hasMedia, hasReply, name, onReply, onImageClick }) {
+function SwipeMessageRow({ msg, sent, isSending, hasMedia, hasReply, name, onReply, onForward, onImageClick }) {
   const [dragX, setDragX] = useState(0)
   const start = useRef(null)
   const swiping = useRef(false)
@@ -260,6 +261,12 @@ function SwipeMessageRow({ msg, sent, isSending, hasMedia, hasReply, name, onRep
         <span className={`cv-swipe-cue ${sent ? 'right' : 'left'}${Math.abs(dragX) >= THRESHOLD ? ' active' : ''}`}>
           <Reply size={16} />
         </span>
+      )}
+      {!isSending && (
+        <div className="cv-hover-actions">
+          <button className="cv-hover-btn" title="Balas" onClick={onReply}><Reply size={14} /></button>
+          <button className="cv-hover-btn" title="Teruskan" onClick={onForward}><Forward size={14} /></button>
+        </div>
       )}
       <div
         className={`cv-bubble ${sent ? 'bsent' : 'brecv'} ${hasMedia ? 'media' : ''} ${isSending ? 'sending' : ''}`}
@@ -321,6 +328,13 @@ export default function ChatPage({ chatId }) {
   const [allTags, setAllTags] = useState([])
   const [showTagModal, setShowTagModal] = useState(false)
   const [tagToggling, setTagToggling] = useState(null)
+
+  // Forward pesan
+  const [forwardMsg, setForwardMsg] = useState(null)
+  const [forwardList, setForwardList] = useState([])
+  const [forwardSearch, setForwardSearch] = useState('')
+  const [forwardingId, setForwardingId] = useState(null)
+  const [forwardDone, setForwardDone] = useState(null)
 
   // Edit kontak (dari panel detail)
   const [showEditContact, setShowEditContact] = useState(false)
@@ -598,6 +612,28 @@ export default function ChatPage({ chatId }) {
     catch { setError('Gagal menghapus assign.') }
   }
 
+  const openForward = async (msg) => {
+    setForwardMsg(msg)
+    setForwardSearch('')
+    setForwardDone(null)
+    try {
+      const list = await getConversations(isAdmin ? undefined : user?.id)
+      setForwardList(Array.isArray(list) ? list.filter(c => String(c.id) !== String(id)) : [])
+    } catch { setForwardList([]) }
+  }
+
+  const handleForwardTo = async (targetId) => {
+    if (!forwardMsg || forwardingId) return
+    setForwardingId(targetId)
+    try {
+      await forwardMessage(forwardMsg.id, targetId)
+      setForwardDone(targetId)
+      setTimeout(() => { setForwardMsg(null); setForwardDone(null) }, 900)
+    } catch (e) {
+      setError(e?.response?.data?.error || 'Gagal meneruskan pesan.')
+    } finally { setForwardingId(null) }
+  }
+
   const openEditContact = () => {
     const c = conversation?.contact
     setEditName(c?.name || '')
@@ -853,6 +889,48 @@ export default function ChatPage({ chatId }) {
         </Modal>
       )}
 
+      {forwardMsg && (
+        <Modal title="Teruskan pesan ke" onClose={() => setForwardMsg(null)}>
+          <div className="cv-forward">
+            <div className="cv-forward-preview">
+              {forwardMsg.media_type ? <span className="cv-forward-media"><Paperclip size={12} /> {forwardMsg.media_type}</span> : null}
+              <span className="cv-forward-preview-text">{forwardMsg.body || (forwardMsg.media_type ? '[media]' : 'Pesan')}</span>
+            </div>
+            <div className="cv-forward-search">
+              <SearchIcon size={14} />
+              <input value={forwardSearch} onChange={e => setForwardSearch(e.target.value)} placeholder="Cari kontak/percakapan..." autoFocus />
+            </div>
+            <div className="cv-forward-list">
+              {forwardList.length === 0 ? (
+                <div className="cv-forward-empty">Tidak ada percakapan lain.</div>
+              ) : (
+                forwardList
+                  .filter(c => {
+                    const q = forwardSearch.toLowerCase()
+                    if (!q) return true
+                    return (c.contact?.name || '').toLowerCase().includes(q) || (c.contact?.phone || '').includes(q)
+                  })
+                  .slice(0, 50)
+                  .map(c => {
+                    const cname = c.contact?.name || c.contact?.phone || 'Unknown'
+                    return (
+                      <button key={c.id} className="cv-forward-item" disabled={!!forwardingId} onClick={() => handleForwardTo(c.id)}>
+                        <span className="cv-forward-avatar">{cname[0].toUpperCase()}</span>
+                        <span className="cv-forward-name">{cname}</span>
+                        {forwardDone === c.id
+                          ? <Check size={16} className="cv-forward-check" />
+                          : forwardingId === c.id
+                            ? <div className="cv-sending-dot dark" />
+                            : <Forward size={14} className="cv-forward-ico" />}
+                      </button>
+                    )
+                  })
+              )}
+            </div>
+          </div>
+        </Modal>
+      )}
+
       {showEditContact && (
         <Modal title="Edit Kontak" onClose={() => setShowEditContact(false)}>
           <div className="cv-edit-contact">
@@ -915,6 +993,7 @@ export default function ChatPage({ chatId }) {
                 hasReply={!!(msg.reply_to_body || msg.reply_to_wa_id)}
                 name={name}
                 onReply={() => handleReplyTo(msg)}
+                onForward={() => openForward(msg)}
                 onImageClick={setLightboxUrl}
               />
             )
@@ -1230,6 +1309,32 @@ export default function ChatPage({ chatId }) {
         .cv-row { display: flex; margin-bottom: 3px; align-items: center; gap: 6px; position: relative; touch-action: pan-y; }
         .cv-row.sent { justify-content: flex-end; }
         .cv-row.recv { justify-content: flex-start; }
+        /* Tombol aksi saat hover — hanya untuk perangkat desktop (punya hover & pointer presisi) */
+        .cv-hover-actions { display: none; align-items: center; gap: 2px; opacity: 0; transition: opacity 0.12s; order: 0; }
+        .cv-row.sent .cv-hover-actions { order: -1; }
+        .cv-row.recv .cv-hover-actions { order: 2; }
+        .cv-hover-btn { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #8a9bb8; background: transparent; }
+        .cv-hover-btn:hover { background: #e4eaf5; color: #3563e9; }
+        @media (hover: hover) and (pointer: fine) {
+          .cv-hover-actions { display: flex; }
+          .cv-row:hover .cv-hover-actions { opacity: 1; }
+        }
+        /* Forward modal */
+        .cv-forward { display: flex; flex-direction: column; padding: 14px 16px 16px; gap: 10px; }
+        .cv-forward-preview { background: #f0f3fa; border-left: 3px solid #3563e9; border-radius: 6px; padding: 7px 10px; font-size: 13px; color: #4f607a; display: flex; flex-direction: column; gap: 2px; }
+        .cv-forward-media { font-size: 11px; font-weight: 700; color: #3563e9; display: inline-flex; align-items: center; gap: 4px; text-transform: capitalize; }
+        .cv-forward-preview-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .cv-forward-search { display: flex; align-items: center; gap: 8px; border: 1px solid #e4eaf5; border-radius: 8px; padding: 7px 10px; color: #8a9bb8; }
+        .cv-forward-search input { flex: 1; border: none; outline: none; font-size: 14px; color: #1a2540; background: transparent; }
+        .cv-forward-list { display: flex; flex-direction: column; max-height: 320px; overflow-y: auto; }
+        .cv-forward-empty { text-align: center; color: #8a9bb8; font-size: 13px; padding: 20px 0; }
+        .cv-forward-item { display: flex; align-items: center; gap: 10px; padding: 9px 8px; border-radius: 8px; text-align: left; transition: background 0.12s; }
+        .cv-forward-item:hover:not(:disabled) { background: #f0f3fa; }
+        .cv-forward-item:disabled { opacity: 0.6; }
+        .cv-forward-avatar { width: 32px; height: 32px; border-radius: 50%; background: #cdd8ee; color: #3563e9; font-weight: 700; font-size: 13px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .cv-forward-name { flex: 1; font-size: 14px; color: #1a2540; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .cv-forward-ico { color: #a8b8d0; flex-shrink: 0; }
+        .cv-forward-check { color: #10b981; flex-shrink: 0; }
         .cv-swipe-cue { position: absolute; top: 50%; transform: translateY(-50%); width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #e4eaf5; color: #8a9bb8; transition: background 0.12s, color 0.12s; }
         .cv-swipe-cue.left { left: 4px; }
         .cv-swipe-cue.right { right: 4px; }

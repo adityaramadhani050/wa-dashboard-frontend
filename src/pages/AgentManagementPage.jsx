@@ -1,6 +1,11 @@
 import { useState, useEffect, useCallback } from 'react'
-import { getAgents, createAgent, updateAgent, deleteAgent, getAutoAssign, setAutoAssign, generateBotToken } from '../hooks/useApi'
-import { Plus, Pencil, Trash2, X, Eye, EyeOff, Users, Shuffle, KeyRound, Copy, Check } from 'lucide-react'
+import { getAgents, createAgent, updateAgent, deleteAgent, getAutoAssign, setAutoAssign, generateBotToken, getWorkHours, setWorkHours } from '../hooks/useApi'
+import { Plus, Pencil, Trash2, X, Eye, EyeOff, Users, Shuffle, KeyRound, Copy, Check, Clock } from 'lucide-react'
+
+const WEEKDAYS = [
+  { d: 1, label: 'Sen' }, { d: 2, label: 'Sel' }, { d: 3, label: 'Rab' },
+  { d: 4, label: 'Kam' }, { d: 5, label: 'Jum' }, { d: 6, label: 'Sab' }, { d: 0, label: 'Min' },
+]
 
 const EMPTY_FORM = { name: '', username: '', email: '', role: 'agent', password: '', confirmPassword: '' }
 
@@ -123,6 +128,9 @@ export default function AgentManagementPage() {
   const [botTokenBusy, setBotTokenBusy] = useState(false)
   const [botTokenCopied, setBotTokenCopied] = useState(false)
   const [botTokenError, setBotTokenError] = useState('')
+  const [wh, setWh] = useState(null)
+  const [whBusy, setWhBusy] = useState(false)
+  const [whSaved, setWhSaved] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -132,6 +140,27 @@ export default function AgentManagementPage() {
 
   useEffect(() => { load() }, [load])
   useEffect(() => { getAutoAssign().then(d => setAutoAssignState(!!d.enabled)).catch(() => {}) }, [])
+  useEffect(() => { getWorkHours().then(setWh).catch(() => {}) }, [])
+
+  const handleSaveWorkHours = async () => {
+    if (!wh || whBusy) return
+    setWhBusy(true); setWhSaved(false)
+    try {
+      const saved = await setWorkHours(wh)
+      setWh(saved)
+      setWhSaved(true)
+      setTimeout(() => setWhSaved(false), 2000)
+    } catch (e) {
+      alert(e?.response?.data?.error || 'Gagal menyimpan jam kerja')
+    } finally { setWhBusy(false) }
+  }
+
+  const toggleWhDay = (d) => {
+    setWh(prev => {
+      const days = prev?.days || []
+      return { ...prev, days: days.includes(d) ? days.filter(x => x !== d) : [...days, d] }
+    })
+  }
 
   const handleToggleAutoAssign = async () => {
     if (autoAssignBusy) return
@@ -278,6 +307,44 @@ export default function AgentManagementPage() {
         </div>
       )}
 
+      <div className="aa-card wh-card">
+        <div className="aa-info">
+          <div className="aa-icon"><Clock size={18} /></div>
+          <div style={{ flex: 1 }}>
+            <div className="aa-title">Jam & Hari Kerja (Overdue)</div>
+            <div className="aa-desc">Bila aktif, indikator overdue tidak dihitung di luar jam/hari kerja. Zona waktu WIB.</div>
+            {wh && (
+              <div className="wh-body">
+                <label className="wh-enable">
+                  <input type="checkbox" checked={!!wh.enabled} onChange={e => setWh({ ...wh, enabled: e.target.checked })} />
+                  <span>Aktifkan batasan jam kerja</span>
+                </label>
+                <div className={`wh-controls${wh.enabled ? '' : ' disabled'}`}>
+                  <div className="wh-days">
+                    {WEEKDAYS.map(w => (
+                      <button
+                        key={w.d}
+                        type="button"
+                        className={`wh-day${(wh.days || []).includes(w.d) ? ' on' : ''}`}
+                        onClick={() => wh.enabled && toggleWhDay(w.d)}
+                        disabled={!wh.enabled}
+                      >{w.label}</button>
+                    ))}
+                  </div>
+                  <div className="wh-times">
+                    <label>Dari <input type="time" value={wh.start || '08:00'} disabled={!wh.enabled} onChange={e => setWh({ ...wh, start: e.target.value })} /></label>
+                    <label>Sampai <input type="time" value={wh.end || '17:00'} disabled={!wh.enabled} onChange={e => setWh({ ...wh, end: e.target.value })} /></label>
+                  </div>
+                </div>
+                <button className="am-btn primary wh-save" onClick={handleSaveWorkHours} disabled={whBusy}>
+                  {whSaved ? <><Check size={15} /> Tersimpan</> : whBusy ? 'Menyimpan...' : 'Simpan Jam Kerja'}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
       <div className="am-table-box">
         {loading ? (
           <div className="am-loading">
@@ -391,6 +458,17 @@ export default function AgentManagementPage() {
         .bt-warn { color: #b45309; font-size: 12px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 8px 10px; margin-bottom: 10px; }
         .bt-token-row { display: flex; align-items: flex-start; gap: 10px; flex-wrap: wrap; }
         .bt-token { flex: 1; min-width: 220px; font-family: ui-monospace, monospace; font-size: 12px; color: #1e293b; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 10px; resize: vertical; word-break: break-all; }
+        .wh-body { margin-top: 12px; display: flex; flex-direction: column; gap: 12px; }
+        .wh-enable { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: #1e293b; cursor: pointer; }
+        .wh-controls { display: flex; flex-direction: column; gap: 10px; }
+        .wh-controls.disabled { opacity: 0.5; }
+        .wh-days { display: flex; gap: 6px; flex-wrap: wrap; }
+        .wh-day { width: 40px; padding: 6px 0; border-radius: 8px; font-size: 12px; font-weight: 600; color: #64748b; background: #f0f4f8; border: 1px solid #e2e8f0; }
+        .wh-day.on { background: #2563eb; color: #fff; border-color: #2563eb; }
+        .wh-times { display: flex; gap: 16px; flex-wrap: wrap; }
+        .wh-times label { font-size: 13px; color: #475569; display: flex; align-items: center; gap: 6px; }
+        .wh-times input[type="time"] { border: 1px solid #e2e8f0; border-radius: 8px; padding: 6px 8px; font-size: 13px; color: #1e293b; }
+        .wh-save { align-self: flex-start; }
         .aa-info { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
         .aa-icon { width: 38px; height: 38px; border-radius: 10px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: rgba(53,99,233,0.1); color: #3563e9; }
         .aa-title { font-size: 14px; font-weight: 600; color: #1e293b; margin-bottom: 2px; }

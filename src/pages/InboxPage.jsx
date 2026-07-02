@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate, useMatch } from 'react-router-dom'
 import { useSocket } from '../context/SocketContext'
 import { useAuth } from '../context/AuthContext'
-import { getConversations, getTags, getAgents, syncMessages } from '../hooks/useApi'
+import { getConversations, getTags, getAgents, syncMessages, getWorkHours } from '../hooks/useApi'
 import { Search, RefreshCw, UserCheck, Tag as TagIcon, ChevronDown, Clock, RotateCw } from 'lucide-react'
 
 // KPI response time: customer harus dibalas dalam 5 menit
@@ -11,6 +11,19 @@ const RESPONSE_KPI_MS = 5 * 60 * 1000
 function waitMinutes(awaitingSince, now) {
   if (!awaitingSince) return 0
   return Math.floor((now - new Date(awaitingSince).getTime()) / 60000)
+}
+
+// Apakah saat ini (ms) berada dalam jam & hari kerja (zona WIB / UTC+7)?
+// Jika fitur mati atau tidak ada config -> selalu dianggap "dalam jam kerja".
+function isWithinWorkHours(nowMs, wh) {
+  if (!wh || !wh.enabled) return true
+  const wib = new Date(nowMs + 7 * 3600 * 1000)
+  const day = wib.getUTCDay() // 0=Minggu .. 6=Sabtu
+  if (Array.isArray(wh.days) && wh.days.length && !wh.days.includes(day)) return false
+  const mins = wib.getUTCHours() * 60 + wib.getUTCMinutes()
+  const [sh, sm] = (wh.start || '08:00').split(':').map(Number)
+  const [eh, em] = (wh.end || '17:00').split(':').map(Number)
+  return mins >= (sh * 60 + sm) && mins < (eh * 60 + em)
 }
 
 function statusLabel(s) {
@@ -54,6 +67,7 @@ export default function InboxPage() {
   const [agentFilter, setAgentFilter] = useState(null)
   const [showAgentFilter, setShowAgentFilter] = useState(false)
   const [now, setNow] = useState(() => Date.now())
+  const [workHours, setWorkHours] = useState(null)
   const { newMessages, assignmentUpdates, socketConnected, waConnected, syncing } = useSocket()
   const [refreshing, setRefreshing] = useState(false)
   const { user } = useAuth()
@@ -180,6 +194,7 @@ export default function InboxPage() {
   }, [assignmentUpdates, fetch, user])
 
   useEffect(() => { getTags().then(d => setTags(Array.isArray(d) ? d : [])).catch(() => {}) }, [])
+  useEffect(() => { getWorkHours().then(setWorkHours).catch(() => {}) }, [])
   useEffect(() => {
     if (isAdmin) getAgents().then(d => setAgents(Array.isArray(d) ? d.filter(a => a.role === 'agent') : [])).catch(() => {})
   }, [isAdmin])
@@ -205,8 +220,11 @@ export default function InboxPage() {
     const n = (t.name || '').toLowerCase()
     return n === 'fail' || n === 'deal' || /non[\s_-]*client/.test(n)
   })
-  // Chat overdue = customer menunggu > 5 menit & belum dibalas, kecuali fail/deal
-  const isOverdue = (c) => !!c.awaitingSince && c.lastFromMe === false && !isOverdueExempt(c) &&
+  // Overdue tidak berlaku di luar jam/hari kerja (bila fitur diaktifkan admin)
+  const withinWorkHours = isWithinWorkHours(now, workHours)
+  // Chat overdue = customer menunggu > 5 menit & belum dibalas, kecuali fail/deal,
+  // dan hanya dihitung saat dalam jam kerja.
+  const isOverdue = (c) => withinWorkHours && !!c.awaitingSince && c.lastFromMe === false && !isOverdueExempt(c) &&
     (now - new Date(c.awaitingSince).getTime()) > RESPONSE_KPI_MS
 
   const filtered = conversations.filter(c => {

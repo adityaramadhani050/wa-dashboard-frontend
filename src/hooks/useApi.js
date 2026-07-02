@@ -129,9 +129,17 @@ export const suggestAiNote = (conversationId) =>
 // Token bot/service untuk integrasi mesin-ke-mesin (mis. WA Bot RenusPro)
 export const generateBotToken = (name) => api.post('/auth/bot-token', name ? { name } : {}).then(r => r.data)
 
+// Teruskan pesan ke percakapan lain
+export const forwardMessage = (messageId, targetConversationId) =>
+  api.post('/messages/forward', { message_id: messageId, target_conversation_id: targetConversationId }).then(r => r.data)
+
 // Auto-assign chat (round-robin / least-loaded)
 export const getAutoAssign = () => api.get('/settings/auto-assign').then(r => r.data)
 export const setAutoAssign = (enabled) => api.put('/settings/auto-assign', { enabled }).then(r => r.data)
+
+// Jam & hari kerja (pengecualian overdue di luar jam kerja)
+export const getWorkHours = () => api.get('/settings/work-hours').then(r => r.data)
+export const setWorkHours = (payload) => api.put('/settings/work-hours', payload).then(r => r.data)
 
 // VAPID public key untuk web push (endpoint terbuka)
 export const getVapidPublicKey = () => api.get('/push/vapid-public-key').then(r => r.data)
