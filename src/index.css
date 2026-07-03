@@ -185,3 +185,13 @@ a { text-decoration: none; color: inherit; }
   .wa-app.chat-open .wa-left-panel { display: none; }
   .wa-app.chat-open .wa-right-panel { flex: 1; display: flex; }
 }
+
+/* iOS: cegah auto-zoom saat fokus input dengan memaksa font >= 16px di
+   perangkat sentuh. Viewport tetap mengizinkan pinch-zoom manual (Opsi C). */
+@media (pointer: coarse) {
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
