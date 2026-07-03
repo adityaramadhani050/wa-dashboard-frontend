@@ -4,6 +4,7 @@
   --bg: #f0f3fa;
   --surface: #ffffff;
   --surface2: #f7f9fd;
+  --surface3: #eef2f9;      /* hover row / chip bg */
   --primary: #3563e9;
   --primary-hover: #2850cc;
   --primary-light: rgba(53,99,233,0.09);
@@ -22,6 +23,43 @@
   --danger: #e53e3e;
   --success: #27a87a;
   --warning: #d08b28;
+  /* Warna yang TETAP sama di light & dark */
+  --on-primary: #ffffff;    /* teks/ikon di atas warna solid (biru, badge, dsb.) */
+  --scrim: rgba(15,23,42,0.5);   /* overlay modal */
+  --skeleton: #e6ecf5;      /* placeholder loading */
+  --shadow: rgba(20,40,80,0.06);
+}
+
+/* Dark mode — mengikuti tema device (prefers-color-scheme) */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1720;
+    --surface: #1a232f;
+    --surface2: #212c3a;
+    --surface3: #263243;
+    --primary: #5b8cff;
+    --primary-hover: #7aa2ff;
+    --primary-light: rgba(91,140,255,0.16);
+    --border: #2b384a;
+    --border2: #3a4a60;
+    --text: #e8edf6;
+    --text2: #aab8cd;
+    --muted: #7d8da5;
+    --sent: #2f6fed;
+    --sent-text: #ffffff;
+    --recv: #232f3e;
+    --recv-text: #e8edf6;
+    --sidebar-bg: #141c26;
+    --sidebar-active: #5b8cff;
+    --sidebar-muted: #6c7c96;
+    --danger: #ff6b6b;
+    --success: #34c795;
+    --warning: #e0a63a;
+    --scrim: rgba(0,0,0,0.6);
+    --skeleton: #263243;
+    --shadow: rgba(0,0,0,0.4);
+    color-scheme: dark;   /* form control & scrollbar native ikut gelap */
+  }
 }
 
 html, body, #root {
