@@ -404,7 +404,7 @@ export default function InboxPage() {
               >
                 <div
                   className="cl-avatar"
-                  style={isActive ? { background: 'rgba(255,255,255,0.22)', color: '#fff' } : avatarStyle(name)}
+                  style={isActive ? { background: 'rgba(255,255,255,0.22)', color: 'var(--on-primary)' } : avatarStyle(name)}
                 >{initial}</div>
                 <div className="cl-info">
                   <div className="cl-row">
@@ -444,63 +444,63 @@ export default function InboxPage() {
         .cl-root {
           display: flex; flex-direction: column;
           width: 100%; height: 100%;
-          background: #fff; overflow: hidden;
+          background: var(--surface); overflow: hidden;
         }
         .cl-header {
           padding: 18px 16px 0;
-          border-bottom: 1px solid #e4eaf5;
+          border-bottom: 1px solid var(--border);
           flex-shrink: 0;
         }
         .cl-header-top {
           display: flex; align-items: center; justify-content: space-between;
           margin-bottom: 12px;
         }
-        .cl-header-top h2 { font-size: 18px; font-weight: 700; color: #1a2540; }
+        .cl-header-top h2 { font-size: 18px; font-weight: 700; color: var(--text); }
         .cl-icon-btn {
           width: 32px; height: 32px; border-radius: 8px;
           display: flex; align-items: center; justify-content: center;
-          color: #a8b8d0; transition: all 0.15s;
+          color: var(--muted); transition: all 0.15s;
         }
-        .cl-icon-btn:hover { background: #f0f3fa; color: #4f607a; }
+        .cl-icon-btn:hover { background: var(--surface3); color: var(--text2); }
         .cl-icon-btn:disabled { opacity: 0.6; cursor: not-allowed; }
         .cl-header-actions { display: flex; align-items: center; gap: 2px; }
-        .cl-sync-banner { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; padding: 7px 12px; border-radius: 8px; background: rgba(53,99,233,0.08); color: #3563e9; font-size: 12px; font-weight: 600; }
+        .cl-sync-banner { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; padding: 7px 12px; border-radius: 8px; background: var(--primary-light); color: var(--primary); font-size: 12px; font-weight: 600; }
         .cl-spin { animation: spin 0.8s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
         .cl-search {
           display: flex; align-items: center; gap: 8px;
           padding: 8px 12px; margin-bottom: 12px;
-          background: #f7f9fd; border: 1px solid #e4eaf5;
+          background: var(--surface2); border: 1px solid var(--border);
           border-radius: 10px;
         }
-        .cl-search svg { color: #a8b8d0; flex-shrink: 0; }
+        .cl-search svg { color: var(--muted); flex-shrink: 0; }
         .cl-search input {
           background: none; border: none; outline: none;
-          color: #1a2540; font-size: 13px; width: 100%;
+          color: var(--text); font-size: 13px; width: 100%;
         }
-        .cl-search input::placeholder { color: #b8c8d8; }
+        .cl-search input::placeholder { color: var(--muted); }
         .cl-list { flex: 1; min-height: 0; overflow-y: auto; }
         .cl-skel {
           height: 64px; margin: 4px 12px; border-radius: 10px;
-          background: #f0f3fa; animation: pulse 1.4s ease infinite;
+          background: var(--skeleton); animation: pulse 1.4s ease infinite;
         }
         .cl-empty {
           text-align: center; padding: 48px 20px;
-          color: #a8b8d0; font-size: 13px;
+          color: var(--muted); font-size: 13px;
         }
         .cl-item {
           display: flex; align-items: center; gap: 12px;
           padding: 12px 16px; cursor: pointer;
-          border-bottom: 1px solid #f4f6fb;
+          border-bottom: 1px solid var(--border);
           transition: background 0.1s;
         }
-        .cl-item:hover { background: #f7f9fd; }
-        .cl-item.active { background: #3563e9; }
-        .cl-item.active .cl-name { color: #fff; }
+        .cl-item:hover { background: var(--surface3); }
+        .cl-item.active { background: var(--primary); }
+        .cl-item.active .cl-name { color: var(--on-primary); }
         .cl-item.active .cl-time { color: rgba(255,255,255,0.7); }
         .cl-item.active .cl-preview { color: rgba(255,255,255,0.75); }
         .cl-item.active .cl-agent-badge {
-          background: rgba(255,255,255,0.18); color: #fff;
+          background: rgba(255,255,255,0.18); color: var(--on-primary);
         }
         .cl-avatar {
           width: 42px; height: 42px; border-radius: 50%;
@@ -513,48 +513,48 @@ export default function InboxPage() {
           justify-content: space-between; gap: 6px; margin-bottom: 3px;
         }
         .cl-row:last-child { margin-bottom: 0; }
-        .cl-name { font-size: 14px; font-weight: 600; color: #1a2540; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
-        .cl-time { font-size: 11px; color: #a8b8d0; flex-shrink: 0; }
-        .cl-preview { font-size: 12px; color: #8a9bb8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
+        .cl-name { font-size: 14px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
+        .cl-time { font-size: 11px; color: var(--muted); flex-shrink: 0; }
+        .cl-preview { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
         .cl-agent-badge {
           display: inline-flex; align-items: center; gap: 3px;
           font-size: 10px; font-weight: 600;
           padding: 2px 7px; border-radius: 20px;
-          background: rgba(39,168,122,0.1); color: #27a87a;
+          background: rgba(39,168,122,0.1); color: var(--success);
           white-space: nowrap; flex-shrink: 0;
         }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
         @media (max-width: 768px) { .cl-root { width: 100vw; } }
         .cl-tagfilter-row { display: flex; padding: 10px 0; }
         .cv-dd { position: relative; }
-        .cl-tagfilter-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 500; color: #4f607a; background: #f7f9fd; border: 1px solid #e4eaf5; transition: all 0.15s; }
-        .cl-tagfilter-btn:hover { background: #eef4fd; }
-        .cl-tagfilter-btn.active { color: #3563e9; border-color: #c8d4ec; background: #eef4fd; }
-        .cv-menu { position: absolute; left: 0; top: calc(100% + 6px); background: #fff; border: 1px solid #e4eaf5; border-radius: 12px; z-index: 200; box-shadow: 0 8px 24px rgba(26,37,64,0.10); overflow: hidden; }
-        .cv-mi { display: flex; align-items: center; width: 100%; text-align: left; padding: 9px 14px; font-size: 13px; color: #1a2540; transition: background 0.1s; }
-        .cv-mi:hover { background: #f7f9fd; }
-        .cv-mi.active { background: rgba(53,99,233,0.06); color: #3563e9; }
+        .cl-tagfilter-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 500; color: var(--text2); background: var(--surface2); border: 1px solid var(--border); transition: all 0.15s; }
+        .cl-tagfilter-btn:hover { background: var(--surface3); }
+        .cl-tagfilter-btn.active { color: var(--primary); border-color: var(--border2); background: var(--primary-light); }
+        .cv-menu { position: absolute; left: 0; top: calc(100% + 6px); background: var(--surface); border: 1px solid var(--border); border-radius: 12px; z-index: 200; box-shadow: 0 8px 24px var(--shadow); overflow: hidden; }
+        .cv-mi { display: flex; align-items: center; width: 100%; text-align: left; padding: 9px 14px; font-size: 13px; color: var(--text); transition: background 0.1s; }
+        .cv-mi:hover { background: var(--surface3); }
+        .cv-mi.active { background: var(--primary-light); color: var(--primary); }
         .cl-tags-row { display: flex; gap: 4px; margin-top: 4px; flex-wrap: wrap; align-items: center; }
-        .tag-chip { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 600; color: #fff; white-space: nowrap; }
+        .tag-chip { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 600; color: var(--on-primary); white-space: nowrap; }
         .cl-status-badge { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
-        .cl-status-badge.st-open { background: rgba(208,139,40,0.12); color: #d08b28; }
-        .cl-status-badge.st-in_progress { background: rgba(53,99,233,0.12); color: #3563e9; }
-        .cl-status-badge.st-resolved { background: rgba(39,168,122,0.12); color: #27a87a; }
-        .cl-item.active .cl-status-badge { background: rgba(255,255,255,0.22); color: #fff; }
+        .cl-status-badge.st-open { background: rgba(208,139,40,0.12); color: var(--warning); }
+        .cl-status-badge.st-in_progress { background: var(--primary-light); color: var(--primary); }
+        .cl-status-badge.st-resolved { background: rgba(39,168,122,0.12); color: var(--success); }
+        .cl-item.active .cl-status-badge { background: rgba(255,255,255,0.22); color: var(--on-primary); }
         .cl-row-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
-        .cl-unread-dot { width: 8px; height: 8px; border-radius: 50%; background: #3563e9; flex-shrink: 0; }
-        .cl-item.unread .cl-name { font-weight: 800; color: #0d1730; }
-        .cl-item.unread .cl-preview { color: #1a2540; font-weight: 600; }
+        .cl-unread-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--primary); flex-shrink: 0; }
+        .cl-item.unread .cl-name { font-weight: 800; color: var(--text); }
+        .cl-item.unread .cl-preview { color: var(--text); font-weight: 600; }
         .cl-statusfilter-row { display: flex; gap: 6px; padding: 0 0 4px; overflow-x: auto; scrollbar-width: none; }
         .cl-statusfilter-row::-webkit-scrollbar { display: none; }
-        .cl-statuschip { flex-shrink: 0; padding: 5px 11px; border-radius: 20px; font-size: 12px; font-weight: 500; color: #4f607a; background: #f7f9fd; border: 1px solid #e4eaf5; white-space: nowrap; transition: all 0.15s; }
-        .cl-statuschip:hover { background: #eef4fd; }
-        .cl-statuschip.active { background: #3563e9; color: #fff; border-color: #3563e9; }
+        .cl-statuschip { flex-shrink: 0; padding: 5px 11px; border-radius: 20px; font-size: 12px; font-weight: 500; color: var(--text2); background: var(--surface2); border: 1px solid var(--border); white-space: nowrap; transition: all 0.15s; }
+        .cl-statuschip:hover { background: var(--surface3); }
+        .cl-statuschip.active { background: var(--primary); color: var(--on-primary); border-color: var(--primary); }
         .cl-tagfilter-row { gap: 8px; flex-wrap: wrap; }
-        .cl-overdue-badge { display: inline-flex; align-items: center; gap: 2px; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 20px; background: #e53e3e; color: #fff; white-space: nowrap; }
-        .cl-item.overdue { background: rgba(229,62,62,0.05); box-shadow: inset 3px 0 0 #e53e3e; }
+        .cl-overdue-badge { display: inline-flex; align-items: center; gap: 2px; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 20px; background: var(--danger); color: var(--on-primary); white-space: nowrap; }
+        .cl-item.overdue { background: rgba(229,62,62,0.05); box-shadow: inset 3px 0 0 var(--danger); }
         .cl-item.overdue:hover { background: rgba(229,62,62,0.09); }
-        .cl-item.active .cl-overdue-badge { background: #fff; color: #e53e3e; }
+        .cl-item.active .cl-overdue-badge { background: var(--surface); color: var(--danger); }
       `}</style>
     </div>
   )

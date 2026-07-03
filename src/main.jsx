@@ -3,6 +3,12 @@ import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
 import './index.css'
 
+// Terapkan preferensi tema sedini mungkin (hindari kedip). 'auto' = ikut device.
+const savedTheme = localStorage.getItem('wa_theme') || 'auto'
+if (savedTheme === 'light' || savedTheme === 'dark') {
+  document.documentElement.setAttribute('data-theme', savedTheme)
+}
+
 // Nonaktifkan zoom secara konsisten di semua platform.
 // iOS Safari: blokir gesture pinch WebKit (meta viewport sering diabaikan).
 ;['gesturestart', 'gesturechange', 'gestureend'].forEach((ev) => {

@@ -53,7 +53,7 @@ function TemplateForm({ initial, onSave, onClose, loading, error }) {
         <span className="am-hint">Gunakan <code>{'{{nama}}'}</code> untuk menyisipkan nama kontak otomatis</span>
       </div>
       <div className="am-field">
-        <label>Shortcut <span style={{fontSize:11,color:'#94a3b8'}}>(opsional)</span></label>
+        <label>Shortcut <span style={{fontSize:11,color:'var(--muted)'}}>(opsional)</span></label>
         <input
           value={form.shortcut || ''}
           onChange={e => set('shortcut', e.target.value)}
@@ -61,7 +61,7 @@ function TemplateForm({ initial, onSave, onClose, loading, error }) {
         />
       </div>
       <div className="am-field">
-        <label>Kategori <span style={{fontSize:11,color:'#94a3b8'}}>(opsional)</span></label>
+        <label>Kategori <span style={{fontSize:11,color:'var(--muted)'}}>(opsional)</span></label>
         <input value={form.category || ''} onChange={e => set('category', e.target.value)} placeholder="contoh: Umum" />
       </div>
       {error && <div className="am-form-err">{error}</div>}
@@ -93,7 +93,7 @@ function QuickMediaForm({ onSave, onClose, loading, error }) {
         <input value={label} onChange={e => setLabel(e.target.value)} placeholder="contoh: Katalog Produk A" required />
       </div>
       <div className="am-field">
-        <label>Kategori <span style={{fontSize:11,color:'#94a3b8'}}>(opsional)</span></label>
+        <label>Kategori <span style={{fontSize:11,color:'var(--muted)'}}>(opsional)</span></label>
         <input value={category} onChange={e => setCategory(e.target.value)} placeholder="contoh: Katalog" />
       </div>
       <div className="am-field">
@@ -165,19 +165,19 @@ function ProductForm({ initial, onSave, onClose, loading, error }) {
         <input value={form.name} onChange={e => set('name', e.target.value)} placeholder="contoh: Paket PLTS Hybrid 2000W" required />
       </div>
       <div className="am-field">
-        <label>Kategori <span style={{fontSize:11,color:'#94a3b8'}}>(opsional)</span></label>
+        <label>Kategori <span style={{fontSize:11,color:'var(--muted)'}}>(opsional)</span></label>
         <input value={form.category || ''} onChange={e => set('category', e.target.value)} placeholder="contoh: Hybrid / On-grid / Paket Rumah" />
       </div>
       <div className="am-field">
-        <label>Kapasitas <span style={{fontSize:11,color:'#94a3b8'}}>(opsional)</span></label>
+        <label>Kapasitas <span style={{fontSize:11,color:'var(--muted)'}}>(opsional)</span></label>
         <input value={form.capacity || ''} onChange={e => set('capacity', e.target.value)} placeholder="contoh: 2000W / 3 kWp" />
       </div>
       <div className="am-field">
-        <label>Harga <span style={{fontSize:11,color:'#94a3b8'}}>(opsional)</span></label>
+        <label>Harga <span style={{fontSize:11,color:'var(--muted)'}}>(opsional)</span></label>
         <input value={form.price || ''} onChange={e => set('price', e.target.value)} placeholder="contoh: Rp 30.000.000 atau mulai 25jt" />
       </div>
       <div className="am-field">
-        <label>Spesifikasi & Poin Jual <span style={{fontSize:11,color:'#94a3b8'}}>(opsional)</span></label>
+        <label>Spesifikasi & Poin Jual <span style={{fontSize:11,color:'var(--muted)'}}>(opsional)</span></label>
         <textarea value={form.specs || ''} onChange={e => set('specs', e.target.value)} placeholder="contoh: panel 4x550W, inverter hybrid, baterai 5kWh, garansi 25 tahun, hemat s/d 40%" rows={4} />
         <span className="am-hint">Dipakai AI sebagai sumber harga/spek saat membuat saran balasan</span>
       </div>
@@ -445,8 +445,8 @@ export default function TemplatesPage() {
                     <tr key={t.id}>
                       <td>{t.title}</td>
                       <td className="tp-body-cell">{t.body}</td>
-                      <td>{t.shortcut ? <span className="am-username">/{t.shortcut}</span> : <span style={{color:'#cbd5e1'}}>-</span>}</td>
-                      <td>{t.category || <span style={{color:'#cbd5e1'}}>-</span>}</td>
+                      <td>{t.shortcut ? <span className="am-username">/{t.shortcut}</span> : <span style={{color:'var(--muted)'}}>-</span>}</td>
+                      <td>{t.category || <span style={{color:'var(--muted)'}}>-</span>}</td>
                       <td>
                         <div className="am-actions">
                           <button className="am-icon-btn edit" onClick={() => { setTplError(''); setTplModal({ template: t }) }} title="Edit">
@@ -525,7 +525,7 @@ export default function TemplatesPage() {
                   {tags.map(t => (
                     <tr key={t.id}>
                       <td><span className="tag-chip" style={{ background: t.color }}>{t.name}</span></td>
-                      <td><span style={{color:'#64748b'}}>{t.color}</span></td>
+                      <td><span style={{color:'var(--text2)'}}>{t.color}</span></td>
                       <td>
                         <div className="am-actions">
                           <button className="am-icon-btn edit" onClick={() => { setTagError(''); setTagModal({ tag: t }) }} title="Edit">
@@ -574,14 +574,14 @@ export default function TemplatesPage() {
                   {products.map(p => (
                     <tr key={p.id}>
                       <td>{p.name}</td>
-                      <td>{p.category || <span style={{color:'#cbd5e1'}}>-</span>}</td>
-                      <td>{p.capacity || <span style={{color:'#cbd5e1'}}>-</span>}</td>
-                      <td>{p.price || <span style={{color:'#cbd5e1'}}>-</span>}</td>
-                      <td className="tp-body-cell">{p.specs || <span style={{color:'#cbd5e1'}}>-</span>}</td>
+                      <td>{p.category || <span style={{color:'var(--muted)'}}>-</span>}</td>
+                      <td>{p.capacity || <span style={{color:'var(--muted)'}}>-</span>}</td>
+                      <td>{p.price || <span style={{color:'var(--muted)'}}>-</span>}</td>
+                      <td className="tp-body-cell">{p.specs || <span style={{color:'var(--muted)'}}>-</span>}</td>
                       <td>
                         {p.active !== false
-                          ? <span className="tag-chip" style={{ background: '#27a87a' }}>Aktif</span>
-                          : <span className="tag-chip" style={{ background: '#94a3b8' }}>Nonaktif</span>}
+                          ? <span className="tag-chip" style={{ background: 'var(--success)' }}>Aktif</span>
+                          : <span className="tag-chip" style={{ background: 'var(--muted)' }}>Nonaktif</span>}
                       </td>
                       <td>
                         <div className="am-actions">

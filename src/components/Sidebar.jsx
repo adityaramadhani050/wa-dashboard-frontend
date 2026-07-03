@@ -85,9 +85,9 @@ export default function IconBar() {
       <div className="ib-top">
         <div className="ib-logo" style={{
           width: 34, height: 34, borderRadius: 10,
-          background: '#3563e9',
+          background: 'var(--primary)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 15, fontWeight: 800, color: '#fff',
+          fontSize: 15, fontWeight: 800, color: 'var(--on-primary)',
           marginBottom: 16, flexShrink: 0,
         }}>R</div>
 
@@ -152,22 +152,22 @@ export default function IconBar() {
       <style>{`
         .ib-reminder-wrap { position: relative; }
         .ib-bell-btn { position: relative; }
-        .ib-badge { position: absolute; top: 2px; right: 2px; min-width: 16px; height: 16px; border-radius: 999px; background: var(--danger, #e53e3e); color: #fff; font-size: 9px; font-weight: 700; display: flex; align-items: center; justify-content: center; padding: 0 3px; line-height: 1; }
+        .ib-badge { position: absolute; top: 2px; right: 2px; min-width: 16px; height: 16px; border-radius: 999px; background: var(--danger, #e53e3e); color: var(--on-primary); font-size: 9px; font-weight: 700; display: flex; align-items: center; justify-content: center; padding: 0 3px; line-height: 1; }
         .ib-notif-enable { position: relative; color: var(--warning, #d08b28); }
         .ib-notif-enable:hover { background: rgba(208,139,40,0.12); color: var(--warning, #d08b28); }
         .ib-notif-enable:disabled { opacity: 0.6; cursor: not-allowed; }
         .ib-notif-dot { position: absolute; top: 6px; right: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--warning, #d08b28); animation: pulse 1.6s ease infinite; }
-        .ib-reminder-panel { position: absolute; bottom: calc(100% + 8px); left: 0; width: 280px; max-height: 360px; overflow-y: auto; background: #fff; border: 1px solid #e4eaf5; border-radius: 12px; box-shadow: 0 8px 24px rgba(26,37,64,0.15); z-index: 300; }
-        .ib-reminder-panel-title { padding: 12px 14px 8px; font-size: 12px; font-weight: 700; color: #1a2540; border-bottom: 1px solid #f0f3fa; }
-        .ib-reminder-empty { padding: 16px 14px; font-size: 12px; color: #a8b8d0; }
+        .ib-reminder-panel { position: absolute; bottom: calc(100% + 8px); left: 0; width: 280px; max-height: 360px; overflow-y: auto; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 8px 24px var(--shadow); z-index: 300; }
+        .ib-reminder-panel-title { padding: 12px 14px 8px; font-size: 12px; font-weight: 700; color: var(--text); border-bottom: 1px solid var(--border); }
+        .ib-reminder-empty { padding: 16px 14px; font-size: 12px; color: var(--muted); }
         .ib-reminder-list { display: flex; flex-direction: column; }
-        .ib-reminder-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 14px; border-bottom: 1px solid #f4f6fb; }
+        .ib-reminder-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--border); }
         .ib-reminder-item:last-child { border-bottom: none; }
         .ib-reminder-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-        .ib-reminder-name { font-size: 13px; font-weight: 600; color: #1a2540; }
-        .ib-reminder-note { font-size: 11px; color: #4f607a; }
-        .ib-reminder-time { font-size: 10px; color: #a8b8d0; }
-        .ib-reminder-done { flex-shrink: 0; padding: 5px 10px; border-radius: 7px; font-size: 11px; font-weight: 600; background: #f0f3fa; color: #27a87a; transition: all 0.15s; }
+        .ib-reminder-name { font-size: 13px; font-weight: 600; color: var(--text); }
+        .ib-reminder-note { font-size: 11px; color: var(--text2); }
+        .ib-reminder-time { font-size: 10px; color: var(--muted); }
+        .ib-reminder-done { flex-shrink: 0; padding: 5px 10px; border-radius: 7px; font-size: 11px; font-weight: 600; background: var(--surface3); color: var(--success); transition: all 0.15s; }
         .ib-reminder-done:hover { background: rgba(39,168,122,0.12); }
         .ib-reminder-done:disabled { opacity: 0.6; cursor: not-allowed; }
         @media (max-width: 768px) {

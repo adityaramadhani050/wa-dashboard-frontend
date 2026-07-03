@@ -83,16 +83,16 @@ export default function LoginPage() {
         .lp-root {
           min-height: 100%;
           display: flex; align-items: center; justify-content: center;
-          background: #f0f3fa;
+          background: var(--bg);
           padding: 20px;
         }
         .lp-card {
           width: 100%; max-width: 400px;
-          background: #fff;
+          background: var(--surface);
           border-radius: 20px;
           padding: 40px 36px;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.04), 0 12px 36px rgba(53,99,233,0.10);
-          border: 1px solid #e4eaf5;
+          box-shadow: 0 2px 4px var(--shadow), 0 12px 36px var(--shadow);
+          border: 1px solid var(--border);
         }
         .lp-brand { display: flex; align-items: center; gap: 12px; margin-bottom: 32px; }
         .lp-brand-icon {
