@@ -4,14 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { useSocket } from '../context/SocketContext'
 import { getDueReminders, markReminderDone } from '../hooks/useApi'
 import { enableWebPush, getNotificationStatus } from '../native/webpush'
-import { MessageSquare, BarChart2, QrCode, LogOut, Users, BookUser, Zap, Bell, BellRing, Sun, Moon, Monitor } from 'lucide-react'
-
-// Tema: 'auto' (ikut device) | 'light' | 'dark'
-function applyTheme(t) {
-  const root = document.documentElement
-  if (t === 'light' || t === 'dark') root.setAttribute('data-theme', t)
-  else root.removeAttribute('data-theme')
-}
+import { MessageSquare, BarChart2, QrCode, LogOut, Users, BookUser, Zap, Bell, BellRing } from 'lucide-react'
 
 function formatReminderTime(dateStr) {
   if (!dateStr) return ''
@@ -30,18 +23,8 @@ export default function IconBar() {
   const panelRef = useRef(null)
   const [notifStatus, setNotifStatus] = useState('granted') // sembunyikan tombol default
   const [enabling, setEnabling] = useState(false)
-  const [theme, setTheme] = useState(() => localStorage.getItem('wa_theme') || 'auto')
 
   useEffect(() => { setNotifStatus(getNotificationStatus()) }, [])
-
-  const cycleTheme = () => {
-    const next = theme === 'auto' ? 'light' : theme === 'light' ? 'dark' : 'auto'
-    setTheme(next)
-    localStorage.setItem('wa_theme', next)
-    applyTheme(next)
-  }
-  const themeIcon = theme === 'light' ? <Sun size={17} /> : theme === 'dark' ? <Moon size={17} /> : <Monitor size={17} />
-  const themeLabel = theme === 'light' ? 'Tema: Terang' : theme === 'dark' ? 'Tema: Gelap' : 'Tema: Ikuti perangkat'
 
   const handleEnableNotif = async () => {
     if (enabling) return
@@ -154,9 +137,6 @@ export default function IconBar() {
             </div>
           )}
         </div>
-        <button className="ib-btn ib-theme-btn" onClick={cycleTheme} title={themeLabel}>
-          {themeIcon}
-        </button>
         <div
           className={`ib-dot ${waConnected ? 'online' : 'offline'}`}
           title={waConnected ? 'WA Connected' : 'WA Disconnected'}

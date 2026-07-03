@@ -30,12 +30,9 @@
   --shadow: rgba(20,40,80,0.06);
 }
 
-/* Palet gelap. Diterapkan pada:
-   - Auto (default): device dark & user TIDAK memaksa light -> :root:not([data-theme="light"])
-   - Manual: user memilih Dark -> :root[data-theme="dark"]
-   Nilai keduanya harus tetap sama. */
+/* Palet gelap — otomatis mengikuti tema device (prefers-color-scheme). */
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
+  :root {
     --bg: #0f1720;
     --surface: #1a232f;
     --surface2: #212c3a;
@@ -64,36 +61,6 @@
     color-scheme: dark;
   }
 }
-:root[data-theme="dark"] {
-  --bg: #0f1720;
-  --surface: #1a232f;
-  --surface2: #212c3a;
-  --surface3: #263243;
-  --primary: #5b8cff;
-  --primary-hover: #7aa2ff;
-  --primary-light: rgba(91,140,255,0.16);
-  --border: #2b384a;
-  --border2: #3a4a60;
-  --text: #e8edf6;
-  --text2: #aab8cd;
-  --muted: #7d8da5;
-  --sent: #2f6fed;
-  --sent-text: #ffffff;
-  --recv: #232f3e;
-  --recv-text: #e8edf6;
-  --sidebar-bg: #141c26;
-  --sidebar-active: #5b8cff;
-  --sidebar-muted: #6c7c96;
-  --danger: #ff6b6b;
-  --success: #34c795;
-  --warning: #e0a63a;
-  --scrim: rgba(0,0,0,0.6);
-  --skeleton: #263243;
-  --shadow: rgba(0,0,0,0.4);
-  color-scheme: dark;
-}
-/* Manual "Light" memaksa terang walau device dark (default :root sudah light) */
-:root[data-theme="light"] { color-scheme: light; }
 
 html, body, #root {
   height: 100%;
