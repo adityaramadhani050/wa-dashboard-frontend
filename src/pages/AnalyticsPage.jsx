@@ -265,7 +265,7 @@ export default function AnalyticsPage() {
                     <div key={a.agent_id || 'unassigned'} className="an-kpi-agent-row">
                       <span className="an-kpi-agent-name">{a.name}</span>
                       <div className="an-kpi-bar"><div className="an-kpi-bar-fill" style={{ width: `${a.percent}%`, background: a.percent >= 80 ? '#10b981' : a.percent >= 50 ? '#f59e0b' : '#ef4444' }} /></div>
-                      <span className="an-kpi-agent-pct">{a.percent}% <span style={{color:'#94a3b8'}}>({a.met}/{a.total})</span></span>
+                      <span className="an-kpi-agent-pct">{a.percent}% <span style={{color:'var(--muted)'}}>({a.met}/{a.total})</span></span>
                     </div>
                   ))}
                 </div>
@@ -314,11 +314,11 @@ export default function AnalyticsPage() {
           ) : (
             <ResponsiveContainer width="100%" height={220}>
               <LineChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis dataKey="date" tick={{ fill: '#94a3b8', fontSize: 11 }} />
-                <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} allowDecimals={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                <XAxis dataKey="date" tick={{ fill: 'var(--muted)', fontSize: 11 }} />
+                <YAxis tick={{ fill: 'var(--muted)', fontSize: 11 }} allowDecimals={false} />
                 <Tooltip content={<Tip />} />
-                <Legend wrapperStyle={{ fontSize: 12, color: '#64748b' }} />
+                <Legend wrapperStyle={{ fontSize: 12, color: 'var(--text2)' }} />
                 <Line type="monotone" dataKey="Masuk" stroke="#2563eb" strokeWidth={2} dot={false} />
                 <Line type="monotone" dataKey="Keluar" stroke="#f59e0b" strokeWidth={2} dot={false} />
                 <Line type="monotone" dataKey="Kontak Baru" stroke="#10b981" strokeWidth={2} dot={false} strokeDasharray="4 4" />
@@ -335,11 +335,11 @@ export default function AnalyticsPage() {
           ) : (
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={agentChart} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 11 }} />
-                <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} allowDecimals={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                <XAxis dataKey="name" tick={{ fill: 'var(--muted)', fontSize: 11 }} />
+                <YAxis tick={{ fill: 'var(--muted)', fontSize: 11 }} allowDecimals={false} />
                 <Tooltip content={<Tip />} />
-                <Legend wrapperStyle={{ fontSize: 12, color: '#64748b' }} />
+                <Legend wrapperStyle={{ fontSize: 12, color: 'var(--text2)' }} />
                 <Bar dataKey="Lead" fill="#2563eb" radius={[4,4,0,0]} />
                 <Bar dataKey="Penawaran" fill="#6366f1" radius={[4,4,0,0]} />
                 <Bar dataKey="Survey" fill="#f59e0b" radius={[4,4,0,0]} />
@@ -577,7 +577,7 @@ export default function AnalyticsPage() {
         .an-badge.progress { background: #fffbeb; color: #d97706; }
         .an-badge.resolved { background: #f0fdf4; color: #10b981; }
         .an-badge.lead { background: #eff6ff; color: #2563eb; }
-        .an-badge.penawaran { background: #eef2ff; color: #6366f1; }
+        .an-badge.penawaran { background: var(--surface3); color: #6366f1; }
         .an-badge.survey { background: #fffbeb; color: #d97706; }
         .an-badge.deal { background: #f0fdf4; color: #10b981; }
         .an-resp { font-size: 13px; color: var(--warning); font-weight: 500; }

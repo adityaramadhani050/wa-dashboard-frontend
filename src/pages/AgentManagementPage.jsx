@@ -9,7 +9,7 @@ const WEEKDAYS = [
 
 const EMPTY_FORM = { name: '', username: '', email: '', role: 'agent', password: '', confirmPassword: '' }
 
-const AVATAR_COLORS = ['#3563e9','#27a87a','#d08b28','#e05c8a','#7c5cd6','#2aaccc']
+const AVATAR_COLORS = ['var(--primary)','var(--success)','var(--warning)','#e05c8a','#7c5cd6','#2aaccc']
 function avatarStyle(name) {
   const letter = (name || '?')[0].toUpperCase()
   const c = AVATAR_COLORS[letter.charCodeAt(0) % AVATAR_COLORS.length]
@@ -494,55 +494,55 @@ export default function AgentManagementPage() {
         .am-table-box { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; box-shadow: var(--shadow); }
         .am-table-wrap { overflow-x: auto; }
         .am-table { width: 100%; border-collapse: collapse; }
-        .am-table th { text-align: left; padding: 12px 16px; font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #e2e8f0; background: #f8fafc; }
-        .am-table td { padding: 14px 16px; font-size: 13px; border-bottom: 1px solid #f0f4f8; color: #1e293b; }
+        .am-table th { text-align: left; padding: 12px 16px; font-size: 11px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); background: var(--surface2); }
+        .am-table td { padding: 14px 16px; font-size: 13px; border-bottom: 1px solid var(--surface3); color: var(--text); }
         .am-table tr:last-child td { border-bottom: none; }
-        .am-table tr:hover td { background: #f8fafc; }
+        .am-table tr:hover td { background: var(--surface2); }
         .am-agent-cell { display: flex; align-items: center; gap: 10px; }
         .am-avatar {
           width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
           display: flex; align-items: center; justify-content: center;
           font-size: 13px; font-weight: 700;
         }
-        .am-username { font-size: 13px; color: #2563eb; font-weight: 500; font-family: monospace; }
-        .am-email { color: #64748b; font-size: 13px; }
-        .am-date { color: #94a3b8; font-size: 12px; }
+        .am-username { font-size: 13px; color: var(--primary); font-weight: 500; font-family: monospace; }
+        .am-email { color: var(--text2); font-size: 13px; }
+        .am-date { color: var(--muted); font-size: 12px; }
         .am-role { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 12px; font-weight: 600; }
-        .am-role.admin { background: #fffbeb; color: #d97706; }
-        .am-role.agent { background: #eff6ff; color: #2563eb; }
+        .am-role.admin { background: #fffbeb; color: var(--warning); }
+        .am-role.agent { background: #eff6ff; color: var(--primary); }
         .am-actions { display: flex; gap: 6px; }
         .am-icon-btn { width: 32px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
-        .am-icon-btn.edit { color: #94a3b8; }
-        .am-icon-btn.edit:hover { background: #eff6ff; color: #2563eb; }
-        .am-icon-btn.del { color: #94a3b8; }
-        .am-icon-btn.del:hover { background: #fef2f2; color: #dc2626; }
+        .am-icon-btn.edit { color: var(--muted); }
+        .am-icon-btn.edit:hover { background: #eff6ff; color: var(--primary); }
+        .am-icon-btn.del { color: var(--muted); }
+        .am-icon-btn.del:hover { background: #fef2f2; color: var(--danger); }
         .am-loading { padding: 16px; display: flex; flex-direction: column; gap: 8px; }
-        .am-skel { height: 56px; background: #f0f4f8; border-radius: 8px; animation: pulse 1.4s ease infinite; }
-        .am-empty { padding: 60px 20px; text-align: center; color: #94a3b8; font-size: 14px; display: flex; flex-direction: column; align-items: center; }
+        .am-skel { height: 56px; background: var(--surface3); border-radius: 8px; animation: pulse 1.4s ease infinite; }
+        .am-empty { padding: 60px 20px; text-align: center; color: var(--muted); font-size: 14px; display: flex; flex-direction: column; align-items: center; }
         .am-overlay { position: fixed; inset: 0; z-index: 500; background: rgba(15,23,42,0.5); display: flex; align-items: center; justify-content: center; padding: 20px; }
-        .am-modal { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; width: 100%; max-width: 440px; box-shadow: 0 20px 60px rgba(0,0,0,0.15); overflow: hidden; }
-        .am-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid #e2e8f0; background: #f8fafc; }
-        .am-modal-header h3 { font-size: 15px; font-weight: 600; color: #1e293b; }
-        .am-close { width: 30px; height: 30px; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #94a3b8; transition: all 0.15s; }
-        .am-close:hover { background: #e2e8f0; color: #475569; }
+        .am-modal { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; width: 100%; max-width: 440px; box-shadow: 0 20px 60px rgba(0,0,0,0.15); overflow: hidden; }
+        .am-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); background: var(--surface2); }
+        .am-modal-header h3 { font-size: 15px; font-weight: 600; color: var(--text); }
+        .am-close { width: 30px; height: 30px; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: var(--muted); transition: all 0.15s; }
+        .am-close:hover { background: var(--border); color: var(--text2); }
         .am-form { padding: 20px; display: flex; flex-direction: column; gap: 14px; }
         .am-field { display: flex; flex-direction: column; gap: 5px; }
-        .am-field label { font-size: 12px; color: #475569; font-weight: 600; }
-        .am-field input, .am-field select { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 7px; color: #1e293b; padding: 10px 14px; font-size: 14px; outline: none; transition: border-color 0.15s; }
-        .am-field input:focus, .am-field select:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
-        .am-field input::placeholder { color: #cbd5e1; }
-        .req { color: #dc2626; }
+        .am-field label { font-size: 12px; color: var(--text2); font-weight: 600; }
+        .am-field input, .am-field select { background: var(--surface2); border: 1px solid var(--border); border-radius: 7px; color: var(--text); padding: 10px 14px; font-size: 14px; outline: none; transition: border-color 0.15s; }
+        .am-field input:focus, .am-field select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+        .am-field input::placeholder { color: var(--border2); }
+        .req { color: var(--danger); }
         .am-pw-wrap { position: relative; }
         .am-pw-wrap input { width: 100%; padding-right: 40px; }
-        .am-pw-eye { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; padding: 4px; }
-        .am-pw-eye:hover { color: #475569; }
-        .am-hint { font-size: 11px; color: #94a3b8; margin-top: 2px; }
-        .am-hint.err { color: #dc2626; }
-        .am-form-err { padding: 10px 14px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 7px; color: #dc2626; font-size: 13px; }
+        .am-pw-eye { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); padding: 4px; }
+        .am-pw-eye:hover { color: var(--text2); }
+        .am-hint { font-size: 11px; color: var(--muted); margin-top: 2px; }
+        .am-hint.err { color: var(--danger); }
+        .am-form-err { padding: 10px 14px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 7px; color: var(--danger); font-size: 13px; }
         .am-form-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
         .am-confirm { padding: 20px; }
-        .am-confirm p { font-size: 14px; color: #1e293b; margin-bottom: 6px; }
-        .am-confirm-sub { font-size: 13px; color: #64748b; }
+        .am-confirm p { font-size: 14px; color: var(--text); margin-bottom: 6px; }
+        .am-confirm-sub { font-size: 13px; color: var(--text2); }
         .am-confirm .am-form-actions { margin-top: 20px; }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
       `}</style>
