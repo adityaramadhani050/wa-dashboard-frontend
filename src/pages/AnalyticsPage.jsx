@@ -79,7 +79,7 @@ export default function AnalyticsPage() {
     setError('')
     try {
       const [d, a, c, tpl, k, fn] = await Promise.all([
-        getDailyStats(f, t), getAgentStats(), getContactStats(),
+        getDailyStats(f, t), getAgentStats(f, t), getContactStats(),
         getTopTemplates(5).catch(() => []),
         getResponseKpi(f, t).catch(() => null),
         getFunnel(f, t).catch(() => null),
@@ -153,6 +153,8 @@ export default function AnalyticsPage() {
   // Chat aktif yang sedang dihandle = open + in_progress (belum resolved)
   const totalActive = agents.reduce((s, a) => s + (a.open || 0) + (a.in_progress || 0), 0)
   const totalOpen = agents.reduce((s, a) => s + (a.open || 0), 0)
+  // Kontak baru dalam periode (dari data harian yang sudah difilter)
+  const totalNewContacts = daily.reduce((s, d) => s + (d.new_contacts || 0), 0)
 
   const responseTimes = agents.filter(a => a.avgResponse != null).map(a => a.avgResponse)
   const globalAvgResponse = responseTimes.length > 0
@@ -225,9 +227,9 @@ export default function AnalyticsPage() {
         <StatCard icon={TrendingUp} label="Pesan Keluar" value={totalOutgoing} color="#f59e0b" />
         <StatCard
           icon={UserPlus}
-          label="Total Kontak"
-          value={contacts?.total ?? '—'}
-          sub={contacts?.newToday != null ? `+${contacts.newToday} hari ini` : null}
+          label="Kontak Baru"
+          value={totalNewContacts}
+          sub={contacts?.total != null ? `${contacts.total} total` : null}
           color="#2563eb"
         />
         <StatCard

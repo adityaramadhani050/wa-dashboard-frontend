@@ -54,7 +54,7 @@ export const getContacts = (agentId) =>
   api.get('/contacts', agentId ? { params: { agent_id: agentId } } : {}).then(r => r.data)
 export const updateContact = (id, payload) => api.patch(`/contacts/${id}`, payload).then(r => r.data)
 export const getDailyStats = (from, to) => api.get('/stats/daily', { params: { from, to } }).then(r => r.data)
-export const getAgentStats = () => api.get('/stats/agents').then(r => r.data)
+export const getAgentStats = (from, to) => api.get('/stats/agents', { params: { from, to } }).then(r => r.data)
 export const getContactStats = () => api.get('/stats/contacts').then(r => r.data)
 export const getResponseKpi = (from, to) => api.get('/stats/response-kpi', { params: { from, to } }).then(r => r.data)
 export const getFunnel = (from, to) => api.get('/stats/funnel', { params: { from, to } }).then(r => r.data)
