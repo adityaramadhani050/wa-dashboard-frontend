@@ -94,7 +94,7 @@ a { text-decoration: none; color: inherit; }
 .wa-app > * { min-height: 0; min-width: 0; }
 
 .wa-left-panel {
-  width: 320px;
+  width: 380px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
