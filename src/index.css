@@ -33,6 +33,8 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background: var(--bg);
   color: var(--text);
+  /* Nonaktifkan double-tap zoom (pinch diblok via meta viewport + JS gesture) */
+  touch-action: manipulation;
 }
 
 button { border: none; background: none; cursor: pointer; font-family: inherit; color: inherit; }
