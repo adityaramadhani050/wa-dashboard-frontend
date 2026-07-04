@@ -404,7 +404,9 @@ export default function ChatPage({ chatId }) {
   const [hasMore, setHasMore] = useState(false)
   const [loadingOlder, setLoadingOlder] = useState(false)
   const loadingOlderRef = useRef(false)
+  const hasMoreRef = useRef(false)
   const prependingRef = useRef(false)
+  const setHasMoreBoth = (v) => { hasMoreRef.current = v; setHasMore(v) }
   const { newMessages, statusUpdates, messageUpdates, assignmentUpdates, deletedMessages } = useSocket()
   const [showScrollBtn, setShowScrollBtn] = useState(false)
 
@@ -413,42 +415,48 @@ export default function ChatPage({ chatId }) {
       const [msgs, conv] = await Promise.all([getMessages(id, { limit: MSG_PAGE }), getConversation(id)])
       const arr = Array.isArray(msgs) ? msgs : []
       setMessages(arr)
-      setHasMore(arr.length >= MSG_PAGE) // kemungkinan masih ada pesan lebih lama
+      setHasMoreBoth(arr.length >= MSG_PAGE) // kemungkinan masih ada pesan lebih lama
       setConversation(conv || null)
       setError('')
     } catch { setError('Gagal memuat pesan.') }
     finally { setLoading(false) }
   }, [id])
 
-  // Muat pesan lebih lama (otomatis saat scroll mendekati atas)
-  const loadOlder = useCallback(async () => {
-    const el = messagesRef.current
-    setMessages(prev => {
-      if (loadingOlderRef.current || !hasMore || !prev.length) return prev
-      loadingOlderRef.current = true
-      setLoadingOlder(true)
-      const oldest = prev[0]
-      const prevHeight = el ? el.scrollHeight : 0
-      const prevTop = el ? el.scrollTop : 0
-      getMessages(id, { limit: MSG_PAGE, before: oldest.timestamp || oldest.createdAt })
-        .then((older) => {
-          const list = Array.isArray(older) ? older : []
-          if (list.length) {
-            prependingRef.current = true
-            setMessages(cur => {
-              const seen = new Set(cur.map(m => String(m.id)))
-              const fresh = list.filter(m => !seen.has(String(m.id)))
-              return fresh.length ? [...fresh, ...cur] : cur
-            })
-            requestAnimationFrame(() => { if (el) el.scrollTop = el.scrollHeight - prevHeight + prevTop })
-          }
-          setHasMore(list.length >= MSG_PAGE)
-        })
-        .catch(() => {})
-        .finally(() => { loadingOlderRef.current = false; setLoadingOlder(false) })
-      return prev
+  // Muat satu halaman pesan lebih lama. Return Promise<boolean> (true jika ada
+  // pesan baru dimuat). Dipakai oleh scroll otomatis & auto-load saat klik quote.
+  const loadOlder = useCallback((restoreScroll = true) => {
+    return new Promise((resolve) => {
+      const el = messagesRef.current
+      setMessages(prev => {
+        if (loadingOlderRef.current || !hasMoreRef.current || !prev.length) { resolve(false); return prev }
+        loadingOlderRef.current = true
+        setLoadingOlder(true)
+        const oldest = prev[0]
+        const prevHeight = el ? el.scrollHeight : 0
+        const prevTop = el ? el.scrollTop : 0
+        getMessages(id, { limit: MSG_PAGE, before: oldest.timestamp || oldest.createdAt })
+          .then((older) => {
+            const list = Array.isArray(older) ? older : []
+            if (list.length) {
+              prependingRef.current = true
+              setMessages(cur => {
+                const seen = new Set(cur.map(m => String(m.id)))
+                const fresh = list.filter(m => !seen.has(String(m.id)))
+                return fresh.length ? [...fresh, ...cur] : cur
+              })
+              if (restoreScroll) {
+                requestAnimationFrame(() => { if (el) el.scrollTop = el.scrollHeight - prevHeight + prevTop })
+              }
+            }
+            setHasMoreBoth(list.length >= MSG_PAGE)
+            resolve(list.length > 0)
+          })
+          .catch(() => resolve(false))
+          .finally(() => { loadingOlderRef.current = false; setLoadingOlder(false) })
+        return prev
+      })
     })
-  }, [id, hasMore])
+  }, [id])
 
   useEffect(() => {
     fetchData()
@@ -551,16 +559,29 @@ export default function ChatPage({ chatId }) {
   }, [id, hasMore, loadOlder])
 
   const scrollToBottom = () => bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  // Klik kutipan balasan -> lompat ke pesan aslinya & sorot sebentar (seperti WhatsApp)
-  const scrollToReplied = (waId) => {
+  // Klik kutipan balasan -> lompat ke pesan aslinya & sorot sebentar (seperti WhatsApp).
+  // Jika pesan asli belum dimuat (karena paginasi), muat pesan lama otomatis sampai ketemu.
+  const scrollToReplied = async (waId) => {
     if (!waId) return
-    const el = document.getElementById(`m-${waId}`)
-    if (!el) { setError('Pesan asli tidak ditemukan (mungkin belum dimuat).'); return }
-    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    el.classList.remove('flash')
-    void el.offsetWidth // reflow agar animasi bisa diputar ulang
-    el.classList.add('flash')
-    setTimeout(() => el.classList.remove('flash'), 1400)
+    const flashTarget = () => {
+      const el = document.getElementById(`m-${waId}`)
+      if (!el) return false
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      el.classList.remove('flash')
+      void el.offsetWidth // reflow agar animasi bisa diputar ulang
+      el.classList.add('flash')
+      setTimeout(() => el.classList.remove('flash'), 1400)
+      return true
+    }
+    if (flashTarget()) return
+    // Muat bertahap ke belakang (maks 40 halaman) sampai pesan asli muncul
+    for (let i = 0; i < 40 && hasMoreRef.current; i++) {
+      const got = await loadOlder(false)
+      await new Promise(r => setTimeout(r, 60)) // beri waktu React merender
+      if (flashTarget()) return
+      if (!got) break
+    }
+    if (!flashTarget()) setError('Pesan asli tidak ditemukan.')
   }
   // Tempel ke bawah secara instan (dipakai saat keyboard buka/viewport berubah)
   const stickToBottom = useCallback(() => {
