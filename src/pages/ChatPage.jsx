@@ -493,6 +493,21 @@ export default function ChatPage({ chatId }) {
   }, [id])
 
   const scrollToBottom = () => bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  // Tempel ke bawah secara instan (dipakai saat keyboard buka/viewport berubah)
+  const stickToBottom = useCallback(() => {
+    const el = messagesRef.current
+    if (el) el.scrollTop = el.scrollHeight
+  }, [])
+  // Saat input difokus (keyboard terbuka), pastikan pesan terbaru tetap terlihat.
+  const handleInputFocus = () => { stickToBottom(); setTimeout(stickToBottom, 150); setTimeout(stickToBottom, 350) }
+  // Keyboard mengubah tinggi viewport -> jaga tetap menempel ke bawah.
+  useEffect(() => {
+    const vv = window.visualViewport
+    if (!vv) return
+    const onResize = () => { if (document.activeElement === textareaRef.current) stickToBottom() }
+    vv.addEventListener('resize', onResize)
+    return () => vv.removeEventListener('resize', onResize)
+  }, [stickToBottom])
 
   const closeMenus = () => { setShowAgentMenu(false); setShowTemplateMenu(false); setShowMediaGallery(false); setShowReminderMenu(false); setShowMoreMenu(false); setShowAiMenu(false) }
 
@@ -1257,6 +1272,7 @@ export default function ChatPage({ chatId }) {
           value={text}
           onChange={handleTextChange}
           onKeyDown={handleKeyDown}
+          onFocus={handleInputFocus}
           rows={1}
         />
         <button
