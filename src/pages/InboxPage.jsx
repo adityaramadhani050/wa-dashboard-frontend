@@ -352,7 +352,7 @@ export default function InboxPage() {
                 <ChevronDown size={12} />
               </button>
               {showAgentFilter && (
-                <div className="cv-menu" style={{ minWidth: 180 }}>
+                <div className="cv-menu" style={{ minWidth: 180, left: 'auto', right: 0 }}>
                   <button className={`cv-mi${!agentFilter ? ' active' : ''}`} onClick={() => { setAgentFilter(null); setShowAgentFilter(false) }}>
                     Semua Agent
                   </button>
@@ -546,7 +546,10 @@ export default function InboxPage() {
         .cl-statuschip { flex-shrink: 0; padding: 5px 11px; border-radius: 20px; font-size: 12px; font-weight: 500; color: var(--text2); background: var(--surface2); border: 1px solid var(--border); white-space: nowrap; transition: all 0.15s; }
         .cl-statuschip:hover { background: var(--surface3); }
         .cl-statuschip.active { background: var(--primary); color: var(--on-primary); border-color: var(--primary); }
-        .cl-tagfilter-row { gap: 8px; flex-wrap: wrap; }
+        .cl-tagfilter-row { gap: 6px; flex-wrap: nowrap; }
+        .cl-tagfilter-row .cv-dd { flex: 1 1 0; min-width: 0; }
+        .cl-tagfilter-btn { width: 100%; justify-content: center; padding: 6px 8px; }
+        .cl-tagfilter-btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .cl-overdue-badge { display: inline-flex; align-items: center; gap: 2px; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 20px; background: var(--danger); color: var(--on-primary); white-space: nowrap; }
         .cl-item.overdue { background: rgba(229,62,62,0.05); box-shadow: inset 3px 0 0 var(--danger); }
         .cl-item.overdue:hover { background: rgba(229,62,62,0.09); }
