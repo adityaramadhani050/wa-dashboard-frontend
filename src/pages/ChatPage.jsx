@@ -1556,7 +1556,7 @@ export default function ChatPage({ chatId }) {
         .cv-ai-retry { align-self: flex-start; padding: 6px 12px; border-radius: 7px; font-size: 12px; font-weight: 600; background: rgba(229,62,62,0.08); color: var(--danger); }
         .cv-ai-retry:hover { background: rgba(229,62,62,0.14); }
         @media (max-width: 768px) {
-          .cv-header { padding: 10px 12px; gap: 8px; min-height: 56px; }
+          .cv-header { padding: 10px 12px; gap: 8px; min-height: 56px; position: sticky; top: 0; z-index: 20; }
           .cv-messages { padding: 12px; }
           .cv-bubble { max-width: 78%; }
           .cv-btn-label { display: none; }

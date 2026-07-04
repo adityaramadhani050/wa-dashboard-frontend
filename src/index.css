@@ -224,6 +224,9 @@ a { text-decoration: none; color: inherit; }
   /* Hide list when chat is open */
   .wa-app.chat-open .wa-left-panel { display: none; }
   .wa-app.chat-open .wa-right-panel { flex: 1; display: flex; }
+
+  /* Saat masuk chat: sembunyikan navigation bar bawah (kembali via tombol back di header) */
+  .wa-app.chat-open .icon-bar { display: none; }
 }
 
 /* iOS: cegah auto-zoom saat fokus input dengan memaksa font >= 16px di
