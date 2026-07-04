@@ -14,6 +14,8 @@ import { supabase } from '../lib/supabase'
 import { Send, ArrowLeft, ArrowDown, UserCheck, Paperclip, X, FileText, Play, Download, Check, Image, Film, Clock, Zap, Package, Tag as TagIcon, StickyNote, BellPlus, MoreVertical, Sparkles, Reply, Pencil, Forward, Search as SearchIcon, Trash2, Copy } from 'lucide-react'
 
 
+const MSG_PAGE = 60 // jumlah pesan per halaman (muat bertahap saat scroll ke atas)
+
 const AVATAR_COLORS = ['#3563e9','#27a87a','#d08b28','#e05c8a','#7c5cd6','#2aaccc']
 function avatarStyle(name) {
   const letter = (name || '?')[0].toUpperCase()
@@ -399,18 +401,54 @@ export default function ChatPage({ chatId }) {
   const messagesRef = useRef(null)
   const fileInputRef = useRef(null)
   const textareaRef = useRef(null)
+  const [hasMore, setHasMore] = useState(false)
+  const [loadingOlder, setLoadingOlder] = useState(false)
+  const loadingOlderRef = useRef(false)
+  const prependingRef = useRef(false)
   const { newMessages, statusUpdates, messageUpdates, assignmentUpdates, deletedMessages } = useSocket()
   const [showScrollBtn, setShowScrollBtn] = useState(false)
 
   const fetchData = useCallback(async () => {
     try {
-      const [msgs, conv] = await Promise.all([getMessages(id), getConversation(id)])
-      setMessages(Array.isArray(msgs) ? msgs : [])
+      const [msgs, conv] = await Promise.all([getMessages(id, { limit: MSG_PAGE }), getConversation(id)])
+      const arr = Array.isArray(msgs) ? msgs : []
+      setMessages(arr)
+      setHasMore(arr.length >= MSG_PAGE) // kemungkinan masih ada pesan lebih lama
       setConversation(conv || null)
       setError('')
     } catch { setError('Gagal memuat pesan.') }
     finally { setLoading(false) }
   }, [id])
+
+  // Muat pesan lebih lama (otomatis saat scroll mendekati atas)
+  const loadOlder = useCallback(async () => {
+    const el = messagesRef.current
+    setMessages(prev => {
+      if (loadingOlderRef.current || !hasMore || !prev.length) return prev
+      loadingOlderRef.current = true
+      setLoadingOlder(true)
+      const oldest = prev[0]
+      const prevHeight = el ? el.scrollHeight : 0
+      const prevTop = el ? el.scrollTop : 0
+      getMessages(id, { limit: MSG_PAGE, before: oldest.timestamp || oldest.createdAt })
+        .then((older) => {
+          const list = Array.isArray(older) ? older : []
+          if (list.length) {
+            prependingRef.current = true
+            setMessages(cur => {
+              const seen = new Set(cur.map(m => String(m.id)))
+              const fresh = list.filter(m => !seen.has(String(m.id)))
+              return fresh.length ? [...fresh, ...cur] : cur
+            })
+            requestAnimationFrame(() => { if (el) el.scrollTop = el.scrollHeight - prevHeight + prevTop })
+          }
+          setHasMore(list.length >= MSG_PAGE)
+        })
+        .catch(() => {})
+        .finally(() => { loadingOlderRef.current = false; setLoadingOlder(false) })
+      return prev
+    })
+  }, [id, hasMore])
 
   useEffect(() => {
     fetchData()
@@ -491,6 +529,8 @@ export default function ChatPage({ chatId }) {
   const scrolledForRef = useRef(null)
 
   useEffect(() => {
+    // Jangan lompat ke bawah saat menyisipkan pesan lama (prepend) — pertahankan posisi.
+    if (prependingRef.current) { prependingRef.current = false; return }
     const isFirstScrollForConv = scrolledForRef.current !== id
     scrolledForRef.current = id
     bottomRef.current?.scrollIntoView({ behavior: isFirstScrollForConv ? 'auto' : 'smooth' })
@@ -502,11 +542,13 @@ export default function ChatPage({ chatId }) {
     const handleScroll = () => {
       const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
       setShowScrollBtn(distanceFromBottom > 200)
+      // Dekat atas -> muat pesan lebih lama otomatis
+      if (el.scrollTop < 150 && hasMore && !loadingOlderRef.current) loadOlder()
     }
     handleScroll()
     el.addEventListener('scroll', handleScroll)
     return () => el.removeEventListener('scroll', handleScroll)
-  }, [id])
+  }, [id, hasMore, loadOlder])
 
   const scrollToBottom = () => bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   // Klik kutipan balasan -> lompat ke pesan aslinya & sorot sebentar (seperti WhatsApp)
@@ -1145,7 +1187,10 @@ export default function ChatPage({ chatId }) {
 
       <div className="cv-messages-wrap">
       <div className={`cv-messages${keyboardOpen ? ' kb-open' : ''}`} ref={messagesRef}>
-        {!loading && conversation && (
+        {loadingOlder && (
+          <div className="cv-load-older"><div className="cv-forward-spinner" /></div>
+        )}
+        {!loading && conversation && !hasMore && (
           <div className="cv-contact-card">
             <div className="cv-cc-avatar">{(name || '?')[0].toUpperCase()}</div>
             <div className="cv-cc-name">{name}</div>
@@ -1511,6 +1556,7 @@ export default function ChatPage({ chatId }) {
            layar, margin auto tetap 0 sehingga scroll normal di kedua kondisi. */
         .cv-msg-spacer { margin-top: 0; }
         .cv-messages.kb-open .cv-msg-spacer { margin-top: auto; }
+        .cv-load-older { display: flex; justify-content: center; padding: 8px 0 4px; }
         /* Kartu info kontak di awal percakapan (seperti WhatsApp) */
         .cv-contact-card { align-self: center; max-width: 380px; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 22px 20px; margin-bottom: 10px; box-shadow: 0 1px 3px var(--shadow); }
         .cv-cc-avatar { width: 72px; height: 72px; border-radius: 50%; background: var(--primary-light); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 30px; font-weight: 700; margin-bottom: 4px; }
