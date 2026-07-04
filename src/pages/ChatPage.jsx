@@ -172,6 +172,10 @@ function MediaContent({ msg, sent, onImageClick }) {
   const caption = body && !body.startsWith('[') ? body : null
   if (!media_url && !media_type) return <p>{msg.body || msg.content || msg.text}</p>
   if (media_type && !media_url) {
+    // Media dihapus karena kadaluarsa (TTL) -> tampilkan info, bukan skeleton
+    if (msg.media_expired) {
+      return <div className="cv-media-placeholder"><Clock size={15} /><span>Media kadaluarsa & telah dihapus</span>{caption && <p className="cv-media-caption">{caption}</p>}</div>
+    }
     // Media sedang diunduh di server, URL menyusul
     if (media_type === 'image' || media_type === 'video')
       return <div className="cv-media-wrap"><div className="cv-media-skeleton"><div className="cv-media-skel-inner" /></div></div>
