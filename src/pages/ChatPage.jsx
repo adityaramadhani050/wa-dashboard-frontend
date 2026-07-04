@@ -909,7 +909,7 @@ export default function ChatPage({ chatId }) {
   }
 
   return (
-    <div className={`cv-root${showNotesPanel ? ' with-sidebar' : ''}`} onClick={closeMenus}>
+    <div className={`cv-root${showNotesPanel ? ' with-sidebar' : ''}${keyboardOpen ? ' kb-open' : ''}`} onClick={closeMenus}>
       <ImageLightbox url={lightboxUrl} onClose={() => setLightboxUrl(null)} />
 
       <div className="cv-chat-col">
@@ -1700,6 +1700,8 @@ export default function ChatPage({ chatId }) {
           .cv-send-label { display: none; }
           .cv-send-btn { padding: 0; width: 44px; height: 44px; justify-content: center; border-radius: 12px; }
           .cv-input-bar { padding: 8px 10px; gap: 6px; padding-bottom: calc(8px + env(safe-area-inset-bottom)); }
+          /* Saat keyboard terbuka, hilangkan gap safe-area (keyboard menutupi home indicator) */
+          .cv-root.kb-open .cv-input-bar { padding-bottom: 8px; }
           .cv-attach-group { display: none; }
           .cv-more-dd { display: block; }
           .cv-notes-sidebar { position: fixed !important; inset: 0 !important; width: 100% !important; height: 100% !important; z-index: 400; border-left: none; animation: slideInRight 0.22s ease-out; }
