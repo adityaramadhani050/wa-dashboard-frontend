@@ -439,7 +439,13 @@ export default function ChatPage({ chatId }) {
     if (!relevant.length) return
     setMessages(prev => {
       let next = prev
-      for (const { message } of relevant) next = mergeMessage(next, message)
+      for (const { message } of relevant) {
+        // new_message hanya untuk pesan BARU. Jangan timpa pesan yang sudah ada
+        // (mencegah edit/status ter-reset saat buffer newMessages diproses ulang).
+        // Kecuali placeholder optimistik (tmp-) yang memang perlu diganti.
+        const exists = message?.id && next.some(m => String(m.id) === String(message.id))
+        if (!exists) next = mergeMessage(next, message)
+      }
       return next
     })
   }, [newMessages, id])
