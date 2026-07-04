@@ -3,23 +3,6 @@ import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
 import './index.css'
 
-// iOS Safari mengabaikan interactive-widget; keyboard menutupi konten & dokumen
-// tergulir. Ikat tinggi app ke visualViewport agar layout menyusut di atas keyboard.
-const vv = window.visualViewport
-function applyAppHeight() {
-  const h = vv ? vv.height : window.innerHeight
-  document.documentElement.style.setProperty('--app-height', `${h}px`)
-  // Pastikan halaman tidak tergeser ke atas saat keyboard muncul (iOS)
-  if (vv && vv.offsetTop === 0) window.scrollTo(0, 0)
-}
-if (vv) {
-  vv.addEventListener('resize', applyAppHeight)
-  vv.addEventListener('scroll', applyAppHeight)
-}
-window.addEventListener('resize', applyAppHeight)
-window.addEventListener('orientationchange', applyAppHeight)
-applyAppHeight()
-
 // Nonaktifkan zoom secara konsisten di semua platform.
 // iOS Safari: blokir gesture pinch WebKit (meta viewport sering diabaikan).
 ;['gesturestart', 'gesturechange', 'gestureend'].forEach((ev) => {
