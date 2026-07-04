@@ -1389,6 +1389,9 @@ export default function ChatPage({ chatId }) {
         .cv-error { background: rgba(229,62,62,0.05); border-bottom: 1px solid rgba(229,62,62,0.12); color: var(--danger); padding: 8px 16px; font-size: 13px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
         .cv-messages-wrap { position: relative; flex: 1; min-height: 0; display: flex; }
         .cv-messages { flex: 1; min-height: 0; overflow-y: auto; padding: 20px 24px; display: flex; flex-direction: column; gap: 2px; background: var(--bg); }
+        /* Dorong pesan menempel ke bawah (dekat input) saat masih sedikit; otomatis
+           hilang (margin auto = 0) begitu pesan memenuhi & area harus di-scroll. */
+        .cv-messages::before { content: ''; margin-top: auto; }
         .cv-scroll-bottom-btn { position: absolute; right: 20px; bottom: 16px; width: 38px; height: 38px; border-radius: 50%; background: var(--surface); color: var(--text2); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px var(--shadow); border: 1px solid var(--border); z-index: 50; transition: all 0.15s; animation: popIn 0.18s ease-out; }
         .cv-scroll-bottom-btn:hover { background: var(--surface2); color: var(--primary); }
         .cv-loading { display: flex; flex-direction: column; gap: 8px; }
