@@ -1059,6 +1059,22 @@ export default function ChatPage({ chatId }) {
 
       <div className="cv-messages-wrap">
       <div className="cv-messages" ref={messagesRef}>
+        {!loading && conversation && (
+          <div className="cv-contact-card">
+            <div className="cv-cc-avatar">{(name || '?')[0].toUpperCase()}</div>
+            <div className="cv-cc-name">{name}</div>
+            {phone && <div className="cv-cc-phone">{phone}</div>}
+            {(assignedAgent || conversationTags.length > 0) && (
+              <div className="cv-cc-meta">
+                {assignedAgent && <span className="cv-cc-agent"><UserCheck size={12} />{assignedAgent.name}</span>}
+                {conversationTags.map(t => (
+                  <span key={t.id} className="tag-chip" style={{ background: t.color }}>{t.name}</span>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+        <div className="cv-msg-spacer" />
         {loading ? (
           <div className="cv-loading">
             {[...Array(5)].map((_, i) => (
@@ -1389,9 +1405,16 @@ export default function ChatPage({ chatId }) {
         .cv-error { background: rgba(229,62,62,0.05); border-bottom: 1px solid rgba(229,62,62,0.12); color: var(--danger); padding: 8px 16px; font-size: 13px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
         .cv-messages-wrap { position: relative; flex: 1; min-height: 0; display: flex; }
         .cv-messages { flex: 1; min-height: 0; overflow-y: auto; padding: 20px 24px; display: flex; flex-direction: column; gap: 2px; background: var(--bg); }
-        /* Dorong pesan menempel ke bawah (dekat input) saat masih sedikit; otomatis
-           hilang (margin auto = 0) begitu pesan memenuhi & area harus di-scroll. */
-        .cv-messages::before { content: ''; margin-top: auto; }
+        /* Spacer dorong pesan ke bawah (dekat input) saat masih sedikit; kartu kontak
+           tetap di atas. Otomatis hilang (margin auto = 0) saat pesan memenuhi layar. */
+        .cv-msg-spacer { margin-top: auto; }
+        /* Kartu info kontak di awal percakapan (seperti WhatsApp) */
+        .cv-contact-card { align-self: center; max-width: 380px; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 22px 20px; margin-bottom: 10px; box-shadow: 0 1px 3px var(--shadow); }
+        .cv-cc-avatar { width: 72px; height: 72px; border-radius: 50%; background: var(--primary-light); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 30px; font-weight: 700; margin-bottom: 4px; }
+        .cv-cc-name { font-size: 17px; font-weight: 700; color: var(--text); }
+        .cv-cc-phone { font-size: 14px; color: var(--text2); }
+        .cv-cc-meta { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-top: 8px; }
+        .cv-cc-agent { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; color: var(--success); background: var(--surface3); padding: 3px 9px; border-radius: 20px; }
         .cv-scroll-bottom-btn { position: absolute; right: 20px; bottom: 16px; width: 38px; height: 38px; border-radius: 50%; background: var(--surface); color: var(--text2); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px var(--shadow); border: 1px solid var(--border); z-index: 50; transition: all 0.15s; animation: popIn 0.18s ease-out; }
         .cv-scroll-bottom-btn:hover { background: var(--surface2); color: var(--primary); }
         .cv-loading { display: flex; flex-direction: column; gap: 8px; }
