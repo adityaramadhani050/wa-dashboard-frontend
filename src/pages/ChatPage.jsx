@@ -345,6 +345,9 @@ export default function ChatPage({ chatId }) {
   const [showTagModal, setShowTagModal] = useState(false)
   const [tagToggling, setTagToggling] = useState(null)
 
+  // Keyboard terbuka? (fokus input) -> pesan menempel ke bawah; jika tertutup rata atas
+  const [keyboardOpen, setKeyboardOpen] = useState(false)
+
   // Menu aksi pesan (long-press mobile)
   const [actionMsg, setActionMsg] = useState(null)
   const [toast, setToast] = useState('')
@@ -498,8 +501,10 @@ export default function ChatPage({ chatId }) {
     const el = messagesRef.current
     if (el) el.scrollTop = el.scrollHeight
   }, [])
-  // Saat input difokus (keyboard terbuka), pastikan pesan terbaru tetap terlihat.
-  const handleInputFocus = () => { stickToBottom(); setTimeout(stickToBottom, 150); setTimeout(stickToBottom, 350) }
+  // Saat input difokus (keyboard terbuka): pesan menempel ke bawah & scroll ke terbaru.
+  const handleInputFocus = () => { setKeyboardOpen(true); stickToBottom(); setTimeout(stickToBottom, 150); setTimeout(stickToBottom, 350) }
+  // Saat input blur (keyboard tertutup): kembali rata atas.
+  const handleInputBlur = () => setKeyboardOpen(false)
   // Keyboard mengubah tinggi viewport -> jaga tetap menempel ke bawah.
   useEffect(() => {
     const vv = window.visualViewport
@@ -1073,7 +1078,7 @@ export default function ChatPage({ chatId }) {
       )}
 
       <div className="cv-messages-wrap">
-      <div className="cv-messages" ref={messagesRef}>
+      <div className={`cv-messages${keyboardOpen ? ' kb-open' : ''}`} ref={messagesRef}>
         {!loading && conversation && (
           <div className="cv-contact-card">
             <div className="cv-cc-avatar">{(name || '?')[0].toUpperCase()}</div>
@@ -1273,6 +1278,7 @@ export default function ChatPage({ chatId }) {
           onChange={handleTextChange}
           onKeyDown={handleKeyDown}
           onFocus={handleInputFocus}
+          onBlur={handleInputBlur}
           rows={1}
         />
         <button
@@ -1421,9 +1427,11 @@ export default function ChatPage({ chatId }) {
         .cv-error { background: rgba(229,62,62,0.05); border-bottom: 1px solid rgba(229,62,62,0.12); color: var(--danger); padding: 8px 16px; font-size: 13px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
         .cv-messages-wrap { position: relative; flex: 1; min-height: 0; display: flex; }
         .cv-messages { flex: 1; min-height: 0; overflow-y: auto; padding: 20px 24px; display: flex; flex-direction: column; gap: 2px; background: var(--bg); }
-        /* Spacer dorong pesan ke bawah (dekat input) saat masih sedikit; kartu kontak
-           tetap di atas. Otomatis hilang (margin auto = 0) saat pesan memenuhi layar. */
-        .cv-msg-spacer { margin-top: auto; }
+        /* Default rata atas (pesan menempel di bawah kartu). Saat keyboard terbuka
+           (.kb-open) spacer dorong pesan ke bawah dekat input. Saat pesan memenuhi
+           layar, margin auto tetap 0 sehingga scroll normal di kedua kondisi. */
+        .cv-msg-spacer { margin-top: 0; }
+        .cv-messages.kb-open .cv-msg-spacer { margin-top: auto; }
         /* Kartu info kontak di awal percakapan (seperti WhatsApp) */
         .cv-contact-card { align-self: center; max-width: 380px; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 22px 20px; margin-bottom: 10px; box-shadow: 0 1px 3px var(--shadow); }
         .cv-cc-avatar { width: 72px; height: 72px; border-radius: 50%; background: var(--primary-light); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 30px; font-weight: 700; margin-bottom: 4px; }
