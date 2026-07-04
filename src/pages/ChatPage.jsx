@@ -215,7 +215,7 @@ function mergeMessage(prev, message) {
 }
 
 // Baris pesan dengan gesture geser-untuk-balas (recv: geser kanan, sent: geser kiri)
-function SwipeMessageRow({ msg, sent, isSending, hasMedia, hasReply, name, onReply, onForward, onDelete, onMenu, onImageClick }) {
+function SwipeMessageRow({ msg, sent, isSending, hasMedia, hasReply, name, onReply, onForward, onDelete, onMenu, onQuoteClick, onImageClick }) {
   const [dragX, setDragX] = useState(0)
   const start = useRef(null)
   const swiping = useRef(false)
@@ -268,6 +268,7 @@ function SwipeMessageRow({ msg, sent, isSending, hasMedia, hasReply, name, onRep
   return (
     <div
       className={`cv-row ${sent ? 'sent' : 'recv'}`}
+      id={msg.wa_message_id ? `m-${msg.wa_message_id}` : undefined}
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
@@ -289,7 +290,10 @@ function SwipeMessageRow({ msg, sent, isSending, hasMedia, hasReply, name, onRep
         style={{ transform: dragX ? `translateX(${dragX}px)` : undefined, transition: dragX ? 'none' : 'transform 0.18s ease' }}
       >
         {hasReply && (
-          <div className={`cv-quote ${sent ? 'on-sent' : 'on-recv'}`}>
+          <div
+            className={`cv-quote ${sent ? 'on-sent' : 'on-recv'}${msg.reply_to_wa_id ? ' clickable' : ''}`}
+            onClick={(e) => { if (msg.reply_to_wa_id) { e.stopPropagation(); onQuoteClick?.(msg.reply_to_wa_id) } }}
+          >
             <span className="cv-quote-who">{msg.reply_to_from_me ? 'Anda' : name}</span>
             <span className="cv-quote-text">{msg.reply_to_body || 'Pesan'}</span>
           </div>
@@ -496,6 +500,17 @@ export default function ChatPage({ chatId }) {
   }, [id])
 
   const scrollToBottom = () => bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  // Klik kutipan balasan -> lompat ke pesan aslinya & sorot sebentar (seperti WhatsApp)
+  const scrollToReplied = (waId) => {
+    if (!waId) return
+    const el = document.getElementById(`m-${waId}`)
+    if (!el) { setError('Pesan asli tidak ditemukan (mungkin belum dimuat).'); return }
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    el.classList.remove('flash')
+    void el.offsetWidth // reflow agar animasi bisa diputar ulang
+    el.classList.add('flash')
+    setTimeout(() => el.classList.remove('flash'), 1400)
+  }
   // Tempel ke bawah secara instan (dipakai saat keyboard buka/viewport berubah)
   const stickToBottom = useCallback(() => {
     const el = messagesRef.current
@@ -1122,6 +1137,7 @@ export default function ChatPage({ chatId }) {
                 onForward={() => openForward(msg)}
                 onDelete={() => handleDeleteMessage(msg)}
                 onMenu={() => setActionMsg(msg)}
+                onQuoteClick={scrollToReplied}
                 onImageClick={setLightboxUrl}
               />
             )
@@ -1503,6 +1519,10 @@ export default function ChatPage({ chatId }) {
         .cv-swipe-cue.right { right: 4px; }
         .cv-swipe-cue.active { background: var(--primary); color: var(--on-primary); }
         .cv-quote { display: flex; flex-direction: column; gap: 1px; border-left: 3px solid; padding: 4px 8px; margin-bottom: 5px; border-radius: 5px; max-width: 100%; overflow: hidden; }
+        .cv-quote.clickable { cursor: pointer; }
+        /* Sorot pesan tujuan saat diklik dari kutipan */
+        .cv-row.flash .cv-bubble { animation: cvFlash 1.4s ease; }
+        @keyframes cvFlash { 0%, 100% { box-shadow: 0 0 0 0 transparent; } 25% { box-shadow: 0 0 0 3px var(--primary); } }
         .cv-quote.on-sent { border-color: rgba(255,255,255,0.7); background: rgba(255,255,255,0.14); }
         .cv-quote.on-recv { border-color: var(--primary); background: var(--surface3); }
         .cv-quote-who { font-size: 11px; font-weight: 700; }
