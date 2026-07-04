@@ -101,10 +101,12 @@ function formatReminderTime(dateStr) {
   return new Date(dateStr).toLocaleString('id', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
 }
 
-function ImgMedia({ url, caption, sent, onImageClick }) {
+function ImgMedia({ url, thumb, caption, sent, onImageClick }) {
   const [error, setError] = useState(false)
   const [loaded, setLoaded] = useState(false)
-  if (!url || error) {
+  // Tampilkan thumbnail (kecil, cepat) bila ada; klik buka full-res di lightbox.
+  const displaySrc = thumb || url
+  if (!displaySrc || error) {
     return (
       <a href={url || '#'} target="_blank" rel="noreferrer" className={`cv-media-broken ${sent ? 'sent' : 'recv'}`}>
         <Image size={26} strokeWidth={1.5} />
@@ -116,10 +118,10 @@ function ImgMedia({ url, caption, sent, onImageClick }) {
   return (
     <div className="cv-media-wrap">
       {!loaded && <div className="cv-media-skeleton"><div className="cv-media-skel-inner" /></div>}
-      <img src={url} className="cv-media-img" alt="foto"
+      <img src={displaySrc} className="cv-media-img" alt="foto"
         style={{ display: loaded ? 'block' : 'none' }}
         onLoad={() => setLoaded(true)} onError={() => setError(true)}
-        onClick={() => onImageClick(url)} />
+        onClick={() => onImageClick(url || displaySrc)} />
       {caption && <p className="cv-media-caption">{caption}</p>}
     </div>
   )
@@ -181,7 +183,7 @@ function MediaContent({ msg, sent, onImageClick }) {
       return <div className="cv-media-wrap"><div className="cv-media-skeleton"><div className="cv-media-skel-inner" /></div></div>
     return <div className="cv-media-placeholder"><Paperclip size={16} /><span>Memuat {media_type}…</span></div>
   }
-  if (media_type === 'image') return <ImgMedia url={media_url} caption={caption} sent={sent} onImageClick={onImageClick} />
+  if (media_type === 'image') return <ImgMedia url={media_url} thumb={msg.media_thumb_url} caption={caption} sent={sent} onImageClick={onImageClick} />
   if (media_type === 'video') return <VideoMedia url={media_url} caption={caption} sent={sent} />
   if (media_type === 'audio') return <div className="cv-media-audio-wrap"><audio src={media_url} controls className="cv-media-audio" />{caption && <p className="cv-media-caption">{caption}</p>}</div>
   if (media_type === 'document') return <DocMedia url={media_url} filename={media_filename} caption={caption} sent={sent} />
