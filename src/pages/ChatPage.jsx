@@ -4,7 +4,7 @@ import { useSocket } from '../context/SocketContext'
 import { useAuth } from '../context/AuthContext'
 import {
   getMessages, sendMessage, sendMedia, assignAgent, unassignAgent, getConversation, getConversations, getAgents,
-  forwardMessage, deleteMessage,
+  forwardMessage, deleteMessage, editMessage,
   getTemplates, getQuickMedia, sendQuickMedia, useTemplate,
   getTags, addTagToConversation, removeTagFromConversation,
   getContactNotes, createContactNote, createReminder, getContactConversations,
@@ -215,7 +215,7 @@ function mergeMessage(prev, message) {
 }
 
 // Baris pesan dengan gesture geser-untuk-balas (recv: geser kanan, sent: geser kiri)
-function SwipeMessageRow({ msg, sent, isSending, hasMedia, hasReply, name, onReply, onForward, onDelete, onMenu, onQuoteClick, onImageClick }) {
+function SwipeMessageRow({ msg, sent, isSending, hasMedia, hasReply, name, onReply, onForward, onDelete, onEdit, canEdit, onMenu, onQuoteClick, onImageClick }) {
   const [dragX, setDragX] = useState(0)
   const start = useRef(null)
   const swiping = useRef(false)
@@ -281,6 +281,7 @@ function SwipeMessageRow({ msg, sent, isSending, hasMedia, hasReply, name, onRep
       {!isSending && (
         <div className="cv-hover-actions">
           <button className="cv-hover-btn" title="Balas" onClick={onReply}><Reply size={14} /></button>
+          {canEdit && <button className="cv-hover-btn" title="Edit" onClick={onEdit}><Pencil size={14} /></button>}
           <button className="cv-hover-btn" title="Teruskan" onClick={onForward}><Forward size={14} /></button>
           <button className="cv-hover-btn danger" title="Hapus" onClick={onDelete}><Trash2 size={14} /></button>
         </div>
@@ -357,6 +358,7 @@ export default function ChatPage({ chatId }) {
   const [actionMsg, setActionMsg] = useState(null)
   const [toast, setToast] = useState('')
   const [deletingMsg, setDeletingMsg] = useState(false)
+  const [editingMsg, setEditingMsg] = useState(null) // pesan yang sedang diedit
 
   // Forward pesan
   const [forwardMsg, setForwardMsg] = useState(null)
@@ -560,6 +562,7 @@ export default function ChatPage({ chatId }) {
   }
 
   const handleSend = async () => {
+    if (editingMsg) { handleEditSubmit(); return }
     if (!text.trim() || sending) return
     const msg = text.trim()
     const currentReply = replyTo
@@ -620,6 +623,7 @@ export default function ChatPage({ chatId }) {
   const isMobileDevice = typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches
 
   const handleKeyDown = (e) => {
+    if (e.key === 'Escape' && editingMsg) { e.preventDefault(); cancelEdit(); return }
     if (isMobileDevice) return
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); selectedFile ? handleSendMedia() : handleSend() }
   }
@@ -688,6 +692,41 @@ export default function ChatPage({ chatId }) {
       setTimeout(() => setToast(''), 1800)
     }
     catch { setError('Gagal menyalin pesan.') }
+  }
+
+  // Boleh diedit: pesan keluar, teks (bukan media), sudah terkirim (punya wa id),
+  // dan belum lewat 15 menit (aturan WhatsApp).
+  const canEditMessage = (msg) => {
+    if (!msg || !isFromMe(msg)) return false
+    if (msg.media_type) return false
+    if (String(msg.id).startsWith('tmp-') || !msg.wa_message_id) return false
+    const ts = new Date(msg.timestamp || msg.createdAt).getTime()
+    return Number.isFinite(ts) && (Date.now() - ts) < 15 * 60 * 1000
+  }
+
+  const startEditMessage = (msg) => {
+    setActionMsg(null)
+    setReplyTo(null)
+    setSelectedFile(null)
+    setEditingMsg(msg)
+    setText(msg.body || '')
+    setTimeout(() => textareaRef.current?.focus(), 0)
+  }
+
+  const cancelEdit = () => { setEditingMsg(null); setText('') }
+
+  const handleEditSubmit = async () => {
+    const body = text.trim()
+    const target = editingMsg
+    if (!body || !target) return
+    setEditingMsg(null); setText('')
+    try {
+      await editMessage(target.id, body)
+      setMessages(prev => prev.map(m => String(m.id) === String(target.id) ? { ...m, body, edited: true } : m))
+    } catch (e) {
+      setError(e?.response?.data?.error || 'Gagal mengedit pesan.')
+      setEditingMsg(target); setText(body)
+    }
   }
 
   const handleDeleteMessage = async (msg) => {
@@ -999,6 +1038,11 @@ export default function ChatPage({ chatId }) {
                 <Copy size={18} /> Salin
               </button>
             )}
+            {canEditMessage(actionMsg) && (
+              <button className="cv-sheet-item" onClick={() => startEditMessage(actionMsg)}>
+                <Pencil size={18} /> Edit
+              </button>
+            )}
             <button className="cv-sheet-item" onClick={() => { const m = actionMsg; setActionMsg(null); openForward(m) }}>
               <Forward size={18} /> Teruskan
             </button>
@@ -1137,6 +1181,8 @@ export default function ChatPage({ chatId }) {
                 onReply={() => handleReplyTo(msg)}
                 onForward={() => openForward(msg)}
                 onDelete={() => handleDeleteMessage(msg)}
+                onEdit={() => startEditMessage(msg)}
+                canEdit={canEditMessage(msg)}
                 onMenu={() => setActionMsg(msg)}
                 onQuoteClick={scrollToReplied}
                 onImageClick={setLightboxUrl}
@@ -1165,7 +1211,17 @@ export default function ChatPage({ chatId }) {
         </div>
       )}
 
-      {replyTo && (
+      {editingMsg && (
+        <div className="cv-reply-preview" onClick={e => e.stopPropagation()}>
+          <div className="cv-reply-preview-bar" />
+          <div className="cv-reply-preview-content">
+            <span className="cv-reply-preview-who"><Pencil size={12} style={{ verticalAlign: -1, marginRight: 4 }} />Edit pesan</span>
+            <span className="cv-reply-preview-text">{editingMsg.body}</span>
+          </div>
+          <button className="cv-reply-preview-x" onClick={cancelEdit}><X size={16} /></button>
+        </div>
+      )}
+      {replyTo && !editingMsg && (
         <div className="cv-reply-preview" onClick={e => e.stopPropagation()}>
           <div className="cv-reply-preview-bar" />
           <div className="cv-reply-preview-content">

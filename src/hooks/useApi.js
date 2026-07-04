@@ -136,6 +136,9 @@ export const forwardMessage = (messageId, targetConversationId) =>
 // Hapus pesan
 export const deleteMessage = (messageId) => api.delete(`/messages/${messageId}`).then(r => r.data)
 
+// Edit pesan (hanya pesan keluar, teks, <=15 menit)
+export const editMessage = (messageId, message) => api.patch(`/messages/${messageId}/edit`, { message }).then(r => r.data)
+
 // Auto-assign chat (round-robin / least-loaded)
 export const getAutoAssign = () => api.get('/settings/auto-assign').then(r => r.data)
 export const setAutoAssign = (enabled) => api.put('/settings/auto-assign', { enabled }).then(r => r.data)
