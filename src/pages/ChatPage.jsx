@@ -1699,7 +1699,7 @@ export default function ChatPage({ chatId }) {
           .cv-del-conv-btn { width: 34px; height: 34px; }
           .cv-send-label { display: none; }
           .cv-send-btn { padding: 0; width: 44px; height: 44px; justify-content: center; border-radius: 12px; }
-          .cv-input-bar { padding: 8px 10px; gap: 6px; }
+          .cv-input-bar { padding: 8px 10px; gap: 6px; padding-bottom: calc(8px + env(safe-area-inset-bottom)); }
           .cv-attach-group { display: none; }
           .cv-more-dd { display: block; }
           .cv-notes-sidebar { position: fixed !important; inset: 0 !important; width: 100% !important; height: 100% !important; z-index: 400; border-left: none; animation: slideInRight 0.22s ease-out; }
