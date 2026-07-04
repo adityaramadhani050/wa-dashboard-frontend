@@ -308,8 +308,7 @@ export default function InboxPage() {
             >{f.label}</button>
           ))}
         </div>
-        {/* Tag + Agent filter */}
-        {/* Baris 1: Tag + Status (selalu tampil, termasuk untuk agent) */}
+        {/* Filter Tag + Status + Agent — satu baris sejajar (Agent hanya admin) */}
         <div className="cl-tagfilter-row" onClick={e => e.stopPropagation()}>
           <div className="cv-dd">
             <button className={`cl-tagfilter-btn${activeTagFilter ? ' active' : ''}`} onClick={() => { setShowTagFilter(s => !s); setShowAgentFilter(false); setShowLifecycleFilter(false) }}>
@@ -345,10 +344,7 @@ export default function InboxPage() {
               </div>
             )}
           </div>
-        </div>
-        {/* Baris 2: filter Agent — hanya admin */}
-        {isAdmin && (
-          <div className="cl-tagfilter-row" onClick={e => e.stopPropagation()}>
+          {isAdmin && (
             <div className="cv-dd">
               <button className={`cl-tagfilter-btn${agentFilter ? ' active' : ''}`} onClick={() => { setShowAgentFilter(s => !s); setShowTagFilter(false); setShowLifecycleFilter(false) }}>
                 <UserCheck size={13} />
@@ -368,8 +364,8 @@ export default function InboxPage() {
                 </div>
               )}
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* List */}
