@@ -303,6 +303,7 @@ function SwipeMessageRow({ msg, sent, isSending, hasMedia, hasReply, name, onRep
           : <p>{msg.body || msg.content || msg.text}</p>
         }
         <div className="cv-meta">
+          {msg.edited && <span className="cv-edited">Diedit</span>}
           {isSending
             ? <Clock size={11} style={{ color: 'rgba(255,255,255,0.5)', flexShrink: 0 }} />
             : <span className="cv-time">{formatTime(msg.timestamp || msg.createdAt)}</span>
@@ -1545,6 +1546,7 @@ export default function ChatPage({ chatId }) {
         .brecv { background: var(--recv); color: var(--recv-text); border-bottom-left-radius: 4px; border: 1px solid var(--border); }
         .cv-bubble p { font-size: 14px; line-height: 1.55; white-space: pre-wrap; }
         .cv-meta { display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: 4px; padding: 0 2px; }
+        .cv-edited { font-size: 10px; font-style: italic; opacity: 0.7; margin-right: 2px; }
         .cv-time { font-size: 10px; color: rgba(255,255,255,0.6); white-space: nowrap; }
         .brecv .cv-time { color: var(--muted); }
         .cv-media-wrap { min-width: 180px; }
