@@ -740,9 +740,24 @@ export default function ChatPage({ chatId }) {
     setShowMediaGallery(false)
     const currentReply = replyTo
     setReplyTo(null)
-    try { await sendQuickMedia(id, item.id, undefined, currentReply); await fetchData() }
-    catch (e) { setError(e?.response?.data?.error || 'Gagal mengirim media.'); setReplyTo(currentReply) }
-    finally { setSendingQuickMediaId(null) }
+    // Placeholder optimistik agar user langsung lihat media sedang dikirim (ada
+    // indikator jam) -> mencegah kesan "tidak terkirim" & kirim berulang.
+    const tempId = `tmp-${Date.now()}`
+    const mtype = item.media_type || 'document'
+    setMessages(prev => [...prev, {
+      id: tempId, from_me: true, status: 'sent',
+      media_type: mtype, media_url: item.media_url || null,
+      media_thumb_url: item.media_url || null, media_filename: item.label,
+      body: `[${mtype}]`, timestamp: new Date().toISOString(),
+    }])
+    try {
+      await sendQuickMedia(id, item.id, undefined, currentReply)
+      await fetchData()
+    } catch (e) {
+      setMessages(prev => prev.filter(m => String(m.id) !== tempId))
+      setError(e?.response?.data?.error || 'Gagal mengirim media.')
+      setReplyTo(currentReply)
+    } finally { setSendingQuickMediaId(null) }
   }
 
   const handleAgentAssign = async (agent) => {
