@@ -688,11 +688,26 @@ export default function ChatPage({ chatId }) {
     setSending(true)
     const f = selectedFile
     const currentReply = replyTo
+    const caption = text.trim()
     setSelectedFile(null)
     setReplyTo(null)
-    try { await sendMedia(id, f.file, text.trim() || undefined, currentReply); setText(''); await fetchData() }
-    catch (e) { setError(e?.response?.data?.error || 'Gagal mengirim file.'); setSelectedFile(f); setReplyTo(currentReply) }
-    finally { setSending(false) }
+    setText('')
+    // Placeholder optimistik agar file langsung tampil dgn indikator jam saat kirim.
+    const tempId = `tmp-${Date.now()}`
+    setMessages(prev => [...prev, {
+      id: tempId, from_me: true, status: 'sent',
+      media_type: f.type, media_url: f.previewUrl || null,
+      media_thumb_url: f.previewUrl || null, media_filename: f.file?.name,
+      body: caption || `[${f.type}]`, timestamp: new Date().toISOString(),
+    }])
+    try {
+      await sendMedia(id, f.file, caption || undefined, currentReply)
+      await fetchData()
+    } catch (e) {
+      setMessages(prev => prev.filter(m => String(m.id) !== tempId))
+      setError(e?.response?.data?.error || 'Gagal mengirim file.')
+      setSelectedFile(f); setReplyTo(currentReply); setText(caption)
+    } finally { setSending(false) }
   }
 
   const isMobileDevice = typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches
