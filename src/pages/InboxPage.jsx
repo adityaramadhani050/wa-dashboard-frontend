@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate, useMatch } from 'react-router-dom'
 import { useSocket } from '../context/SocketContext'
 import { useAuth } from '../context/AuthContext'
-import { getConversations, getTags, getAgents, syncMessages, getWorkHours } from '../hooks/useApi'
+import { getConversations, getTags, getAgents, syncMessages, getWorkHours, getMyAvailability, setMyAvailability } from '../hooks/useApi'
 import { Search, RefreshCw, UserCheck, Tag as TagIcon, ChevronDown, Clock, RotateCw, X } from 'lucide-react'
 
 // KPI response time: customer harus dibalas dalam 5 menit
@@ -72,6 +72,8 @@ export default function InboxPage() {
   const [refreshing, setRefreshing] = useState(false)
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
+  const [myAvailable, setMyAvailable] = useState(true)
+  const [availBusy, setAvailBusy] = useState(false)
   const navigate = useNavigate()
   const matchChat = useMatch('/chat/:id')
   const activeChatId = matchChat?.params?.id
@@ -195,6 +197,16 @@ export default function InboxPage() {
 
   useEffect(() => { getTags().then(d => setTags(Array.isArray(d) ? d : [])).catch(() => {}) }, [])
   useEffect(() => { getWorkHours().then(setWorkHours).catch(() => {}) }, [])
+  useEffect(() => { getMyAvailability().then(d => setMyAvailable(d?.available !== false)).catch(() => {}) }, [])
+
+  const handleToggleMyAvail = useCallback(async () => {
+    if (availBusy) return
+    const next = !myAvailable
+    setAvailBusy(true)
+    try { await setMyAvailability(next); setMyAvailable(next) }
+    catch (e) { alert(e?.response?.data?.error || 'Gagal mengubah status ketersediaan') }
+    finally { setAvailBusy(false) }
+  }, [availBusy, myAvailable])
   useEffect(() => {
     if (isAdmin) getAgents().then(d => setAgents(Array.isArray(d) ? d.filter(a => a.role === 'agent') : [])).catch(() => {})
   }, [isAdmin])
@@ -277,6 +289,19 @@ export default function InboxPage() {
         <div className="cl-header-top">
           <h2>Chats</h2>
           <div className="cl-header-actions">
+            <button
+              className={`cl-avail${myAvailable ? ' on' : ''}`}
+              onClick={handleToggleMyAvail}
+              disabled={availBusy}
+              role="switch"
+              aria-checked={myAvailable}
+              title={myAvailable
+                ? 'Anda AKTIF — bisa menerima chat otomatis. Klik untuk non-aktif (izin/sakit/cuti).'
+                : 'Anda NON-AKTIF — tidak menerima auto-assign. Klik untuk aktif kembali.'}
+            >
+              <span className="cl-avail-dot" />
+              <span className="cl-avail-text">{myAvailable ? 'Aktif' : 'Non-aktif'}</span>
+            </button>
             <button className="cl-icon-btn" onClick={handleRefresh} disabled={refreshing} title="Refresh daftar">
               <RefreshCw size={15} className={refreshing ? 'cl-spin' : ''} />
             </button>
@@ -464,7 +489,13 @@ export default function InboxPage() {
         }
         .cl-icon-btn:hover { background: var(--surface3); color: var(--text2); }
         .cl-icon-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-        .cl-header-actions { display: flex; align-items: center; gap: 2px; }
+        .cl-header-actions { display: flex; align-items: center; gap: 6px; }
+        .cl-avail { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; border: 1px solid var(--border); background: var(--surface2); color: var(--muted); transition: all 0.15s; }
+        .cl-avail:disabled { opacity: 0.6; }
+        .cl-avail .cl-avail-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex-shrink: 0; transition: background 0.15s; }
+        .cl-avail.on { color: var(--success); border-color: color-mix(in srgb, var(--success) 40%, transparent); background: color-mix(in srgb, var(--success) 12%, transparent); }
+        .cl-avail.on .cl-avail-dot { background: var(--success); box-shadow: 0 0 0 3px color-mix(in srgb, var(--success) 25%, transparent); }
+        @media (max-width: 380px) { .cl-avail-text { display: none; } }
         .cl-sync-banner { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; padding: 7px 12px; border-radius: 8px; background: var(--primary-light); color: var(--primary); font-size: 12px; font-weight: 600; }
         .cl-spin { animation: spin 0.8s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }

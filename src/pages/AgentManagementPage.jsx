@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { getAgents, createAgent, updateAgent, deleteAgent, getAutoAssign, setAutoAssign, generateBotToken, getWorkHours, setWorkHours } from '../hooks/useApi'
+import { getAgents, createAgent, updateAgent, deleteAgent, getAutoAssign, setAutoAssign, generateBotToken, getWorkHours, setWorkHours, setAgentAvailability } from '../hooks/useApi'
 import { Plus, Pencil, Trash2, X, Eye, EyeOff, Users, Shuffle, KeyRound, Copy, Check, Clock } from 'lucide-react'
 
 const WEEKDAYS = [
@@ -177,6 +177,19 @@ export default function AgentManagementPage() {
     } catch (e) {
       alert(e?.response?.data?.error || 'Gagal mengubah auto-assign')
     } finally { setAutoAssignBusy(false) }
+  }
+
+  const [availBusy, setAvailBusy] = useState(null)
+  const handleToggleAvailability = async (agent) => {
+    if (availBusy) return
+    const next = agent.available === false // saat ini non-aktif -> aktifkan
+    setAvailBusy(agent.id)
+    try {
+      await setAgentAvailability(agent.id, next)
+      setAgents(prev => prev.map(a => a.id === agent.id ? { ...a, available: next } : a))
+    } catch (e) {
+      alert(e?.response?.data?.error || 'Gagal mengubah ketersediaan agent')
+    } finally { setAvailBusy(null) }
   }
 
   const handleGenerateBotToken = async () => {
@@ -364,6 +377,7 @@ export default function AgentManagementPage() {
                   <th>Username</th>
                   <th>Email</th>
                   <th>Role</th>
+                  <th>Ketersediaan</th>
                   <th>Dibuat</th>
                   <th>Aksi</th>
                 </tr>
@@ -380,6 +394,23 @@ export default function AgentManagementPage() {
                     <td><span className="am-username">@{a.username || '—'}</span></td>
                     <td className="am-email">{a.email || <span style={{color:'var(--muted)'}}>-</span>}</td>
                     <td>{roleBadge(a.role)}</td>
+                    <td>
+                      {a.role === 'agent' ? (
+                        <div className="am-avail">
+                          <button
+                            className={`aa-switch sm${a.available !== false ? ' on' : ''}`}
+                            onClick={() => handleToggleAvailability(a)}
+                            disabled={availBusy === a.id}
+                            role="switch"
+                            aria-checked={a.available !== false}
+                            title={a.available !== false ? 'Aktif — ikut auto-assign' : 'Non-aktif — dilewati auto-assign'}
+                          ><span className="aa-knob" /></button>
+                          <span className={`am-avail-label${a.available !== false ? ' on' : ''}`}>
+                            {a.available !== false ? 'Aktif' : 'Non-aktif'}
+                          </span>
+                        </div>
+                      ) : <span style={{ color: 'var(--muted)' }}>—</span>}
+                    </td>
                     <td className="am-date">
                       {a.created_at ? new Date(a.created_at).toLocaleDateString('id', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
                     </td>
@@ -478,6 +509,12 @@ export default function AgentManagementPage() {
         .aa-switch:disabled { opacity: 0.6; cursor: not-allowed; }
         .aa-knob { position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: var(--on-primary); box-shadow: 0 1px 3px rgba(0,0,0,0.2); transition: transform 0.2s; }
         .aa-switch.on .aa-knob { transform: translateX(20px); }
+        .aa-switch.sm { width: 38px; height: 22px; }
+        .aa-switch.sm .aa-knob { width: 16px; height: 16px; top: 3px; left: 3px; }
+        .aa-switch.sm.on .aa-knob { transform: translateX(16px); }
+        .am-avail { display: flex; align-items: center; gap: 8px; }
+        .am-avail-label { font-size: 12px; font-weight: 600; color: var(--muted); }
+        .am-avail-label.on { color: var(--success); }
         .am-btn {
           display: inline-flex; align-items: center; gap: 6px;
           padding: 8px 16px; border-radius: 8px;
