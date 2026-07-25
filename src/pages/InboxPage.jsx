@@ -480,8 +480,9 @@ export default function InboxPage() {
           color: var(--text); font-size: 13px; width: 100%;
         }
         .cl-search input::placeholder { color: var(--muted); }
-        .cl-search-clear { flex-shrink: 0; display: flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; color: var(--muted); background: var(--surface3); transition: all 0.12s; }
-        .cl-search-clear:hover { color: var(--text); background: var(--border2); }
+        .cl-search-clear { flex-shrink: 0; display: flex; align-items: center; justify-content: center; width: 16px; height: 16px; padding: 0; color: var(--muted); background: none; transition: color 0.12s; }
+        .cl-search-clear:hover { color: var(--text); }
+        .cl-search-clear svg { width: 15px; height: 15px; color: inherit; }
         .cl-list { flex: 1; min-height: 0; overflow-y: auto; }
         .cl-skel {
           height: 64px; margin: 4px 12px; border-radius: 10px;
