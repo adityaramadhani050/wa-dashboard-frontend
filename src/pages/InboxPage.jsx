@@ -197,7 +197,7 @@ export default function InboxPage() {
 
   useEffect(() => { getTags().then(d => setTags(Array.isArray(d) ? d : [])).catch(() => {}) }, [])
   useEffect(() => { getWorkHours().then(setWorkHours).catch(() => {}) }, [])
-  useEffect(() => { getMyAvailability().then(d => setMyAvailable(d?.available !== false)).catch(() => {}) }, [])
+  useEffect(() => { if (!isAdmin) getMyAvailability().then(d => setMyAvailable(d?.available !== false)).catch(() => {}) }, [isAdmin])
 
   const handleToggleMyAvail = useCallback(async () => {
     if (availBusy) return
@@ -289,19 +289,22 @@ export default function InboxPage() {
         <div className="cl-header-top">
           <h2>Chats</h2>
           <div className="cl-header-actions">
-            <button
-              className={`cl-avail${myAvailable ? ' on' : ''}`}
-              onClick={handleToggleMyAvail}
-              disabled={availBusy}
-              role="switch"
-              aria-checked={myAvailable}
-              title={myAvailable
-                ? 'Anda AKTIF — bisa menerima chat otomatis. Klik untuk non-aktif (izin/sakit/cuti).'
-                : 'Anda NON-AKTIF — tidak menerima auto-assign. Klik untuk aktif kembali.'}
-            >
-              <span className="cl-avail-dot" />
-              <span className="cl-avail-text">{myAvailable ? 'Aktif' : 'Non-aktif'}</span>
-            </button>
+            {/* Toggle ketersediaan hanya untuk agent — auto-assign tidak berlaku ke admin */}
+            {!isAdmin && (
+              <button
+                className={`cl-avail${myAvailable ? ' on' : ''}`}
+                onClick={handleToggleMyAvail}
+                disabled={availBusy}
+                role="switch"
+                aria-checked={myAvailable}
+                title={myAvailable
+                  ? 'Anda AKTIF — bisa menerima chat otomatis. Klik untuk non-aktif (izin/sakit/cuti).'
+                  : 'Anda NON-AKTIF — tidak menerima auto-assign. Klik untuk aktif kembali.'}
+              >
+                <span className="cl-avail-dot" />
+                <span className="cl-avail-text">{myAvailable ? 'Aktif' : 'Non-aktif'}</span>
+              </button>
+            )}
             <button className="cl-icon-btn" onClick={handleRefresh} disabled={refreshing} title="Refresh daftar">
               <RefreshCw size={15} className={refreshing ? 'cl-spin' : ''} />
             </button>
