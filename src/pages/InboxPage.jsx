@@ -3,7 +3,7 @@ import { useNavigate, useMatch } from 'react-router-dom'
 import { useSocket } from '../context/SocketContext'
 import { useAuth } from '../context/AuthContext'
 import { getConversations, getTags, getAgents, syncMessages, getWorkHours } from '../hooks/useApi'
-import { Search, RefreshCw, UserCheck, Tag as TagIcon, ChevronDown, Clock, RotateCw } from 'lucide-react'
+import { Search, RefreshCw, UserCheck, Tag as TagIcon, ChevronDown, Clock, RotateCw, X } from 'lucide-react'
 
 // KPI response time: customer harus dibalas dalam 5 menit
 const RESPONSE_KPI_MS = 5 * 60 * 1000
@@ -297,6 +297,11 @@ export default function InboxPage() {
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
+          {search && (
+            <button className="cl-search-clear" title="Hapus pencarian" onClick={() => setSearch('')}>
+              <X size={14} />
+            </button>
+          )}
         </div>
         {/* Status filter chips */}
         <div className="cl-statusfilter-row">
@@ -475,6 +480,8 @@ export default function InboxPage() {
           color: var(--text); font-size: 13px; width: 100%;
         }
         .cl-search input::placeholder { color: var(--muted); }
+        .cl-search-clear { flex-shrink: 0; display: flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; color: var(--muted); background: var(--surface3); transition: all 0.12s; }
+        .cl-search-clear:hover { color: var(--text); background: var(--border2); }
         .cl-list { flex: 1; min-height: 0; overflow-y: auto; }
         .cl-skel {
           height: 64px; margin: 4px 12px; border-radius: 10px;
