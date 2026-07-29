@@ -1,13 +1,20 @@
+import { useEffect } from 'react'
 import { useSocket } from '../context/SocketContext'
 import { RefreshCw, CheckCircle, Wifi, WifiOff, AlertTriangle, ServerOff } from 'lucide-react'
 import { resetWASession } from '../hooks/useApi'
 const BACKEND_URL = 'wa-dashboard-backend-production.up.railway.app'
 
 export default function QRSetupPage() {
-  const { qrCode, waConnected, socketConnected, socketError, setQrCode } = useSocket()
+  const { qrCode, waConnected, socketConnected, socketError, setQrCode, socket } = useSocket()
+
+  // Minta QR terbaru saat halaman dibuka / socket tersambung (bila WA belum connect).
+  useEffect(() => {
+    if (socket && socketConnected && !waConnected) socket.emit('request_qr')
+  }, [socket, socketConnected, waConnected])
 
   const handleRefresh = () => {
     setQrCode(null)
+    if (socket && socketConnected) socket.emit('request_qr')
   }
 
   return (
