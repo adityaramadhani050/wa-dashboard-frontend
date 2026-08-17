@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
-import { getAgents, createAgent, updateAgent, deleteAgent, getAutoAssign, setAutoAssign, generateBotToken, getWorkHours, setWorkHours, setAgentAvailability } from '../hooks/useApi'
-import { Plus, Pencil, Trash2, X, Eye, EyeOff, Users, Shuffle, KeyRound, Copy, Check, Clock } from 'lucide-react'
+import { getAgents, createAgent, updateAgent, deleteAgent, getAutoAssign, setAutoAssign, generateBotToken, getWorkHours, setWorkHours, setAgentAvailability, cleanupMedia } from '../hooks/useApi'
+import { Plus, Pencil, Trash2, X, Eye, EyeOff, Users, Shuffle, KeyRound, Copy, Check, Clock, HardDrive } from 'lucide-react'
 
 const WEEKDAYS = [
   { d: 1, label: 'Sen' }, { d: 2, label: 'Sel' }, { d: 3, label: 'Rab' },
@@ -160,6 +160,23 @@ export default function AgentManagementPage() {
       const days = prev?.days || []
       return { ...prev, days: days.includes(d) ? days.filter(x => x !== d) : [...days, d] }
     })
+  }
+
+  // Backfill hapus media lama (bebaskan storage)
+  const [cleanDays, setCleanDays] = useState(60)
+  const [cleanBusy, setCleanBusy] = useState(false)
+  const [cleanResult, setCleanResult] = useState(null)
+  const handleCleanupMedia = async () => {
+    if (cleanBusy) return
+    const days = Math.max(1, parseInt(cleanDays, 10) || 60)
+    if (!window.confirm(`Hapus SEMUA media lebih lama dari ${days} hari? Pesan tetap ada, hanya file media (foto/video/dok) yang dihapus permanen dari storage.`)) return
+    setCleanBusy(true); setCleanResult(null)
+    try {
+      const res = await cleanupMedia(days)
+      setCleanResult(res?.deleted ?? 0)
+    } catch (e) {
+      alert(e?.response?.data?.error || 'Gagal membersihkan media')
+    } finally { setCleanBusy(false) }
   }
 
   const handleToggleAutoAssign = async () => {
@@ -358,6 +375,27 @@ export default function AgentManagementPage() {
         </div>
       </div>
 
+      <div className="aa-card">
+        <div className="aa-info">
+          <div className="aa-icon"><HardDrive size={18} /></div>
+          <div style={{ flex: 1 }}>
+            <div className="aa-title">Bersihkan Media Lama (Hemat Storage)</div>
+            <div className="aa-desc">Hapus file media (foto/video/dokumen) lebih lama dari sekian hari untuk membebaskan penyimpanan. Pesannya tetap ada, hanya media-nya ditandai kadaluarsa.</div>
+            <div className="cm-row">
+              <label className="cm-label">Lebih lama dari
+                <input type="number" min="1" value={cleanDays} onChange={e => setCleanDays(e.target.value)} disabled={cleanBusy} /> hari
+              </label>
+              <button className="am-btn danger" onClick={handleCleanupMedia} disabled={cleanBusy}>
+                <Trash2 size={15} /> {cleanBusy ? 'Membersihkan...' : 'Bersihkan Sekarang'}
+              </button>
+              {cleanResult != null && !cleanBusy && (
+                <span className="cm-result"><Check size={14} /> {cleanResult} media dihapus</span>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div className="am-table-box">
         {loading ? (
           <div className="am-loading">
@@ -500,6 +538,10 @@ export default function AgentManagementPage() {
         .wh-times label { font-size: 13px; color: var(--text2); display: flex; align-items: center; gap: 6px; }
         .wh-times input[type="time"] { border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; font-size: 13px; color: var(--text); }
         .wh-save { align-self: flex-start; }
+        .cm-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
+        .cm-label { font-size: 13px; color: var(--text2); display: inline-flex; align-items: center; gap: 6px; }
+        .cm-label input { width: 70px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; color: var(--text); background: var(--surface2); }
+        .cm-result { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 600; color: var(--success); }
         .aa-info { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
         .aa-icon { width: 38px; height: 38px; border-radius: 10px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: var(--primary-light); color: var(--primary); }
         .aa-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 2px; }

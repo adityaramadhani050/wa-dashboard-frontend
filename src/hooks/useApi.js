@@ -150,6 +150,8 @@ export const setAutoAssign = (enabled) => api.put('/settings/auto-assign', { ena
 // Jam & hari kerja (pengecualian overdue di luar jam kerja)
 export const getWorkHours = () => api.get('/settings/work-hours').then(r => r.data)
 export const setWorkHours = (payload) => api.put('/settings/work-hours', payload).then(r => r.data)
+// Backfill hapus media lama (bebaskan storage)
+export const cleanupMedia = (days) => api.post('/settings/cleanup-media', { days }, { timeout: 120000 }).then(r => r.data)
 
 // VAPID public key untuk web push (endpoint terbuka)
 export const getVapidPublicKey = () => api.get('/push/vapid-public-key').then(r => r.data)
