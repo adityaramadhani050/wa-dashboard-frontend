@@ -151,14 +151,29 @@ function VideoMedia({ url, caption, sent, expired }) {
 
 function DocMedia({ url, filename, caption, sent, expired }) {
   const [dlStatus, setDlStatus] = useState('idle')
-  const handleClick = () => { if (dlStatus !== 'idle') return; setDlStatus('downloading'); setTimeout(() => setDlStatus('done'), 2200) }
+  const [gone, setGone] = useState(false)
   const ext = filename?.split('.').pop()?.toUpperCase() || 'FILE'
-  if (expired || !url) {
+  const handleClick = async (e) => {
+    e.preventDefault()
+    if (dlStatus === 'downloading') return
+    setDlStatus('downloading')
+    // Cek dulu apakah file masih ada sebelum membuka (hindari redirect ke 404)
+    try {
+      const res = await fetch(url, { method: 'HEAD' })
+      if (!res.ok) { setGone(true); setDlStatus('idle'); return }
+    } catch {
+      setGone(true); setDlStatus('idle'); return
+    }
+    // File tersedia -> buka/unduh
+    window.open(url, '_blank', 'noopener,noreferrer')
+    setDlStatus('done')
+  }
+  if (expired || !url || gone) {
     return (
       <div className="cv-media-wrap">
         <div className={`cv-media-broken ${sent ? 'sent' : 'recv'}`}>
           <FileText size={26} strokeWidth={1.5} />
-          <div className="cv-media-broken-info"><span>{filename || 'Dokumen'}</span><span className="cv-media-broken-sub">{expired ? 'Telah dihapus' : 'Tidak tersedia'}</span></div>
+          <div className="cv-media-broken-info"><span>{filename || 'Dokumen'}</span><span className="cv-media-broken-sub">{expired || gone ? 'Telah dihapus' : 'Tidak tersedia'}</span></div>
         </div>
         {caption && <p className="cv-media-caption">{caption}</p>}
       </div>
@@ -175,7 +190,7 @@ function DocMedia({ url, filename, caption, sent, expired }) {
         </div>
         <div className="cv-media-doc-info">
           <span className="cv-media-doc-name">{filename || 'Download file'}</span>
-          <span className="cv-media-doc-sub">{dlStatus === 'idle' ? 'Tap untuk unduh' : dlStatus === 'downloading' ? 'Mengunduh...' : 'Terunduh ✓'}</span>
+          <span className="cv-media-doc-sub">{dlStatus === 'idle' ? 'Tap untuk unduh' : dlStatus === 'downloading' ? 'Memeriksa...' : 'Terbuka ✓'}</span>
         </div>
       </a>
       {caption && <p className="cv-media-caption">{caption}</p>}
