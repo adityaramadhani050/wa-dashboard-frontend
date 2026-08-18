@@ -101,18 +101,22 @@ function formatReminderTime(dateStr) {
   return new Date(dateStr).toLocaleString('id', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
 }
 
-function ImgMedia({ url, thumb, caption, sent, onImageClick }) {
+function ImgMedia({ url, thumb, caption, sent, expired, onImageClick }) {
   const [error, setError] = useState(false)
   const [loaded, setLoaded] = useState(false)
   // Tampilkan thumbnail (kecil, cepat) bila ada; klik buka full-res di lightbox.
   const displaySrc = thumb || url
-  if (!displaySrc || error) {
+  // Gambar hilang/kadaluarsa/gagal dimuat -> tampilkan info di aplikasi, JANGAN
+  // membuka URL mentah (agar tidak diarahkan ke halaman 404 storage).
+  if (expired || !displaySrc || error) {
     return (
-      <a href={url || '#'} target="_blank" rel="noreferrer" className={`cv-media-broken ${sent ? 'sent' : 'recv'}`}>
+      <div className={`cv-media-broken ${sent ? 'sent' : 'recv'}`}>
         <Image size={26} strokeWidth={1.5} />
-        <div className="cv-media-broken-info"><span>Foto</span><span className="cv-media-broken-sub">Tap untuk buka</span></div>
-        <Download size={15} />
-      </a>
+        <div className="cv-media-broken-info">
+          <span>Foto</span>
+          <span className="cv-media-broken-sub">{expired ? 'Telah dihapus' : 'Gambar tidak tersedia'}</span>
+        </div>
+      </div>
     )
   }
   return (
@@ -127,15 +131,14 @@ function ImgMedia({ url, thumb, caption, sent, onImageClick }) {
   )
 }
 
-function VideoMedia({ url, caption, sent }) {
+function VideoMedia({ url, caption, sent, expired }) {
   const [error, setError] = useState(false)
-  if (!url || error) {
+  if (expired || !url || error) {
     return (
-      <a href={url || '#'} target="_blank" rel="noreferrer" className={`cv-media-broken ${sent ? 'sent' : 'recv'}`}>
+      <div className={`cv-media-broken ${sent ? 'sent' : 'recv'}`}>
         <Film size={26} strokeWidth={1.5} />
-        <div className="cv-media-broken-info"><span>Video</span><span className="cv-media-broken-sub">Tap untuk buka</span></div>
-        <Download size={15} />
-      </a>
+        <div className="cv-media-broken-info"><span>Video</span><span className="cv-media-broken-sub">{expired ? 'Telah dihapus' : 'Video tidak tersedia'}</span></div>
+      </div>
     )
   }
   return (
@@ -146,10 +149,21 @@ function VideoMedia({ url, caption, sent }) {
   )
 }
 
-function DocMedia({ url, filename, caption, sent }) {
+function DocMedia({ url, filename, caption, sent, expired }) {
   const [dlStatus, setDlStatus] = useState('idle')
   const handleClick = () => { if (dlStatus !== 'idle') return; setDlStatus('downloading'); setTimeout(() => setDlStatus('done'), 2200) }
   const ext = filename?.split('.').pop()?.toUpperCase() || 'FILE'
+  if (expired || !url) {
+    return (
+      <div className="cv-media-wrap">
+        <div className={`cv-media-broken ${sent ? 'sent' : 'recv'}`}>
+          <FileText size={26} strokeWidth={1.5} />
+          <div className="cv-media-broken-info"><span>{filename || 'Dokumen'}</span><span className="cv-media-broken-sub">{expired ? 'Telah dihapus' : 'Tidak tersedia'}</span></div>
+        </div>
+        {caption && <p className="cv-media-caption">{caption}</p>}
+      </div>
+    )
+  }
   return (
     <div className="cv-media-wrap">
       <a href={url} target="_blank" rel="noreferrer" download={filename}
@@ -183,19 +197,27 @@ function MediaContent({ msg, sent, onImageClick }) {
       return <div className="cv-media-wrap"><div className="cv-media-skeleton"><div className="cv-media-skel-inner" /></div></div>
     return <div className="cv-media-placeholder"><Paperclip size={16} /><span>Memuat {media_type}…</span></div>
   }
-  if (media_type === 'image') return <ImgMedia url={media_url} thumb={msg.media_thumb_url} caption={caption} sent={sent} onImageClick={onImageClick} />
-  if (media_type === 'video') return <VideoMedia url={media_url} caption={caption} sent={sent} />
+  if (media_type === 'image') return <ImgMedia url={media_url} thumb={msg.media_thumb_url} caption={caption} sent={sent} expired={msg.media_expired} onImageClick={onImageClick} />
+  if (media_type === 'video') return <VideoMedia url={media_url} caption={caption} sent={sent} expired={msg.media_expired} />
   if (media_type === 'audio') return <div className="cv-media-audio-wrap"><audio src={media_url} controls className="cv-media-audio" />{caption && <p className="cv-media-caption">{caption}</p>}</div>
-  if (media_type === 'document') return <DocMedia url={media_url} filename={media_filename} caption={caption} sent={sent} />
+  if (media_type === 'document') return <DocMedia url={media_url} filename={media_filename} caption={caption} sent={sent} expired={msg.media_expired} />
   return <div className="cv-media-placeholder"><Paperclip size={16} /><span>{media_filename || body || '[media]'}</span></div>
 }
 
 function ImageLightbox({ url, onClose }) {
+  const [error, setError] = useState(false)
   if (!url) return null
   return (
     <div className="cv-lightbox" onClick={onClose}>
       <button className="cv-lightbox-close" onClick={onClose}><X size={24} /></button>
-      <img src={url} className="cv-lightbox-img" onClick={e => e.stopPropagation()} alt="preview" />
+      {error ? (
+        <div className="cv-lightbox-msg" onClick={e => e.stopPropagation()}>
+          <Image size={40} strokeWidth={1.5} />
+          <span>Gambar tidak tersedia (telah dihapus)</span>
+        </div>
+      ) : (
+        <img src={url} className="cv-lightbox-img" onClick={e => e.stopPropagation()} onError={() => setError(true)} alt="preview" />
+      )}
     </div>
   )
 }
@@ -1774,6 +1796,7 @@ export default function ChatPage({ chatId }) {
         .cv-lightbox-close { position: absolute; top: 16px; right: 16px; width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center; color: white; }
         .cv-lightbox-close:hover { background: rgba(255,255,255,0.25); }
         .cv-lightbox-img { max-width: 90vw; max-height: 90vh; border-radius: 8px; object-fit: contain; }
+        .cv-lightbox-msg { display: flex; flex-direction: column; align-items: center; gap: 12px; color: rgba(255,255,255,0.85); font-size: 14px; padding: 40px; }
         .cv-input-bar .cv-dd .cv-menu { bottom: calc(100% + 8px); top: auto; left: 0; right: auto; max-height: 360px; overflow-y: auto; }
         .cv-tpl-preview { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 230px; }
         .cv-media-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 10px; }
