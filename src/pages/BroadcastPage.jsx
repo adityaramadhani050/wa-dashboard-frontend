@@ -232,7 +232,6 @@ function CreateWizard({ onBack, onCreated }) {
 
   const [cooldownDays, setCooldownDays] = useState(14)
   const [dailyLimit, setDailyLimit] = useState(40)
-  const [startMode, setStartMode] = useState('now') // now | schedule
   const [startAt, setStartAt] = useState('')
 
   const [candidates, setCandidates] = useState([])
@@ -295,10 +294,10 @@ function CreateWizard({ onBack, onCreated }) {
           wa_jid: c.wa_jid, name: c.name, phone: c.phone,
         })),
       }
-      if (startMode === 'schedule' && startAt) payload.start_at = new Date(startAt).toISOString()
+      if (startAt) payload.start_at = new Date(startAt).toISOString()
       const { campaign } = await createBroadcastCampaign(payload)
-      // Mulai sekarang -> jalankan langsung
-      if (startMode === 'now') { try { await startBroadcastCampaign(campaign.id) } catch {} }
+      // Tanpa jadwal -> mulai sekarang juga
+      if (!startAt) { try { await startBroadcastCampaign(campaign.id) } catch {} }
       onCreated(campaign.id)
     } catch (e) {
       alert(e?.response?.data?.error || 'Gagal membuat campaign')
@@ -349,14 +348,13 @@ function CreateWizard({ onBack, onCreated }) {
           </div>
 
           <div className="bc-field">
-            <label>Waktu Mulai</label>
-            <div className="bc-mode-tabs">
-              <button type="button" className={startMode === 'now' ? 'active' : ''} onClick={() => setStartMode('now')}><Play size={13} /> Mulai sekarang</button>
-              <button type="button" className={startMode === 'schedule' ? 'active' : ''} onClick={() => setStartMode('schedule')}><Calendar size={13} /> Jadwalkan</button>
-            </div>
-            {startMode === 'schedule' && (
-              <input type="datetime-local" style={{ marginTop: 8 }} value={startAt} onChange={e => setStartAt(e.target.value)} />
-            )}
+            <label>Waktu Mulai <span className="bc-hint">kosongkan untuk mulai hari ini (sekarang)</span></label>
+            <input type="datetime-local" value={startAt} onChange={e => setStartAt(e.target.value)} />
+            <span className="bc-hint">
+              {startAt
+                ? <><Calendar size={12} style={{ verticalAlign: -1 }} /> Dijadwalkan mulai {fmtDate(startAt)}</>
+                : <><Play size={12} style={{ verticalAlign: -1 }} /> Mulai hari ini (sekarang) begitu tombol ditekan</>}
+            </span>
           </div>
 
           <div className="bc-field">
@@ -396,15 +394,15 @@ function CreateWizard({ onBack, onCreated }) {
             <div><span>Template</span><b>{template?.name || '-'}</b></div>
             <div><span>Penerima</span><b>{chosen.length} nomor</b></div>
             <div><span>Estimasi durasi</span><b>{estDays} hari (≈{dailyLimit}/hari)</b></div>
-            {startMode === 'schedule' && startAt && <div><span>Mulai</span><b>{fmtDate(startAt)}</b></div>}
+            <div><span>Mulai</span><b>{startAt ? fmtDate(startAt) : 'Hari ini (sekarang)'}</b></div>
           </div>
 
           <div className="bc-form-actions between">
             <button type="button" className="bc-btn ghost" onClick={onBack}>Batal</button>
             <button type="button" className="bc-btn primary"
-              disabled={submitting || !name.trim() || !templateId || chosen.length === 0 || (startMode === 'schedule' && !startAt)}
+              disabled={submitting || !name.trim() || !templateId || chosen.length === 0}
               onClick={submit}>
-              <Send size={15} /> {submitting ? 'Menyimpan…' : startMode === 'now' ? 'Buat & Mulai' : 'Buat & Jadwalkan'}
+              <Send size={15} /> {submitting ? 'Menyimpan…' : startAt ? 'Buat & Jadwalkan' : 'Buat & Mulai'}
             </button>
           </div>
         </div>
@@ -567,7 +565,7 @@ const BC_CSS = `
 .bc-form-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 4px; }
 .bc-form-actions.between { justify-content: space-between; }
 .bc-recip-toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.bc-search { display: flex; align-items: center; gap: 7px; flex: 1; min-width: 160px; padding: 8px 11px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface); color: var(--muted); }
+.bc-search { display: flex; align-items: center; gap: 7px; flex: 0 1 280px; min-width: 140px; padding: 8px 11px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface); color: var(--muted); }
 .bc-search input { border: none; outline: none; background: transparent; font-size: 13px; color: var(--text); width: 100%; }
 .bc-cand-list { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; max-height: 46vh; overflow-y: auto; }
 .bc-cand { display: flex; align-items: center; gap: 10px; padding: 10px 13px; border-bottom: 1px solid var(--border); background: var(--surface); cursor: pointer; }
