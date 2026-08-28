@@ -330,26 +330,12 @@ function CreateWizard({ onBack, onCreated }) {
             {templates.length === 0 ? (
               <div className="bc-hint">Belum ada template broadcast. Buat dulu di menu <b>Template &amp; Galeri → Template Broadcast</b>.</div>
             ) : (
-              <div className="bc-tpl-list">
+              <select value={templateId || ''} onChange={e => setTemplateId(e.target.value || null)}>
+                <option value="" disabled>Pilih template…</option>
                 {templates.map(t => (
-                  <button key={t.id} type="button"
-                    className={`bc-tpl-item ${templateId === t.id ? 'sel' : ''}`}
-                    onClick={() => setTemplateId(t.id)}>
-                    <div className="bc-tpl-thumb">
-                      {t.media_url
-                        ? (t.media_type === 'image'
-                            ? <img src={t.media_url} alt="" />
-                            : <ImageIcon size={18} />)
-                        : <MessageSquareText size={18} />}
-                    </div>
-                    <div className="bc-tpl-info">
-                      <span className="bc-tpl-name">{t.name}</span>
-                      <span className="bc-tpl-body">{t.body || (t.media_url ? '(media)' : '')}</span>
-                    </div>
-                    {templateId === t.id && <CheckCircle2 size={16} className="bc-tpl-check" />}
-                  </button>
+                  <option key={t.id} value={t.id}>{t.name}{t.media_url ? ' (media)' : ''}</option>
                 ))}
-              </div>
+              </select>
             )}
           </div>
 
