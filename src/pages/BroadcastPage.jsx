@@ -156,7 +156,6 @@ function CampaignDetail({ id, onBack, onChanged }) {
           <button className="bc-back" onClick={onBack}><ArrowLeft size={18} /></button>
           <div>
             <div className="bc-title">{c.name}</div>
-            <div className="bc-sub"><span className={`bc-status ${c.status}`}>{STATUS_LABEL[c.status]}</span></div>
           </div>
         </div>
         <div className="bc-header-actions">
@@ -186,6 +185,7 @@ function CampaignDetail({ id, onBack, onChanged }) {
         <span><Users size={13} /> Batas {c.daily_limit}/hari</span>
         <span><Clock size={13} /> Cooldown {c.cooldown_days} hari</span>
         {c.start_at && <span><Calendar size={13} /> Jadwal {fmtDate(c.start_at)}</span>}
+        <span className={`bc-status ${c.status}`} style={{ marginLeft: 'auto' }}>{STATUS_LABEL[c.status]}</span>
       </div>
 
       <div className="bc-recip-head">Penerima ({data.recipients.length})</div>
