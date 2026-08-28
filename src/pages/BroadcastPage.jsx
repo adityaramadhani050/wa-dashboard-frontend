@@ -523,7 +523,6 @@ export default function BroadcastPage() {
 const BC_CSS = `
 .bc-root { height: 100%; overflow-y: auto; background: var(--bg); }
 .bc-page { width: 100%; padding: 24px 24px 48px; color: var(--text); }
-.bc-page > .bc-notice, .bc-page > .bc-list, .bc-page > .bc-empty { max-width: 1100px; }
 .bc-layout { display: flex; gap: 32px; align-items: flex-start; width: 100%; }
 .bc-main { flex: 1 1 auto; min-width: 0; }
 .bc-side { width: 320px; flex-shrink: 0; position: sticky; top: 12px; }
