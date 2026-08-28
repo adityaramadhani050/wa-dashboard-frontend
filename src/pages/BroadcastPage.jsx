@@ -348,13 +348,8 @@ function CreateWizard({ onBack, onCreated }) {
           </div>
 
           <div className="bc-field">
-            <label>Waktu Mulai <span className="bc-hint">kosongkan untuk mulai hari ini (sekarang)</span></label>
+            <label>Waktu Mulai <span className="bc-hint">kosongkan untuk mulai hari ini</span></label>
             <input type="datetime-local" value={startAt} onChange={e => setStartAt(e.target.value)} />
-            <span className="bc-hint">
-              {startAt
-                ? <><Calendar size={12} style={{ verticalAlign: -1 }} /> Dijadwalkan mulai {fmtDate(startAt)}</>
-                : <><Play size={12} style={{ verticalAlign: -1 }} /> Mulai hari ini (sekarang) begitu tombol ditekan</>}
-            </span>
           </div>
 
           <div className="bc-field">
@@ -394,7 +389,7 @@ function CreateWizard({ onBack, onCreated }) {
             <div><span>Template</span><b>{template?.name || '-'}</b></div>
             <div><span>Penerima</span><b>{chosen.length} nomor</b></div>
             <div><span>Estimasi durasi</span><b>{estDays} hari (≈{dailyLimit}/hari)</b></div>
-            <div><span>Mulai</span><b>{startAt ? fmtDate(startAt) : 'Hari ini (sekarang)'}</b></div>
+            <div><span>Mulai</span><b>{startAt ? fmtDate(startAt) : 'Hari ini'}</b></div>
           </div>
 
           <div className="bc-form-actions between">
