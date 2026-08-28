@@ -12,6 +12,7 @@ const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage'))
 const AgentManagementPage = lazy(() => import('./pages/AgentManagementPage'))
 const ContactsPage = lazy(() => import('./pages/ContactsPage'))
 const TemplatesPage = lazy(() => import('./pages/TemplatesPage'))
+const BroadcastPage = lazy(() => import('./pages/BroadcastPage'))
 
 function PageLoader() {
   return (
@@ -54,15 +55,16 @@ function ProtectedShell() {
   const matchAgents   = useMatch('/agents')
   const matchContacts = useMatch('/contacts')
   const matchTemplates = useMatch('/templates')
+  const matchBroadcast = useMatch('/broadcast')
 
   if (!user) return <Navigate to="/login" replace />
 
-  if (user.role !== 'admin' && (matchQR || matchAnalytics || matchAgents || matchTemplates)) {
+  if (user.role !== 'admin' && (matchQR || matchAnalytics || matchAgents || matchTemplates || matchBroadcast)) {
     return <Navigate to="/inbox" replace />
   }
 
   const chatId = matchChat?.params?.id
-  const isFullPage = matchQR || matchAnalytics || matchAgents || matchContacts || matchTemplates
+  const isFullPage = matchQR || matchAnalytics || matchAgents || matchContacts || matchTemplates || matchBroadcast
 
   return (
     <SocketProvider>
@@ -76,6 +78,7 @@ function ProtectedShell() {
               {matchAgents   && <AgentManagementPage />}
               {matchContacts && <ContactsPage />}
               {matchTemplates && <TemplatesPage />}
+              {matchBroadcast && <BroadcastPage />}
             </Suspense>
           </div>
         ) : (

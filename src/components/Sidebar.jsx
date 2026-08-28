@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { useSocket } from '../context/SocketContext'
 import { getDueReminders, markReminderDone } from '../hooks/useApi'
 import { enableWebPush, getNotificationStatus } from '../native/webpush'
-import { MessageSquare, BarChart2, QrCode, LogOut, Users, BookUser, Zap, Bell, BellRing } from 'lucide-react'
+import { MessageSquare, BarChart2, QrCode, LogOut, Users, BookUser, Zap, Bell, BellRing, Megaphone } from 'lucide-react'
 
 function formatReminderTime(dateStr) {
   if (!dateStr) return ''
@@ -77,6 +77,7 @@ export default function IconBar() {
     { path: '/analytics',icon: BarChart2,     label: 'Analytics',       adminOnly: true  },
     { path: '/agents',   icon: Users,         label: 'Manajemen Agent', adminOnly: true  },
     { path: '/templates',icon: Zap,           label: 'Template & Galeri', adminOnly: true },
+    { path: '/broadcast',icon: Megaphone,     label: 'Broadcast Promo', adminOnly: true  },
     { path: '/qr',       icon: QrCode,        label: 'QR Setup',        adminOnly: true  },
   ].filter(item => !item.adminOnly || isAdmin)
 

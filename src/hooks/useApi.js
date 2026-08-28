@@ -153,6 +153,16 @@ export const setWorkHours = (payload) => api.put('/settings/work-hours', payload
 // Backfill hapus media lama (bebaskan storage)
 export const cleanupMedia = (days) => api.post('/settings/cleanup-media', { days }, { timeout: 120000 }).then(r => r.data)
 
+// Broadcast Promo (kirim pesan promo ke calon customer belum deal)
+export const getBroadcastCandidates = (cooldownDays) =>
+  api.get('/broadcast/candidates', { params: { cooldown_days: cooldownDays || 14 } }).then(r => r.data)
+export const getBroadcastCampaigns = () => api.get('/broadcast/campaigns').then(r => r.data)
+export const getBroadcastCampaign = (id) => api.get(`/broadcast/campaigns/${id}`).then(r => r.data)
+export const createBroadcastCampaign = (payload) => api.post('/broadcast/campaigns', payload, { timeout: 60000 }).then(r => r.data)
+export const startBroadcastCampaign = (id) => api.post(`/broadcast/campaigns/${id}/start`).then(r => r.data)
+export const pauseBroadcastCampaign = (id) => api.post(`/broadcast/campaigns/${id}/pause`).then(r => r.data)
+export const cancelBroadcastCampaign = (id) => api.post(`/broadcast/campaigns/${id}/cancel`).then(r => r.data)
+
 // VAPID public key untuk web push (endpoint terbuka)
 export const getVapidPublicKey = () => api.get('/push/vapid-public-key').then(r => r.data)
 
