@@ -458,7 +458,11 @@ export default function BroadcastPage() {
 
 const BC_CSS = `
 .bc-root { height: 100%; overflow-y: auto; background: var(--bg); }
-.bc-page { max-width: 860px; margin: 0 auto; padding: 20px 18px 60px; }
+.bc-page { width: 100%; padding: 24px 24px 48px; color: var(--text); }
+.bc-page > .bc-notice, .bc-page > .bc-list, .bc-page > .bc-empty,
+.bc-page > .bc-detail-grid, .bc-page > .bc-progress, .bc-page > .bc-info-row,
+.bc-page > .bc-msg-preview, .bc-page > .bc-recip-head, .bc-page > .bc-recip-list,
+.bc-page > .bc-steps, .bc-page > .bc-form { max-width: 1000px; }
 .bc-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
 .bc-title-wrap { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .bc-title { display: flex; align-items: center; gap: 8px; font-size: 19px; font-weight: 700; color: var(--text); }
