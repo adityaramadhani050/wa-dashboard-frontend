@@ -565,7 +565,7 @@ const BC_CSS = `
 .bc-form-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 4px; }
 .bc-form-actions.between { justify-content: space-between; }
 .bc-recip-toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.bc-search { display: flex; align-items: center; gap: 7px; flex: 0 1 280px; min-width: 140px; padding: 8px 11px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface); color: var(--muted); }
+.bc-search { display: flex; align-items: center; gap: 7px; flex: 0 1 280px; min-width: 140px; height: 38px; padding: 0 11px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface); color: var(--muted); box-sizing: border-box; }
 .bc-search input { border: none; outline: none; background: transparent; font-size: 13px; color: var(--text); width: 100%; }
 .bc-cand-list { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; max-height: 46vh; overflow-y: auto; }
 .bc-cand { display: flex; align-items: center; gap: 10px; padding: 10px 13px; border-bottom: 1px solid var(--border); background: var(--surface); cursor: pointer; }
