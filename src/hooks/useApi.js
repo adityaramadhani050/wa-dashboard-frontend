@@ -181,6 +181,7 @@ export const createBroadcastCampaign = (payload) => api.post('/broadcast/campaig
 export const startBroadcastCampaign = (id) => api.post(`/broadcast/campaigns/${id}/start`).then(r => r.data)
 export const pauseBroadcastCampaign = (id) => api.post(`/broadcast/campaigns/${id}/pause`).then(r => r.data)
 export const cancelBroadcastCampaign = (id) => api.post(`/broadcast/campaigns/${id}/cancel`).then(r => r.data)
+export const deleteBroadcastCampaign = (id) => api.delete(`/broadcast/campaigns/${id}`).then(r => r.data)
 
 // VAPID public key untuk web push (endpoint terbuka)
 export const getVapidPublicKey = () => api.get('/push/vapid-public-key').then(r => r.data)

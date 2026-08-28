@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   Megaphone, ArrowLeft, Search, Send, Clock, Users, Image as ImageIcon,
-  Play, Pause, X, CheckCircle2, AlertCircle, RefreshCw, Calendar, MessageSquareText,
+  Play, Pause, X, CheckCircle2, AlertCircle, RefreshCw, Calendar, MessageSquareText, Trash2,
 } from 'lucide-react'
 import {
   getBroadcastCandidates, getBroadcastCampaigns, getBroadcastCampaign,
   createBroadcastCampaign, startBroadcastCampaign, pauseBroadcastCampaign,
-  cancelBroadcastCampaign, getBroadcastTemplates,
+  cancelBroadcastCampaign, deleteBroadcastCampaign, getBroadcastTemplates,
 } from '../hooks/useApi'
 
 const STATUS_LABEL = {
@@ -165,6 +165,14 @@ function CampaignDetail({ id, onBack, onChanged }) {
           )}
           {['draft', 'scheduled', 'running', 'paused'].includes(c.status) && (
             <button className="bc-btn danger" disabled={busy} onClick={() => { if (confirm('Batalkan campaign ini?')) act(cancelBroadcastCampaign) }}><X size={15} /> Batalkan</button>
+          )}
+          {c.status !== 'running' && (
+            <button className="bc-btn danger" disabled={busy} onClick={async () => {
+              if (!confirm('Hapus campaign ini secara permanen? Data penerima ikut terhapus.')) return
+              setBusy(true)
+              try { await deleteBroadcastCampaign(id); onChanged?.(); onBack() }
+              catch (e) { alert(e?.response?.data?.error || 'Gagal menghapus'); setBusy(false) }
+            }}><Trash2 size={15} /> Hapus</button>
           )}
         </div>
       </div>
