@@ -226,7 +226,6 @@ function CampaignDetail({ id, onBack, onChanged }) {
 
 // ── Wizard buat campaign ────────────────────────────────────────────────────
 function CreateWizard({ onBack, onCreated }) {
-  const [step, setStep] = useState(1)
   const [name, setName] = useState('')
   const [templates, setTemplates] = useState([])
   const [templateId, setTemplateId] = useState(null)
@@ -257,8 +256,8 @@ function CreateWizard({ onBack, onCreated }) {
     finally { setLoadingCand(false) }
   }, [])
 
-  // Muat kandidat saat masuk step 2 (atau cooldown berubah)
-  useEffect(() => { if (step === 2) loadCandidates(cooldownDays) }, [step, cooldownDays, loadCandidates])
+  // Muat kandidat (mengikuti cooldown yang dipilih)
+  useEffect(() => { loadCandidates(cooldownDays) }, [cooldownDays, loadCandidates])
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -281,7 +280,6 @@ function CreateWizard({ onBack, onCreated }) {
 
   const chosen = candidates.filter(c => selected.has(c.wa_jid) && !c.on_cooldown)
 
-  const canStep1 = name.trim() && templateId
   const estDays = chosen.length ? Math.ceil(chosen.length / (dailyLimit || 40)) : 0
 
   const submit = async () => {
@@ -318,16 +316,6 @@ function CreateWizard({ onBack, onCreated }) {
 
       <div className="bc-layout">
        <div className="bc-main">
-      <div className="bc-steps">
-        {['Pesan', 'Penerima', 'Review'].map((s, i) => (
-          <div key={s} className={`bc-step ${step === i + 1 ? 'active' : step > i + 1 ? 'done' : ''}`}>
-            <span className="bc-step-num">{i + 1}</span>{s}
-          </div>
-        ))}
-      </div>
-
-      {/* STEP 1 — Pesan */}
-      {step === 1 && (
         <div className="bc-form">
           <div className="bc-field">
             <label>Nama Campaign</label>
@@ -347,64 +335,11 @@ function CreateWizard({ onBack, onCreated }) {
             )}
           </div>
 
-          <div className="bc-form-actions">
-            <button className="bc-btn primary" disabled={!canStep1} onClick={() => setStep(2)}>Lanjut: Pilih Penerima</button>
-          </div>
-        </div>
-      )}
-
-      {/* STEP 2 — Penerima */}
-      {step === 2 && (
-        <div className="bc-form">
-          <div className="bc-recip-toolbar">
-            <div className="bc-search">
-              <Search size={15} />
-              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Cari nama / nomor…" />
-            </div>
-            <button className="bc-btn ghost sm" onClick={selectableAll}>Pilih semua yang boleh</button>
-            <button className="bc-btn ghost sm" onClick={clearAll}>Kosongkan</button>
-          </div>
-          <div className="bc-hint" style={{ marginBottom: 8 }}>
-            Kandidat: chat berstatus <b>Resolved</b> (bukan Non-Client). Nomor yang masih dalam cooldown tidak bisa dipilih. Dipilih: <b>{chosen.length}</b>
-          </div>
-
-          {loadingCand ? (
-            <div className="bc-empty">Memuat kandidat…</div>
-          ) : filtered.length === 0 ? (
-            <div className="bc-empty">Tidak ada kandidat.</div>
-          ) : (
-            <div className="bc-cand-list">
-              {filtered.map(c => (
-                <label key={c.wa_jid} className={`bc-cand ${c.on_cooldown ? 'disabled' : ''}`}>
-                  <input type="checkbox" disabled={c.on_cooldown}
-                    checked={selected.has(c.wa_jid)} onChange={() => toggle(c.wa_jid)} />
-                  <div className="bc-cand-info">
-                    <span className="bc-cand-name">{c.name || c.phone}</span>
-                    <span className="bc-cand-phone">{c.phone}</span>
-                  </div>
-                  {c.on_cooldown
-                    ? <span className="bc-cand-cd"><Clock size={12} /> cooldown s/d {fmtDate(c.cooldown_until)}</span>
-                    : <span className="bc-cand-ok">boleh</span>}
-                </label>
-              ))}
-            </div>
-          )}
-
-          <div className="bc-form-actions between">
-            <button className="bc-btn ghost" onClick={() => setStep(1)}>Kembali</button>
-            <button className="bc-btn primary" disabled={chosen.length === 0} onClick={() => setStep(3)}>Lanjut: Review ({chosen.length})</button>
-          </div>
-        </div>
-      )}
-
-      {/* STEP 3 — Review */}
-      {step === 3 && (
-        <div className="bc-form">
           <div className="bc-review-grid">
             <div className="bc-field">
               <label>Batas per hari</label>
               <input type="number" min={1} max={500} value={dailyLimit} onChange={e => setDailyLimit(Math.max(1, parseInt(e.target.value) || 40))} />
-              <span className="bc-hint">Disarankan mulai dari 40/hari, naikkan bertahap.</span>
+              <span className="bc-hint">Disarankan mulai 40/hari, naikkan bertahap.</span>
             </div>
             <div className="bc-field">
               <label>Cooldown (hari)</label>
@@ -416,16 +351,48 @@ function CreateWizard({ onBack, onCreated }) {
           <div className="bc-field">
             <label>Waktu Mulai</label>
             <div className="bc-mode-tabs">
-              <button className={startMode === 'now' ? 'active' : ''} onClick={() => setStartMode('now')}><Play size={13} /> Mulai sekarang</button>
-              <button className={startMode === 'schedule' ? 'active' : ''} onClick={() => setStartMode('schedule')}><Calendar size={13} /> Jadwalkan</button>
+              <button type="button" className={startMode === 'now' ? 'active' : ''} onClick={() => setStartMode('now')}><Play size={13} /> Mulai sekarang</button>
+              <button type="button" className={startMode === 'schedule' ? 'active' : ''} onClick={() => setStartMode('schedule')}><Calendar size={13} /> Jadwalkan</button>
             </div>
             {startMode === 'schedule' && (
               <input type="datetime-local" style={{ marginTop: 8 }} value={startAt} onChange={e => setStartAt(e.target.value)} />
             )}
           </div>
 
+          <div className="bc-field">
+            <label>Penerima <span className="bc-hint">chat <b>Resolved</b> (bukan Non-Client) · dalam cooldown tak bisa dipilih · dipilih <b>{chosen.length}</b></span></label>
+            <div className="bc-recip-toolbar">
+              <div className="bc-search">
+                <Search size={15} />
+                <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Cari nama / nomor…" />
+              </div>
+              <button type="button" className="bc-btn ghost sm" onClick={selectableAll}>Pilih semua yang boleh</button>
+              <button type="button" className="bc-btn ghost sm" onClick={clearAll}>Kosongkan</button>
+            </div>
+            {loadingCand ? (
+              <div className="bc-empty">Memuat kandidat…</div>
+            ) : filtered.length === 0 ? (
+              <div className="bc-empty">Tidak ada kandidat.</div>
+            ) : (
+              <div className="bc-cand-list">
+                {filtered.map(c => (
+                  <label key={c.wa_jid} className={`bc-cand ${c.on_cooldown ? 'disabled' : ''}`}>
+                    <input type="checkbox" disabled={c.on_cooldown}
+                      checked={selected.has(c.wa_jid)} onChange={() => toggle(c.wa_jid)} />
+                    <div className="bc-cand-info">
+                      <span className="bc-cand-name">{c.name || c.phone}</span>
+                      <span className="bc-cand-phone">{c.phone}</span>
+                    </div>
+                    {c.on_cooldown
+                      ? <span className="bc-cand-cd"><Clock size={12} /> cooldown s/d {fmtDate(c.cooldown_until)}</span>
+                      : <span className="bc-cand-ok">boleh</span>}
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+
           <div className="bc-summary">
-            <div><span>Campaign</span><b>{name}</b></div>
             <div><span>Template</span><b>{template?.name || '-'}</b></div>
             <div><span>Penerima</span><b>{chosen.length} nomor</b></div>
             <div><span>Estimasi durasi</span><b>{estDays} hari (≈{dailyLimit}/hari)</b></div>
@@ -433,13 +400,14 @@ function CreateWizard({ onBack, onCreated }) {
           </div>
 
           <div className="bc-form-actions between">
-            <button className="bc-btn ghost" onClick={() => setStep(2)}>Kembali</button>
-            <button className="bc-btn primary" disabled={submitting || (startMode === 'schedule' && !startAt)} onClick={submit}>
+            <button type="button" className="bc-btn ghost" onClick={onBack}>Batal</button>
+            <button type="button" className="bc-btn primary"
+              disabled={submitting || !name.trim() || !templateId || chosen.length === 0 || (startMode === 'schedule' && !startAt)}
+              onClick={submit}>
               <Send size={15} /> {submitting ? 'Menyimpan…' : startMode === 'now' ? 'Buat & Mulai' : 'Buat & Jadwalkan'}
             </button>
           </div>
         </div>
-      )}
        </div>
        <PhonePreview
          text={template?.body}
