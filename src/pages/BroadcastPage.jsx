@@ -67,8 +67,10 @@ function CampaignList({ campaigns, loading, onNew, onOpen, onReload }) {
     <div className="bc-page">
       <div className="bc-header">
         <div className="bc-title-wrap">
-          <div className="bc-title"><Megaphone size={20} /> Broadcast Promo</div>
-          <div className="bc-sub">Kirim pesan promo ke calon customer yang pernah menghubungi tapi belum deal.</div>
+          <div>
+            <div className="bc-title"><Megaphone size={20} /> Broadcast Promo</div>
+            <div className="bc-sub">Kirim pesan promo ke calon customer yang pernah menghubungi tapi belum deal.</div>
+          </div>
         </div>
         <div className="bc-header-actions">
           <button className="bc-btn ghost" onClick={onReload} title="Muat ulang"><RefreshCw size={16} /></button>
