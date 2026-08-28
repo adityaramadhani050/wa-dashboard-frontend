@@ -19,6 +19,49 @@ function fmtDate(s) {
   return new Date(s).toLocaleString('id', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
 }
 
+function applySample(text, name) {
+  if (!text) return ''
+  return text.replace(/\{\{\s*nama\s*\}\}/gi, name || 'Budi')
+}
+
+// Preview WhatsApp room chat (dari sisi penerima -> pesan masuk / bubble kiri)
+function PhonePreview({ text, mediaType, mediaUrl, mediaLabel, sampleName = 'Budi' }) {
+  const now = new Date().toLocaleTimeString('id', { hour: '2-digit', minute: '2-digit' })
+  const body = applySample(text, sampleName)
+  const hasMedia = !!mediaType
+  return (
+    <div className="bc-side">
+      <div className="bc-preview-lbl">Preview yang diterima customer</div>
+      <div className="bc-phone">
+        <div className="bc-phone-notch" />
+        <div className="bc-wa-header">
+          <ArrowLeft size={18} />
+          <div className="bc-wa-avatar">{(sampleName || 'C')[0].toUpperCase()}</div>
+          <div className="bc-wa-hinfo">
+            <span className="bc-wa-name">{sampleName || 'Calon Customer'}</span>
+            <span className="bc-wa-status">online</span>
+          </div>
+        </div>
+        <div className="bc-wa-body">
+          <div className="bc-wa-date">HARI INI</div>
+          {(hasMedia || body) && (
+            <div className="bc-wa-bubble">
+              {hasMedia && (
+                mediaType === 'image' && mediaUrl
+                  ? <img className="bc-wa-media" src={mediaUrl} alt={mediaLabel || ''} />
+                  : <div className="bc-wa-doc"><ImageIcon size={18} /><span>{mediaLabel || mediaType}</span></div>
+              )}
+              {body && <div className="bc-wa-text">{body}</div>}
+              <span className="bc-wa-time">{now}</span>
+            </div>
+          )}
+          {!hasMedia && !body && <div className="bc-wa-empty">Isi pesan akan tampil di sini…</div>}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Daftar campaign ─────────────────────────────────────────────────────────
 function CampaignList({ campaigns, loading, onNew, onOpen, onReload }) {
   return (
@@ -79,6 +122,9 @@ function CampaignList({ campaigns, loading, onNew, onOpen, onReload }) {
 function CampaignDetail({ id, onBack, onChanged }) {
   const [data, setData] = useState(null)
   const [busy, setBusy] = useState(false)
+  const [media, setMedia] = useState([])
+
+  useEffect(() => { getQuickMedia().then(setMedia).catch(() => {}) }, [])
 
   const load = useCallback(async () => {
     try { setData(await getBroadcastCampaign(id)) } catch {}
@@ -101,6 +147,8 @@ function CampaignDetail({ id, onBack, onChanged }) {
   const c = data.campaign
   const done = (c.sent_count || 0) + (c.failed_count || 0) + (c.skipped_count || 0)
   const pct = c.total_targets ? Math.round(done / c.total_targets * 100) : 0
+  const mediaItem = c.quick_media_id ? media.find(m => m.id === c.quick_media_id) : null
+  const sampleName = data.recipients?.[0]?.name || 'Budi'
 
   return (
     <div className="bc-page">
@@ -125,6 +173,8 @@ function CampaignDetail({ id, onBack, onChanged }) {
         </div>
       </div>
 
+      <div className="bc-layout">
+       <div className="bc-main">
       <div className="bc-detail-grid">
         <div className="bc-stat"><span className="bc-stat-num">{c.total_targets}</span><span className="bc-stat-lbl">Total Target</span></div>
         <div className="bc-stat ok"><span className="bc-stat-num">{c.sent_count || 0}</span><span className="bc-stat-lbl">Terkirim</span></div>
@@ -137,11 +187,6 @@ function CampaignDetail({ id, onBack, onChanged }) {
         <span><Users size={13} /> Batas {c.daily_limit}/hari</span>
         <span><Clock size={13} /> Cooldown {c.cooldown_days} hari</span>
         {c.start_at && <span><Calendar size={13} /> Jadwal {fmtDate(c.start_at)}</span>}
-      </div>
-
-      <div className="bc-msg-preview">
-        <div className="bc-msg-preview-lbl">Isi Pesan</div>
-        <div className="bc-msg-bubble">{c.message_type === 'quick_media' ? `[Media] ${c.message_body || ''}` : (c.message_body || '-')}</div>
       </div>
 
       <div className="bc-recip-head">Penerima ({data.recipients.length})</div>
@@ -160,6 +205,15 @@ function CampaignDetail({ id, onBack, onChanged }) {
             </span>
           </div>
         ))}
+      </div>
+       </div>
+       <PhonePreview
+         text={c.message_body}
+         mediaType={c.message_type === 'quick_media' ? (mediaItem?.media_type || 'image') : null}
+         mediaUrl={mediaItem?.media_url || null}
+         mediaLabel={mediaItem?.label || null}
+         sampleName={sampleName}
+       />
       </div>
     </div>
   )
@@ -262,6 +316,8 @@ function CreateWizard({ onBack, onCreated }) {
         </div>
       </div>
 
+      <div className="bc-layout">
+       <div className="bc-main">
       <div className="bc-steps">
         {['Pesan', 'Penerima', 'Review'].map((s, i) => (
           <div key={s} className={`bc-step ${step === i + 1 ? 'active' : step > i + 1 ? 'done' : ''}`}>
@@ -419,6 +475,14 @@ function CreateWizard({ onBack, onCreated }) {
           </div>
         </div>
       )}
+       </div>
+       <PhonePreview
+         text={body}
+         mediaType={mode === 'quick_media' ? mediaItem?.media_type : null}
+         mediaUrl={mode === 'quick_media' ? mediaItem?.media_url : null}
+         mediaLabel={mode === 'quick_media' ? mediaItem?.label : null}
+       />
+      </div>
     </div>
   )
 }
@@ -459,10 +523,32 @@ export default function BroadcastPage() {
 const BC_CSS = `
 .bc-root { height: 100%; overflow-y: auto; background: var(--bg); }
 .bc-page { width: 100%; padding: 24px 24px 48px; color: var(--text); }
-.bc-page > .bc-notice, .bc-page > .bc-list, .bc-page > .bc-empty,
-.bc-page > .bc-detail-grid, .bc-page > .bc-progress, .bc-page > .bc-info-row,
-.bc-page > .bc-msg-preview, .bc-page > .bc-recip-head, .bc-page > .bc-recip-list,
-.bc-page > .bc-steps, .bc-page > .bc-form { max-width: 1000px; }
+.bc-page > .bc-notice, .bc-page > .bc-list, .bc-page > .bc-empty { max-width: 1100px; }
+.bc-layout { display: flex; gap: 28px; align-items: flex-start; }
+.bc-main { flex: 1; min-width: 0; max-width: 720px; }
+.bc-side { width: 300px; flex-shrink: 0; position: sticky; top: 12px; }
+.bc-preview-lbl { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 10px; text-align: center; }
+.bc-phone { width: 300px; border-radius: 30px; overflow: hidden; background: #0b141a; border: 8px solid #111b21; box-shadow: 0 12px 40px var(--shadow); }
+.bc-phone-notch { height: 22px; background: #111b21; position: relative; }
+.bc-phone-notch::after { content: ''; position: absolute; left: 50%; top: 6px; transform: translateX(-50%); width: 90px; height: 8px; border-radius: 999px; background: #0b141a; }
+.bc-wa-header { display: flex; align-items: center; gap: 9px; padding: 10px 12px; background: #202c33; color: #e9edef; }
+.bc-wa-avatar { width: 30px; height: 30px; border-radius: 50%; background: #6a7175; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; flex-shrink: 0; }
+.bc-wa-hinfo { display: flex; flex-direction: column; min-width: 0; }
+.bc-wa-name { font-size: 13.5px; font-weight: 600; color: #e9edef; }
+.bc-wa-status { font-size: 11px; color: #8696a0; }
+.bc-wa-body { min-height: 320px; max-height: 460px; overflow-y: auto; padding: 14px 10px; background-color: #0b141a; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 60 60'%3E%3Cg fill='%23131f28' fill-opacity='0.5'%3E%3Ccircle cx='12' cy='12' r='2'/%3E%3Ccircle cx='42' cy='30' r='2'/%3E%3Ccircle cx='20' cy='48' r='2'/%3E%3C/g%3E%3C/svg%3E"); }
+.bc-wa-date { text-align: center; margin: 0 auto 12px; width: fit-content; font-size: 10.5px; color: #8696a0; background: #182229; padding: 4px 10px; border-radius: 7px; }
+.bc-wa-bubble { max-width: 82%; background: #202c33; border-radius: 8px; border-top-left-radius: 0; padding: 7px 9px 5px; position: relative; box-shadow: 0 1px 1px rgba(0,0,0,0.2); }
+.bc-wa-media { width: 100%; border-radius: 5px; margin-bottom: 5px; display: block; }
+.bc-wa-doc { display: flex; align-items: center; gap: 7px; background: #111b21; border-radius: 6px; padding: 10px; margin-bottom: 5px; color: #8696a0; font-size: 12px; }
+.bc-wa-text { font-size: 13.5px; line-height: 1.45; color: #e9edef; white-space: pre-wrap; word-break: break-word; }
+.bc-wa-time { display: block; text-align: right; font-size: 10px; color: #8696a0; margin-top: 2px; }
+.bc-wa-empty { font-size: 12.5px; color: #8696a0; text-align: center; margin-top: 30px; font-style: italic; }
+@media (max-width: 900px) {
+  .bc-layout { flex-direction: column-reverse; }
+  .bc-side { width: 100%; position: static; display: flex; flex-direction: column; align-items: center; }
+  .bc-main { max-width: 100%; }
+}
 .bc-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
 .bc-title-wrap { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .bc-title { display: flex; align-items: center; gap: 8px; font-size: 19px; font-weight: 700; color: var(--text); }
