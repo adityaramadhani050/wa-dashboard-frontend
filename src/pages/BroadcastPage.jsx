@@ -31,7 +31,6 @@ function PhonePreview({ text, mediaType, mediaUrl, mediaLabel, sampleName = 'Bud
   const hasMedia = !!mediaType
   return (
     <div className="bc-side">
-      <div className="bc-preview-lbl">Preview yang diterima customer</div>
       <div className="bc-phone">
         <div className="bc-phone-notch" />
         <div className="bc-wa-header">
@@ -523,19 +522,18 @@ export default function BroadcastPage() {
 const BC_CSS = `
 .bc-root { height: 100%; overflow-y: auto; background: var(--bg); }
 .bc-page { width: 100%; padding: 24px 24px 48px; color: var(--text); }
-.bc-layout { display: flex; gap: 32px; align-items: flex-start; width: 100%; }
-.bc-main { flex: 1 1 auto; min-width: 0; }
-.bc-side { width: 320px; flex-shrink: 0; position: sticky; top: 12px; }
-.bc-preview-lbl { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 10px; text-align: center; }
-.bc-phone { width: 300px; border-radius: 30px; overflow: hidden; background: #0b141a; border: 8px solid #111b21; box-shadow: 0 12px 40px var(--shadow); }
-.bc-phone-notch { height: 22px; background: #111b21; position: relative; }
+.bc-layout { display: flex; flex-direction: row-reverse; gap: 32px; align-items: stretch; width: 100%; }
+.bc-main { flex: 1 1 60%; min-width: 0; }
+.bc-side { flex: 0 0 40%; max-width: 40%; position: sticky; top: 0; height: calc(100vh - 40px); }
+.bc-phone { width: 100%; height: 100%; display: flex; flex-direction: column; border-radius: 26px; overflow: hidden; background: #0b141a; border: 8px solid #111b21; box-shadow: 0 12px 40px var(--shadow); }
+.bc-phone-notch { height: 22px; background: #111b21; position: relative; flex-shrink: 0; }
 .bc-phone-notch::after { content: ''; position: absolute; left: 50%; top: 6px; transform: translateX(-50%); width: 90px; height: 8px; border-radius: 999px; background: #0b141a; }
-.bc-wa-header { display: flex; align-items: center; gap: 9px; padding: 10px 12px; background: #202c33; color: #e9edef; }
+.bc-wa-header { display: flex; align-items: center; gap: 9px; padding: 10px 12px; background: #202c33; color: #e9edef; flex-shrink: 0; }
 .bc-wa-avatar { width: 30px; height: 30px; border-radius: 50%; background: #6a7175; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; flex-shrink: 0; }
 .bc-wa-hinfo { display: flex; flex-direction: column; min-width: 0; }
 .bc-wa-name { font-size: 13.5px; font-weight: 600; color: #e9edef; }
 .bc-wa-status { font-size: 11px; color: #8696a0; }
-.bc-wa-body { min-height: 320px; max-height: 460px; overflow-y: auto; padding: 14px 10px; background-color: #0b141a; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 60 60'%3E%3Cg fill='%23131f28' fill-opacity='0.5'%3E%3Ccircle cx='12' cy='12' r='2'/%3E%3Ccircle cx='42' cy='30' r='2'/%3E%3Ccircle cx='20' cy='48' r='2'/%3E%3C/g%3E%3C/svg%3E"); }
+.bc-wa-body { flex: 1 1 auto; overflow-y: auto; padding: 14px 12px; background-color: #0b141a; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 60 60'%3E%3Cg fill='%23131f28' fill-opacity='0.5'%3E%3Ccircle cx='12' cy='12' r='2'/%3E%3Ccircle cx='42' cy='30' r='2'/%3E%3Ccircle cx='20' cy='48' r='2'/%3E%3C/g%3E%3C/svg%3E"); }
 .bc-wa-date { text-align: center; margin: 0 auto 12px; width: fit-content; font-size: 10.5px; color: #8696a0; background: #182229; padding: 4px 10px; border-radius: 7px; }
 .bc-wa-bubble { max-width: 82%; background: #202c33; border-radius: 8px; border-top-left-radius: 0; padding: 7px 9px 5px; position: relative; box-shadow: 0 1px 1px rgba(0,0,0,0.2); }
 .bc-wa-media { width: 100%; border-radius: 5px; margin-bottom: 5px; display: block; }
@@ -544,9 +542,9 @@ const BC_CSS = `
 .bc-wa-time { display: block; text-align: right; font-size: 10px; color: #8696a0; margin-top: 2px; }
 .bc-wa-empty { font-size: 12.5px; color: #8696a0; text-align: center; margin-top: 30px; font-style: italic; }
 @media (max-width: 900px) {
-  .bc-layout { flex-direction: column-reverse; }
-  .bc-side { width: 100%; position: static; display: flex; flex-direction: column; align-items: center; }
-  .bc-main { max-width: 100%; }
+  .bc-layout { flex-direction: column; }
+  .bc-side { flex: none; width: 100%; max-width: 100%; position: static; height: 70vh; }
+  .bc-main { flex: none; width: 100%; }
 }
 .bc-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
 .bc-title-wrap { display: flex; align-items: center; gap: 10px; min-width: 0; }
