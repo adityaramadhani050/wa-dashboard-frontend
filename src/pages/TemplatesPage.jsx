@@ -7,6 +7,7 @@ import {
   getBroadcastTemplates, createBroadcastTemplate, updateBroadcastTemplate, deleteBroadcastTemplate,
 } from '../hooks/useApi'
 import { Plus, Pencil, Trash2, X, MessageSquareText, Image as ImageIcon, FileText, Tag as TagIcon, Package, Megaphone } from 'lucide-react'
+import PdfThumb, { isPdf } from '../components/PdfThumb'
 
 const EMPTY_TEMPLATE = { title: '', body: '', shortcut: '', category: '' }
 const EMPTY_TAG = { name: '', color: 'var(--primary)' }
@@ -638,7 +639,9 @@ export default function TemplatesPage() {
                   <div className="tp-media-thumb">
                     {m.media_type === 'image'
                       ? <img src={m.media_url} alt={m.label} />
-                      : <div className="tp-media-doc-icon"><FileText size={28} /></div>}
+                      : isPdf(m.mimetype, m.media_url)
+                        ? <PdfThumb url={m.media_url} />
+                        : <div className="tp-media-doc-icon"><FileText size={28} /></div>}
                   </div>
                   <div className="tp-media-info">
                     <span className="tp-media-label">{m.label}</span>
