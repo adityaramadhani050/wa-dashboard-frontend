@@ -3,6 +3,7 @@ import {
   Megaphone, ArrowLeft, Search, Send, Clock, Users, Image as ImageIcon,
   Play, Pause, X, CheckCircle2, AlertCircle, RefreshCw, Calendar, MessageSquareText, Trash2,
 } from 'lucide-react'
+import PdfThumb, { isPdf } from '../components/PdfThumb'
 import {
   getBroadcastCandidates, getBroadcastCampaigns, getBroadcastCampaign,
   createBroadcastCampaign, startBroadcastCampaign, pauseBroadcastCampaign,
@@ -48,7 +49,9 @@ function PhonePreview({ text, mediaType, mediaUrl, mediaLabel, sampleName = 'Bud
               {hasMedia && (
                 mediaType === 'image' && mediaUrl
                   ? <img className="bc-wa-media" src={mediaUrl} alt={mediaLabel || ''} />
-                  : <div className="bc-wa-doc"><ImageIcon size={18} /><span>{mediaLabel || mediaType}</span></div>
+                  : isPdf(null, mediaUrl)
+                    ? <div className="bc-wa-pdf"><PdfThumb url={mediaUrl} /></div>
+                    : <div className="bc-wa-doc"><ImageIcon size={18} /><span>{mediaLabel || mediaType}</span></div>
               )}
               {body && <div className="bc-wa-text">{body}</div>}
               <span className="bc-wa-time">{now}</span>
@@ -466,6 +469,8 @@ const BC_CSS = `
 .bc-wa-bubble { max-width: 82%; background: #202c33; border-radius: 8px; border-top-left-radius: 0; padding: 7px 9px 5px; position: relative; box-shadow: 0 1px 1px rgba(0,0,0,0.2); }
 .bc-wa-media { width: 100%; border-radius: 5px; margin-bottom: 5px; display: block; }
 .bc-wa-doc { display: flex; align-items: center; gap: 7px; background: #111b21; border-radius: 6px; padding: 10px; margin-bottom: 5px; color: #8696a0; font-size: 12px; }
+.bc-wa-pdf { width: 100%; max-height: 260px; overflow: hidden; border-radius: 5px; margin-bottom: 5px; background: #fff; }
+.bc-wa-pdf img { width: 100%; height: auto; display: block; }
 .bc-wa-text { font-size: 13.5px; line-height: 1.45; color: #e9edef; white-space: pre-wrap; word-break: break-word; }
 .bc-wa-time { display: block; text-align: right; font-size: 10px; color: #8696a0; margin-top: 2px; }
 .bc-wa-empty { font-size: 12.5px; color: #8696a0; text-align: center; margin-top: 30px; font-style: italic; }

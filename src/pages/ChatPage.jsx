@@ -11,6 +11,7 @@ import {
   generateAiSuggestion, suggestAiTags, suggestAiNote, updateContact,
 } from '../hooks/useApi'
 import { supabase } from '../lib/supabase'
+import PdfThumb, { isPdf } from '../components/PdfThumb'
 import { Send, ArrowLeft, ArrowDown, UserCheck, Paperclip, X, FileText, Play, Download, Check, Image, Film, Clock, Zap, Package, Tag as TagIcon, StickyNote, BellPlus, MoreVertical, Sparkles, Reply, Pencil, Forward, Search as SearchIcon, Trash2, Copy } from 'lucide-react'
 
 
@@ -1456,7 +1457,9 @@ export default function ChatPage({ chatId }) {
                     >
                       {m.media_type === 'image'
                         ? <img src={m.media_url} alt={m.label} />
-                        : <div className="cv-media-grid-doc"><FileText size={22} /></div>}
+                        : isPdf(m.mimetype, m.media_url)
+                          ? <div className="cv-media-grid-doc"><PdfThumb url={m.media_url} /></div>
+                          : <div className="cv-media-grid-doc"><FileText size={22} /></div>}
                       <span className="cv-media-grid-label">{m.label}</span>
                       {sendingQuickMediaId === m.id && <div className="cv-media-grid-sending"><div className="cv-sending-dot dark" /></div>}
                     </button>

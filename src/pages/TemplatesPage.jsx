@@ -109,7 +109,9 @@ function BroadcastTemplateForm({ initial, onSave, onClose, loading, error }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 8, border: '1px solid var(--border)', borderRadius: 8, marginBottom: 6 }}>
             {initial.media_type === 'image'
               ? <img src={initial.media_url} alt="" style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 6 }} />
-              : <FileText size={22} />}
+              : isPdf(initial.media_mimetype, initial.media_url)
+                ? <div style={{ width: 40, height: 40, borderRadius: 6, overflow: 'hidden', flexShrink: 0 }}><PdfThumb url={initial.media_url} width={80} /></div>
+                : <FileText size={22} />}
             <span style={{ flex: 1, fontSize: 12.5, color: 'var(--text2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{initial.media_filename || 'Media terlampir'}</span>
             <button type="button" className="am-icon-btn del" onClick={() => setRemoveMedia(true)} title="Hapus media"><Trash2 size={14} /></button>
           </div>
@@ -599,7 +601,9 @@ export default function TemplatesPage() {
                         {t.media_url
                           ? (t.media_type === 'image'
                               ? <img src={t.media_url} alt="" style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 6 }} />
-                              : <span className="am-username">{t.media_type || 'file'}</span>)
+                              : isPdf(t.media_mimetype, t.media_url)
+                                ? <div style={{ width: 40, height: 40, borderRadius: 6, overflow: 'hidden' }}><PdfThumb url={t.media_url} width={80} /></div>
+                                : <span className="am-username">{t.media_type || 'file'}</span>)
                           : <span style={{color:'var(--muted)'}}>-</span>}
                       </td>
                       <td>
