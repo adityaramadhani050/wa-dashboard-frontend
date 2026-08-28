@@ -524,8 +524,8 @@ const BC_CSS = `
 .bc-page { width: 100%; padding: 24px 24px 48px; color: var(--text); }
 .bc-layout { display: flex; flex-direction: row-reverse; gap: 32px; align-items: stretch; width: 100%; }
 .bc-main { flex: 1 1 60%; min-width: 0; }
-.bc-side { flex: 0 0 40%; max-width: 40%; position: sticky; top: 0; height: calc(100vh - 40px); }
-.bc-phone { width: 100%; height: 100%; display: flex; flex-direction: column; border-radius: 26px; overflow: hidden; background: #0b141a; border: 8px solid #111b21; box-shadow: 0 12px 40px var(--shadow); }
+.bc-side { flex: 0 0 40%; max-width: 40%; position: sticky; top: 0; height: calc(100vh - 40px); display: flex; justify-content: center; }
+.bc-phone { width: 100%; max-width: 340px; height: 100%; max-height: 720px; display: flex; flex-direction: column; border-radius: 30px; overflow: hidden; background: #0b141a; border: 9px solid #111b21; box-shadow: 0 12px 40px var(--shadow); }
 .bc-phone-notch { height: 22px; background: #111b21; position: relative; flex-shrink: 0; }
 .bc-phone-notch::after { content: ''; position: absolute; left: 50%; top: 6px; transform: translateX(-50%); width: 90px; height: 8px; border-radius: 999px; background: #0b141a; }
 .bc-wa-header { display: flex; align-items: center; gap: 9px; padding: 10px 12px; background: #202c33; color: #e9edef; flex-shrink: 0; }
@@ -543,7 +543,7 @@ const BC_CSS = `
 .bc-wa-empty { font-size: 12.5px; color: #8696a0; text-align: center; margin-top: 30px; font-style: italic; }
 @media (max-width: 900px) {
   .bc-layout { flex-direction: column; }
-  .bc-side { flex: none; width: 100%; max-width: 100%; position: static; height: 70vh; }
+  .bc-side { flex: none; width: 100%; max-width: 100%; position: static; height: 70vh; justify-content: center; }
   .bc-main { flex: none; width: 100%; }
 }
 .bc-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
