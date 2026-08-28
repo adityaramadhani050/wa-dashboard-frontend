@@ -153,6 +153,25 @@ export const setWorkHours = (payload) => api.put('/settings/work-hours', payload
 // Backfill hapus media lama (bebaskan storage)
 export const cleanupMedia = (days) => api.post('/settings/cleanup-media', { days }, { timeout: 120000 }).then(r => r.data)
 
+// Template Broadcast (pesan siap-pakai untuk campaign, teks + media opsional)
+export const getBroadcastTemplates = () => api.get('/broadcast/templates').then(r => r.data)
+export const createBroadcastTemplate = (name, body, file) => {
+  const form = new FormData()
+  form.append('name', name)
+  form.append('body', body || '')
+  if (file) form.append('file', file)
+  return api.post('/broadcast/templates', form, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 60000 }).then(r => r.data)
+}
+export const updateBroadcastTemplate = (id, { name, body, file, removeMedia } = {}) => {
+  const form = new FormData()
+  if (name != null) form.append('name', name)
+  if (body != null) form.append('body', body)
+  if (file) form.append('file', file)
+  if (removeMedia) form.append('remove_media', 'true')
+  return api.put(`/broadcast/templates/${id}`, form, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 60000 }).then(r => r.data)
+}
+export const deleteBroadcastTemplate = (id) => api.delete(`/broadcast/templates/${id}`).then(r => r.data)
+
 // Broadcast Promo (kirim pesan promo ke calon customer belum deal)
 export const getBroadcastCandidates = (cooldownDays) =>
   api.get('/broadcast/candidates', { params: { cooldown_days: cooldownDays || 14 } }).then(r => r.data)

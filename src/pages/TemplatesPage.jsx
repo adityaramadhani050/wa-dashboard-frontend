@@ -4,8 +4,9 @@ import {
   getQuickMedia, uploadQuickMedia, deleteQuickMedia,
   getTags, createTag, updateTag, deleteTag,
   getProducts, createProduct, updateProduct, deleteProduct,
+  getBroadcastTemplates, createBroadcastTemplate, updateBroadcastTemplate, deleteBroadcastTemplate,
 } from '../hooks/useApi'
-import { Plus, Pencil, Trash2, X, MessageSquareText, Image as ImageIcon, FileText, Tag as TagIcon, Package } from 'lucide-react'
+import { Plus, Pencil, Trash2, X, MessageSquareText, Image as ImageIcon, FileText, Tag as TagIcon, Package, Megaphone } from 'lucide-react'
 
 const EMPTY_TEMPLATE = { title: '', body: '', shortcut: '', category: '' }
 const EMPTY_TAG = { name: '', color: 'var(--primary)' }
@@ -63,6 +64,58 @@ function TemplateForm({ initial, onSave, onClose, loading, error }) {
       <div className="am-field">
         <label>Kategori <span style={{fontSize:11,color:'var(--muted)'}}>(opsional)</span></label>
         <input value={form.category || ''} onChange={e => set('category', e.target.value)} placeholder="contoh: Umum" />
+      </div>
+      {error && <div className="am-form-err">{error}</div>}
+      <div className="am-form-actions">
+        <button type="button" className="am-btn secondary" onClick={onClose}>Batal</button>
+        <button type="submit" className="am-btn primary" disabled={loading}>
+          {loading ? 'Menyimpan...' : 'Simpan'}
+        </button>
+      </div>
+    </form>
+  )
+}
+
+function BroadcastTemplateForm({ initial, onSave, onClose, loading, error }) {
+  const [name, setName] = useState(initial?.name || '')
+  const [body, setBody] = useState(initial?.body || '')
+  const [file, setFile] = useState(null)
+  const [removeMedia, setRemoveMedia] = useState(false)
+  const hasExistingMedia = !!initial?.media_url && !removeMedia
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    if (!name.trim()) return
+    if (!body.trim() && !file && !hasExistingMedia) return
+    onSave({ name, body, file, removeMedia })
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="am-form">
+      <div className="am-field">
+        <label>Nama Template <span className="req">*</span></label>
+        <input value={name} onChange={e => setName(e.target.value)} placeholder="contoh: Follow-up Penawaran" required />
+      </div>
+      <div className="am-field">
+        <label>Isi Pesan</label>
+        <textarea value={body} onChange={e => setBody(e.target.value)} rows={5}
+          placeholder="Halo {{nama}}, ada promo spesial untuk Anda..." />
+        <span className="am-hint">Gunakan <code>{'{{nama}}'}</code> untuk menyapa nama customer otomatis</span>
+      </div>
+      <div className="am-field">
+        <label>Media <span style={{fontSize:11,color:'var(--muted)'}}>(opsional — gambar/video/dokumen)</span></label>
+        {hasExistingMedia && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 8, border: '1px solid var(--border)', borderRadius: 8, marginBottom: 6 }}>
+            {initial.media_type === 'image'
+              ? <img src={initial.media_url} alt="" style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 6 }} />
+              : <FileText size={22} />}
+            <span style={{ flex: 1, fontSize: 12.5, color: 'var(--text2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{initial.media_filename || 'Media terlampir'}</span>
+            <button type="button" className="am-icon-btn del" onClick={() => setRemoveMedia(true)} title="Hapus media"><Trash2 size={14} /></button>
+          </div>
+        )}
+        <input type="file" accept="image/*,video/*,.pdf,.doc,.docx"
+          onChange={e => setFile(e.target.files?.[0] || null)} />
+        <span className="am-hint">Kosongkan bila cukup teks saja. {hasExistingMedia ? 'Pilih file baru untuk mengganti media.' : ''}</span>
       </div>
       {error && <div className="am-form-err">{error}</div>}
       <div className="am-form-actions">
@@ -199,7 +252,16 @@ function ProductForm({ initial, onSave, onClose, loading, error }) {
 }
 
 export default function TemplatesPage() {
-  const [tab, setTab] = useState('templates') // 'templates' | 'media' | 'tags' | 'products'
+  const [tab, setTab] = useState('templates') // 'templates' | 'broadcast' | 'media' | 'tags' | 'products'
+
+  // Broadcast templates state
+  const [bcTemplates, setBcTemplates] = useState([])
+  const [loadingBc, setLoadingBc] = useState(true)
+  const [bcModal, setBcModal] = useState(null)
+  const [bcSaving, setBcSaving] = useState(false)
+  const [bcError, setBcError] = useState('')
+  const [bcDeleteTarget, setBcDeleteTarget] = useState(null)
+  const [bcDeleting, setBcDeleting] = useState(false)
 
   // Templates state
   const [templates, setTemplates] = useState([])
@@ -261,7 +323,38 @@ export default function TemplatesPage() {
     finally { setLoadingProducts(false) }
   }, [])
 
-  useEffect(() => { loadTemplates(); loadMedia(); loadTags(); loadProducts() }, [loadTemplates, loadMedia, loadTags, loadProducts])
+  const loadBc = useCallback(async () => {
+    setLoadingBc(true)
+    try { setBcTemplates(await getBroadcastTemplates()) } catch {}
+    finally { setLoadingBc(false) }
+  }, [])
+
+  useEffect(() => { loadTemplates(); loadMedia(); loadTags(); loadProducts(); loadBc() }, [loadTemplates, loadMedia, loadTags, loadProducts, loadBc])
+
+  const handleSaveBc = async ({ name, body, file, removeMedia }) => {
+    setBcSaving(true); setBcError('')
+    try {
+      if (bcModal?.template) {
+        const updated = await updateBroadcastTemplate(bcModal.template.id, { name, body, file, removeMedia })
+        setBcTemplates(prev => prev.map(t => t.id === updated.id ? updated : t))
+      } else {
+        const created = await createBroadcastTemplate(name, body, file)
+        setBcTemplates(prev => [created, ...prev])
+      }
+      setBcModal(null)
+    } catch (e) { setBcError(e.response?.data?.error || 'Gagal menyimpan template broadcast') }
+    finally { setBcSaving(false) }
+  }
+
+  const handleDeleteBc = async () => {
+    setBcDeleting(true)
+    try {
+      await deleteBroadcastTemplate(bcDeleteTarget.id)
+      setBcTemplates(prev => prev.filter(t => t.id !== bcDeleteTarget.id))
+      setBcDeleteTarget(null)
+    } catch {}
+    finally { setBcDeleting(false) }
+  }
 
   const handleCreateTemplate = async (form) => {
     setTplSaving(true); setTplError('')
@@ -385,6 +478,11 @@ export default function TemplatesPage() {
             <Plus size={16} /> Tambah Template
           </button>
         )}
+        {tab === 'broadcast' && (
+          <button className="am-btn primary" onClick={() => { setBcError(''); setBcModal('create') }}>
+            <Plus size={16} /> Tambah Template Broadcast
+          </button>
+        )}
         {tab === 'media' && (
           <button className="am-btn primary" onClick={() => { setMediaError(''); setMediaModal(true) }}>
             <Plus size={16} /> Tambah Media
@@ -405,6 +503,9 @@ export default function TemplatesPage() {
       <div className="tp-tabs">
         <button className={`tp-tab${tab === 'templates' ? ' active' : ''}`} onClick={() => setTab('templates')}>
           <MessageSquareText size={15} /> Template Pesan
+        </button>
+        <button className={`tp-tab${tab === 'broadcast' ? ' active' : ''}`} onClick={() => setTab('broadcast')}>
+          <Megaphone size={15} /> Template Broadcast
         </button>
         <button className={`tp-tab${tab === 'media' ? ' active' : ''}`} onClick={() => setTab('media')}>
           <ImageIcon size={15} /> Galeri Produk
@@ -453,6 +554,59 @@ export default function TemplatesPage() {
                             <Pencil size={15} />
                           </button>
                           <button className="am-icon-btn del" onClick={() => setTplDeleteTarget(t)} title="Hapus">
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === 'broadcast' && (
+        <div className="am-table-box">
+          {loadingBc ? (
+            <div className="am-loading">
+              {[...Array(3)].map((_, i) => <div key={i} className="am-skel" style={{ animationDelay: `${i * 0.08}s` }} />)}
+            </div>
+          ) : bcTemplates.length === 0 ? (
+            <div className="am-empty">
+              <Megaphone size={40} style={{ opacity: 0.2, marginBottom: 12 }} />
+              <p>Belum ada template broadcast. Klik "Tambah Template Broadcast" untuk membuat pesan promo siap-pakai.</p>
+            </div>
+          ) : (
+            <div className="am-table-wrap">
+              <table className="am-table">
+                <thead>
+                  <tr>
+                    <th>Nama</th>
+                    <th>Isi Pesan</th>
+                    <th>Media</th>
+                    <th>Aksi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {bcTemplates.map(t => (
+                    <tr key={t.id}>
+                      <td>{t.name}</td>
+                      <td className="tp-body-cell">{t.body || <span style={{color:'var(--muted)'}}>-</span>}</td>
+                      <td>
+                        {t.media_url
+                          ? (t.media_type === 'image'
+                              ? <img src={t.media_url} alt="" style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 6 }} />
+                              : <span className="am-username">{t.media_type || 'file'}</span>)
+                          : <span style={{color:'var(--muted)'}}>-</span>}
+                      </td>
+                      <td>
+                        <div className="am-actions">
+                          <button className="am-icon-btn edit" onClick={() => { setBcError(''); setBcModal({ template: t }) }} title="Edit">
+                            <Pencil size={15} />
+                          </button>
+                          <button className="am-icon-btn del" onClick={() => setBcDeleteTarget(t)} title="Hapus">
                             <Trash2 size={15} />
                           </button>
                         </div>
@@ -650,6 +804,33 @@ export default function TemplatesPage() {
               <button className="am-btn secondary" onClick={() => setTplDeleteTarget(null)}>Batal</button>
               <button className="am-btn danger" onClick={handleDeleteTemplate} disabled={tplDeleting}>
                 {tplDeleting ? 'Menghapus...' : 'Hapus'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {bcModal === 'create' && (
+        <Modal title="Tambah Template Broadcast" onClose={() => setBcModal(null)}>
+          <BroadcastTemplateForm onSave={handleSaveBc} onClose={() => setBcModal(null)} loading={bcSaving} error={bcError} />
+        </Modal>
+      )}
+
+      {bcModal?.template && (
+        <Modal title="Edit Template Broadcast" onClose={() => setBcModal(null)}>
+          <BroadcastTemplateForm initial={bcModal.template} onSave={handleSaveBc} onClose={() => setBcModal(null)} loading={bcSaving} error={bcError} />
+        </Modal>
+      )}
+
+      {bcDeleteTarget && (
+        <Modal title="Hapus Template Broadcast" onClose={() => setBcDeleteTarget(null)}>
+          <div className="am-confirm">
+            <p>Yakin ingin menghapus template <strong>{bcDeleteTarget.name}</strong>?</p>
+            <p className="am-confirm-sub">Tindakan ini tidak dapat dibatalkan.</p>
+            <div className="am-form-actions">
+              <button className="am-btn secondary" onClick={() => setBcDeleteTarget(null)}>Batal</button>
+              <button className="am-btn danger" onClick={handleDeleteBc} disabled={bcDeleting}>
+                {bcDeleting ? 'Menghapus...' : 'Hapus'}
               </button>
             </div>
           </div>

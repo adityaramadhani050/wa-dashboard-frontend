@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   Megaphone, ArrowLeft, Search, Send, Clock, Users, Image as ImageIcon,
-  Play, Pause, X, CheckCircle2, AlertCircle, RefreshCw, Calendar,
+  Play, Pause, X, CheckCircle2, AlertCircle, RefreshCw, Calendar, MessageSquareText,
 } from 'lucide-react'
 import {
   getBroadcastCandidates, getBroadcastCampaigns, getBroadcastCampaign,
   createBroadcastCampaign, startBroadcastCampaign, pauseBroadcastCampaign,
-  cancelBroadcastCampaign, getTemplates, getQuickMedia,
+  cancelBroadcastCampaign, getBroadcastTemplates,
 } from '../hooks/useApi'
 
 const STATUS_LABEL = {
@@ -123,9 +123,6 @@ function CampaignList({ campaigns, loading, onNew, onOpen, onReload }) {
 function CampaignDetail({ id, onBack, onChanged }) {
   const [data, setData] = useState(null)
   const [busy, setBusy] = useState(false)
-  const [media, setMedia] = useState([])
-
-  useEffect(() => { getQuickMedia().then(setMedia).catch(() => {}) }, [])
 
   const load = useCallback(async () => {
     try { setData(await getBroadcastCampaign(id)) } catch {}
@@ -148,7 +145,6 @@ function CampaignDetail({ id, onBack, onChanged }) {
   const c = data.campaign
   const done = (c.sent_count || 0) + (c.failed_count || 0) + (c.skipped_count || 0)
   const pct = c.total_targets ? Math.round(done / c.total_targets * 100) : 0
-  const mediaItem = c.quick_media_id ? media.find(m => m.id === c.quick_media_id) : null
   const sampleName = data.recipients?.[0]?.name || 'Budi'
 
   return (
@@ -210,9 +206,9 @@ function CampaignDetail({ id, onBack, onChanged }) {
        </div>
        <PhonePreview
          text={c.message_body}
-         mediaType={c.message_type === 'quick_media' ? (mediaItem?.media_type || 'image') : null}
-         mediaUrl={mediaItem?.media_url || null}
-         mediaLabel={mediaItem?.label || null}
+         mediaType={c.media_url ? (c.media_type || 'image') : null}
+         mediaUrl={c.media_url || null}
+         mediaLabel={c.media_filename || null}
          sampleName={sampleName}
        />
       </div>
@@ -224,11 +220,8 @@ function CampaignDetail({ id, onBack, onChanged }) {
 function CreateWizard({ onBack, onCreated }) {
   const [step, setStep] = useState(1)
   const [name, setName] = useState('')
-  const [mode, setMode] = useState('text') // text | quick_media
-  const [body, setBody] = useState('')
-  const [quickMediaId, setQuickMediaId] = useState(null)
   const [templates, setTemplates] = useState([])
-  const [media, setMedia] = useState([])
+  const [templateId, setTemplateId] = useState(null)
 
   const [cooldownDays, setCooldownDays] = useState(14)
   const [dailyLimit, setDailyLimit] = useState(40)
@@ -242,9 +235,10 @@ function CreateWizard({ onBack, onCreated }) {
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
-    getTemplates().then(setTemplates).catch(() => {})
-    getQuickMedia().then(setMedia).catch(() => {})
+    getBroadcastTemplates().then(setTemplates).catch(() => {})
   }, [])
+
+  const template = templates.find(t => t.id === templateId) || null
 
   const loadCandidates = useCallback(async (cd) => {
     setLoadingCand(true)
@@ -278,9 +272,8 @@ function CreateWizard({ onBack, onCreated }) {
   }
 
   const chosen = candidates.filter(c => selected.has(c.wa_jid) && !c.on_cooldown)
-  const mediaItem = media.find(m => m.id === quickMediaId)
 
-  const canStep1 = name.trim() && (mode === 'text' ? body.trim() : quickMediaId)
+  const canStep1 = name.trim() && templateId
   const estDays = chosen.length ? Math.ceil(chosen.length / (dailyLimit || 40)) : 0
 
   const submit = async () => {
@@ -288,9 +281,7 @@ function CreateWizard({ onBack, onCreated }) {
     try {
       const payload = {
         name: name.trim(),
-        message_type: mode,
-        message_body: body,
-        quick_media_id: mode === 'quick_media' ? quickMediaId : null,
+        broadcast_template_id: templateId,
         daily_limit: dailyLimit,
         cooldown_days: cooldownDays,
         recipients: chosen.map(c => ({
@@ -335,53 +326,32 @@ function CreateWizard({ onBack, onCreated }) {
             <input value={name} onChange={e => setName(e.target.value)} placeholder="mis. Promo Panel Surya Agustus" />
           </div>
           <div className="bc-field">
-            <label>Jenis Pesan</label>
-            <div className="bc-mode-tabs">
-              <button className={mode === 'text' ? 'active' : ''} onClick={() => setMode('text')}>Teks</button>
-              <button className={mode === 'quick_media' ? 'active' : ''} onClick={() => setMode('quick_media')}><ImageIcon size={14} /> Media Galeri</button>
-            </div>
+            <label>Pilih Template Broadcast</label>
+            {templates.length === 0 ? (
+              <div className="bc-hint">Belum ada template broadcast. Buat dulu di menu <b>Template &amp; Galeri → Template Broadcast</b>.</div>
+            ) : (
+              <div className="bc-tpl-list">
+                {templates.map(t => (
+                  <button key={t.id} type="button"
+                    className={`bc-tpl-item ${templateId === t.id ? 'sel' : ''}`}
+                    onClick={() => setTemplateId(t.id)}>
+                    <div className="bc-tpl-thumb">
+                      {t.media_url
+                        ? (t.media_type === 'image'
+                            ? <img src={t.media_url} alt="" />
+                            : <ImageIcon size={18} />)
+                        : <MessageSquareText size={18} />}
+                    </div>
+                    <div className="bc-tpl-info">
+                      <span className="bc-tpl-name">{t.name}</span>
+                      <span className="bc-tpl-body">{t.body || (t.media_url ? '(media)' : '')}</span>
+                    </div>
+                    {templateId === t.id && <CheckCircle2 size={16} className="bc-tpl-check" />}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
-
-          {mode === 'text' && templates.length > 0 && (
-            <div className="bc-field">
-              <label>Sisipkan dari Template (opsional)</label>
-              <select onChange={e => { const t = templates.find(x => String(x.id) === e.target.value); if (t) setBody(t.content || t.body || '') }} defaultValue="">
-                <option value="" disabled>Pilih template…</option>
-                {templates.map(t => <option key={t.id} value={t.id}>{t.title || t.name}</option>)}
-              </select>
-            </div>
-          )}
-
-          {mode === 'text' ? (
-            <div className="bc-field">
-              <label>Isi Pesan <span className="bc-hint">gunakan <code>{'{{nama}}'}</code> untuk menyapa nama customer</span></label>
-              <textarea rows={6} value={body} onChange={e => setBody(e.target.value)} placeholder={'Halo {{nama}}, ada promo spesial panel surya bulan ini…'} />
-            </div>
-          ) : (
-            <>
-              <div className="bc-field">
-                <label>Pilih Media dari Galeri</label>
-                {media.length === 0 ? (
-                  <div className="bc-hint">Belum ada media. Tambahkan lewat menu Template & Galeri.</div>
-                ) : (
-                  <div className="bc-media-grid">
-                    {media.map(m => (
-                      <button key={m.id} className={`bc-media-item ${quickMediaId === m.id ? 'sel' : ''}`} onClick={() => setQuickMediaId(m.id)}>
-                        {m.media_type === 'image'
-                          ? <img src={m.media_url} alt={m.label} />
-                          : <div className="bc-media-doc"><ImageIcon size={20} /><span>{m.media_type}</span></div>}
-                        <span className="bc-media-label">{m.label}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <div className="bc-field">
-                <label>Caption (opsional) <span className="bc-hint">dukung <code>{'{{nama}}'}</code></span></label>
-                <textarea rows={3} value={body} onChange={e => setBody(e.target.value)} placeholder={'Halo {{nama}}, cek promo kami…'} />
-              </div>
-            </>
-          )}
 
           <div className="bc-form-actions">
             <button className="bc-btn primary" disabled={!canStep1} onClick={() => setStep(2)}>Lanjut: Pilih Penerima</button>
@@ -462,7 +432,7 @@ function CreateWizard({ onBack, onCreated }) {
 
           <div className="bc-summary">
             <div><span>Campaign</span><b>{name}</b></div>
-            <div><span>Jenis</span><b>{mode === 'quick_media' ? `Media${mediaItem ? ` — ${mediaItem.label}` : ''}` : 'Teks'}</b></div>
+            <div><span>Template</span><b>{template?.name || '-'}</b></div>
             <div><span>Penerima</span><b>{chosen.length} nomor</b></div>
             <div><span>Estimasi durasi</span><b>{estDays} hari (≈{dailyLimit}/hari)</b></div>
             {startMode === 'schedule' && startAt && <div><span>Mulai</span><b>{fmtDate(startAt)}</b></div>}
@@ -478,10 +448,10 @@ function CreateWizard({ onBack, onCreated }) {
       )}
        </div>
        <PhonePreview
-         text={body}
-         mediaType={mode === 'quick_media' ? mediaItem?.media_type : null}
-         mediaUrl={mode === 'quick_media' ? mediaItem?.media_url : null}
-         mediaLabel={mode === 'quick_media' ? mediaItem?.label : null}
+         text={template?.body}
+         mediaType={template?.media_type || null}
+         mediaUrl={template?.media_url || null}
+         mediaLabel={template?.media_filename || null}
        />
       </div>
     </div>
@@ -614,6 +584,15 @@ const BC_CSS = `
 .bc-hint code { background: var(--surface3); padding: 1px 5px; border-radius: 4px; font-size: 11px; }
 .bc-field input, .bc-field textarea, .bc-field select { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 9px; font-size: 13.5px; background: var(--surface); color: var(--text); font-family: inherit; }
 .bc-field textarea { resize: vertical; }
+.bc-tpl-list { display: flex; flex-direction: column; gap: 8px; }
+.bc-tpl-item { display: flex; align-items: center; gap: 12px; text-align: left; padding: 11px 13px; border: 1.5px solid var(--border); border-radius: 10px; background: var(--surface); cursor: pointer; transition: all .15s; }
+.bc-tpl-item.sel { border-color: var(--primary); background: var(--primary-light); }
+.bc-tpl-thumb { width: 42px; height: 42px; border-radius: 8px; background: var(--surface3); display: flex; align-items: center; justify-content: center; color: var(--muted); flex-shrink: 0; overflow: hidden; }
+.bc-tpl-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.bc-tpl-info { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.bc-tpl-name { font-size: 13.5px; font-weight: 600; color: var(--text); }
+.bc-tpl-body { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bc-tpl-check { color: var(--primary); flex-shrink: 0; }
 .bc-mode-tabs { display: flex; gap: 8px; }
 .bc-mode-tabs button { display: inline-flex; align-items: center; gap: 6px; padding: 9px 14px; border-radius: 9px; font-size: 13px; font-weight: 600; background: var(--surface3); color: var(--text2); }
 .bc-mode-tabs button.active { background: var(--primary); color: var(--on-primary); }
