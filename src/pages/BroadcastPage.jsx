@@ -524,9 +524,9 @@ const BC_CSS = `
 .bc-root { height: 100%; overflow-y: auto; background: var(--bg); }
 .bc-page { width: 100%; padding: 24px 24px 48px; color: var(--text); }
 .bc-page > .bc-notice, .bc-page > .bc-list, .bc-page > .bc-empty { max-width: 1100px; }
-.bc-layout { display: flex; gap: 28px; align-items: flex-start; }
-.bc-main { flex: 1; min-width: 0; max-width: 720px; }
-.bc-side { width: 300px; flex-shrink: 0; position: sticky; top: 12px; }
+.bc-layout { display: flex; gap: 32px; align-items: flex-start; width: 100%; }
+.bc-main { flex: 1 1 auto; min-width: 0; }
+.bc-side { width: 320px; flex-shrink: 0; position: sticky; top: 12px; }
 .bc-preview-lbl { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 10px; text-align: center; }
 .bc-phone { width: 300px; border-radius: 30px; overflow: hidden; background: #0b141a; border: 8px solid #111b21; box-shadow: 0 12px 40px var(--shadow); }
 .bc-phone-notch { height: 22px; background: #111b21; position: relative; }
