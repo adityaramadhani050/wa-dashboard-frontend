@@ -4,7 +4,7 @@ import { useSocket } from '../context/SocketContext'
 import { useAuth } from '../context/AuthContext'
 import {
   getMessages, sendMessage, sendMedia, assignAgent, unassignAgent, getConversation, getConversations, getAgents,
-  forwardMessage, deleteMessage, editMessage,
+  forwardMessage, deleteMessage, editMessage, sendLocation, sendContact,
   getTemplates, getQuickMedia, sendQuickMedia, useTemplate,
   getTags, addTagToConversation, removeTagFromConversation,
   getContactNotes, createContactNote, createReminder, getContactConversations,
@@ -199,6 +199,93 @@ function DocMedia({ url, filename, caption, sent, expired }) {
   )
 }
 
+function ShareModal({ mode, onClose, onSendLocation, onSendContact, loading }) {
+  const isLoc = mode === 'location'
+  const [name, setName] = useState('')
+  const [phone, setPhone] = useState('')
+  const [lat, setLat] = useState('')
+  const [lng, setLng] = useState('')
+  const [address, setAddress] = useState('')
+  const [geoBusy, setGeoBusy] = useState(false)
+  const [geoErr, setGeoErr] = useState('')
+
+  const useMyLocation = () => {
+    if (!navigator.geolocation) { setGeoErr('Perangkat tidak mendukung lokasi'); return }
+    setGeoBusy(true); setGeoErr('')
+    navigator.geolocation.getCurrentPosition(
+      (pos) => { setLat(String(pos.coords.latitude)); setLng(String(pos.coords.longitude)); setGeoBusy(false) },
+      () => { setGeoErr('Gagal ambil lokasi. Izinkan akses lokasi atau isi manual.'); setGeoBusy(false) },
+      { enableHighAccuracy: true, timeout: 10000 }
+    )
+  }
+
+  const submit = (e) => {
+    e.preventDefault()
+    if (isLoc) {
+      if (!lat || !lng) return
+      onSendLocation({ latitude: lat, longitude: lng, name: name || undefined, address: address || undefined })
+    } else {
+      if (!name.trim() || !phone.trim()) return
+      onSendContact({ name: name.trim(), phone })
+    }
+  }
+
+  return (
+    <div className="cv-share-overlay" onClick={onClose}>
+      <div className="cv-share-modal" onClick={e => e.stopPropagation()}>
+        <div className="cv-share-head">
+          <span>{isLoc ? 'Kirim Lokasi' : 'Kirim Kontak'}</span>
+          <button onClick={onClose}><X size={18} /></button>
+        </div>
+        <form onSubmit={submit} className="cv-share-form">
+          {isLoc ? (
+            <>
+              <button type="button" className="cv-share-geo" onClick={useMyLocation} disabled={geoBusy}>
+                <MapPin size={15} /> {geoBusy ? 'Mengambil lokasi…' : 'Gunakan lokasi saya'}
+              </button>
+              {geoErr && <div className="cv-share-err">{geoErr}</div>}
+              <label>Latitude</label>
+              <input value={lat} onChange={e => setLat(e.target.value)} placeholder="-7.2575" inputMode="decimal" />
+              <label>Longitude</label>
+              <input value={lng} onChange={e => setLng(e.target.value)} placeholder="112.7521" inputMode="decimal" />
+              <label>Nama tempat (opsional)</label>
+              <input value={name} onChange={e => setName(e.target.value)} placeholder="mis. Kantor Renus" />
+              <label>Alamat (opsional)</label>
+              <input value={address} onChange={e => setAddress(e.target.value)} placeholder="Jl. ..." />
+            </>
+          ) : (
+            <>
+              <label>Nama</label>
+              <input value={name} onChange={e => setName(e.target.value)} placeholder="Nama kontak" />
+              <label>Nomor (dengan kode negara)</label>
+              <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="628123456789" inputMode="tel" />
+            </>
+          )}
+          <div className="cv-share-actions">
+            <button type="button" className="cv-share-cancel" onClick={onClose}>Batal</button>
+            <button type="submit" className="cv-share-send" disabled={loading}>{loading ? 'Mengirim…' : 'Kirim'}</button>
+          </div>
+        </form>
+      </div>
+      <style>{`
+        .cv-share-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 500; display: flex; align-items: center; justify-content: center; padding: 16px; }
+        .cv-share-modal { background: var(--surface); border-radius: 14px; width: 100%; max-width: 380px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); overflow: hidden; }
+        .cv-share-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--border); font-weight: 700; color: var(--text); }
+        .cv-share-head button { color: var(--muted); }
+        .cv-share-form { padding: 16px; display: flex; flex-direction: column; gap: 6px; }
+        .cv-share-form label { font-size: 12px; font-weight: 600; color: var(--text2); margin-top: 6px; }
+        .cv-share-form input { padding: 9px 11px; border: 1px solid var(--border); border-radius: 8px; font-size: 13.5px; background: var(--surface2, var(--surface)); color: var(--text); }
+        .cv-share-geo { display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 10px; border-radius: 9px; background: var(--primary-light); color: var(--primary); font-weight: 600; font-size: 13px; }
+        .cv-share-err { font-size: 11.5px; color: var(--danger, #e53e3e); }
+        .cv-share-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+        .cv-share-cancel { padding: 9px 14px; border-radius: 8px; background: var(--surface3); color: var(--text2); font-weight: 600; font-size: 13px; }
+        .cv-share-send { padding: 9px 16px; border-radius: 8px; background: var(--primary); color: var(--on-primary); font-weight: 600; font-size: 13px; }
+        .cv-share-send:disabled { opacity: 0.6; }
+      `}</style>
+    </div>
+  )
+}
+
 function MediaContent({ msg, sent, onImageClick }) {
   const { media_type, media_url, media_filename, body } = msg
   const caption = body && !body.startsWith('[') ? body : null
@@ -230,6 +317,7 @@ function MediaContent({ msg, sent, onImageClick }) {
       return <div className="cv-media-wrap"><div className="cv-media-skeleton"><div className="cv-media-skel-inner" /></div></div>
     return <div className="cv-media-placeholder"><Paperclip size={16} /><span>Memuat {media_type}…</span></div>
   }
+  if (media_type === 'sticker') return <div className="cv-sticker-wrap"><img src={media_url} alt="stiker" className="cv-sticker" />{caption && <p className="cv-media-caption">{caption}</p>}</div>
   if (media_type === 'image') return <ImgMedia url={media_url} thumb={msg.media_thumb_url} caption={caption} sent={sent} expired={msg.media_expired} onImageClick={onImageClick} />
   if (media_type === 'video') return <VideoMedia url={media_url} caption={caption} sent={sent} expired={msg.media_expired} />
   if (media_type === 'audio') return <div className="cv-media-audio-wrap"><audio src={media_url} controls className="cv-media-audio" />{caption && <p className="cv-media-caption">{caption}</p>}</div>
@@ -400,6 +488,8 @@ export default function ChatPage({ chatId }) {
   const [showTemplateMenu, setShowTemplateMenu] = useState(false)
   const [quickMedia, setQuickMedia] = useState([])
   const [showMediaGallery, setShowMediaGallery] = useState(false)
+  const [shareModal, setShareModal] = useState(null) // null | 'location' | 'contact'
+  const [sharing, setSharing] = useState(false)
   const [showMoreMenu, setShowMoreMenu] = useState(false)
   const [sendingQuickMediaId, setSendingQuickMediaId] = useState(null)
 
@@ -830,6 +920,26 @@ export default function ChatPage({ chatId }) {
     } finally { setSendingQuickMediaId(null) }
   }
 
+  const handleSendLocation = async ({ latitude, longitude, name, address }) => {
+    setSharing(true)
+    try {
+      await sendLocation(id, { latitude, longitude, name, address })
+      setShareModal(null)
+      await fetchData()
+    } catch (e) { setError(e?.response?.data?.error || 'Gagal mengirim lokasi.') }
+    finally { setSharing(false) }
+  }
+
+  const handleSendContact = async ({ name, phone }) => {
+    setSharing(true)
+    try {
+      await sendContact(id, { name, phone })
+      setShareModal(null)
+      await fetchData()
+    } catch (e) { setError(e?.response?.data?.error || 'Gagal mengirim kontak.') }
+    finally { setSharing(false) }
+  }
+
   const handleAgentAssign = async (agent) => {
     closeMenus()
     try { await assignAgent(id, agent.id); setConversation(p => p ? { ...p, agents: agent, status: 'in_progress' } : p) }
@@ -1186,6 +1296,13 @@ export default function ChatPage({ chatId }) {
         <div className="cv-toast"><Check size={14} /> {toast}</div>
       )}
 
+      {shareModal && (
+        <ShareModal mode={shareModal} loading={sharing}
+          onClose={() => setShareModal(null)}
+          onSendLocation={handleSendLocation}
+          onSendContact={handleSendContact} />
+      )}
+
       {actionMsg && (
         <div className="cv-sheet-overlay" onClick={() => setActionMsg(null)}>
           <div className="cv-sheet" onClick={e => e.stopPropagation()}>
@@ -1415,6 +1532,12 @@ export default function ChatPage({ chatId }) {
               <button className="cv-mi" onClick={() => { setShowMoreMenu(false); setShowMediaGallery(true) }}>
                 <span className="cv-mi-title"><Package size={14} /><span className="cv-mi-title-text">Produk / Katalog</span></span>
               </button>
+              <button className="cv-mi" onClick={() => { setShowMoreMenu(false); setShareModal('location') }}>
+                <span className="cv-mi-title"><MapPin size={14} /><span className="cv-mi-title-text">Kirim Lokasi</span></span>
+              </button>
+              <button className="cv-mi" onClick={() => { setShowMoreMenu(false); setShareModal('contact') }}>
+                <span className="cv-mi-title"><User size={14} /><span className="cv-mi-title-text">Kirim Kontak</span></span>
+              </button>
               <button className="cv-mi" onClick={() => { setShowMoreMenu(false); handleRequestAiSuggestion() }}>
                 <span className="cv-mi-title"><Sparkles size={14} /><span className="cv-mi-title-text">Saran AI</span></span>
               </button>
@@ -1433,6 +1556,14 @@ export default function ChatPage({ chatId }) {
 
         <button className="cv-attach-btn" title="Produk/Katalog" onClick={() => { setShowMediaGallery(!showMediaGallery); setShowTemplateMenu(false) }}>
           <Package size={19} />
+        </button>
+
+        <button className="cv-attach-btn" title="Kirim Lokasi" onClick={() => setShareModal('location')}>
+          <MapPin size={19} />
+        </button>
+
+        <button className="cv-attach-btn" title="Kirim Kontak" onClick={() => setShareModal('contact')}>
+          <User size={19} />
         </button>
 
         <button className="cv-attach-btn" title="Saran Balasan AI" onClick={() => { showAiMenu ? setShowAiMenu(false) : handleRequestAiSuggestion() }}>
@@ -1788,6 +1919,8 @@ export default function ChatPage({ chatId }) {
         .cv-media-broken-info { flex: 1; display: flex; flex-direction: column; gap: 2px; }
         .cv-media-broken-info span { font-size: 13px; font-weight: 600; }
         .cv-media-broken-sub { font-size: 11px; opacity: 0.65; font-weight: 400 !important; }
+        .cv-sticker-wrap { display: flex; flex-direction: column; gap: 4px; }
+        .cv-sticker { width: 130px; height: 130px; object-fit: contain; }
         .cv-special-link { text-decoration: none; }
         .cv-special-card { display: flex; align-items: center; gap: 11px; padding: 11px 13px; border-radius: 10px; min-width: 200px; }
         .cv-special-card.sent { background: rgba(255,255,255,0.15); color: var(--on-primary); }

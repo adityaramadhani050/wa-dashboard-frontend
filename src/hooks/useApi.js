@@ -46,6 +46,11 @@ export const sendMedia = (conversationId, file, caption, replyTo) => {
     timeout: 60000,
   }).then(r => r.data)
 }
+// Kirim lokasi & kontak
+export const sendLocation = (conversationId, { latitude, longitude, name, address }) =>
+  api.post('/messages/send-location', { conversation_id: conversationId, latitude, longitude, name, address }).then(r => r.data)
+export const sendContact = (conversationId, { name, phone }) =>
+  api.post('/messages/send-contact', { conversation_id: conversationId, name, phone }).then(r => r.data)
 export const assignAgent = (id, agent_id) => api.post(`/conversations/${id}/assign`, { agent_id }).then(r => r.data)
 export const unassignAgent = (id) => api.post(`/conversations/${id}/unassign`).then(r => r.data)
 export const updateStatus = (id, status) => api.patch(`/conversations/${id}/status`, { status }).then(r => r.data)
