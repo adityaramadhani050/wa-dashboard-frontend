@@ -12,7 +12,7 @@ import {
 } from '../hooks/useApi'
 import { supabase } from '../lib/supabase'
 import PdfThumb, { isPdf } from '../components/PdfThumb'
-import { Send, ArrowLeft, ArrowDown, UserCheck, Paperclip, X, FileText, Play, Download, Check, Image, Film, Clock, Zap, Package, Tag as TagIcon, StickyNote, BellPlus, MoreVertical, Sparkles, Reply, Pencil, Forward, Search as SearchIcon, Trash2, Copy } from 'lucide-react'
+import { Send, ArrowLeft, ArrowDown, UserCheck, Paperclip, X, FileText, Play, Download, Check, Image, Film, Clock, Zap, Package, Tag as TagIcon, StickyNote, BellPlus, MoreVertical, Sparkles, Reply, Pencil, Forward, Search as SearchIcon, Trash2, Copy, MapPin, User } from 'lucide-react'
 
 
 const MSG_PAGE = 60 // jumlah pesan per halaman (muat bertahap saat scroll ke atas)
@@ -203,6 +203,23 @@ function MediaContent({ msg, sent, onImageClick }) {
   const { media_type, media_url, media_filename, body } = msg
   const caption = body && !body.startsWith('[') ? body : null
   if (!media_url && !media_type) return <p>{msg.body || msg.content || msg.text}</p>
+  // Kontak & lokasi (dari WhatsApp) -> kartu khusus, bisa diklik
+  if (media_type === 'contact' || media_type === 'location') {
+    const isLoc = media_type === 'location'
+    const text = (body || '').replace(/^📍\s?|^📇\s?/, '') || (isLoc ? 'Lokasi' : 'Kontak')
+    const inner = (
+      <div className={`cv-special-card ${sent ? 'sent' : 'recv'}`}>
+        {isLoc ? <MapPin size={20} /> : <User size={20} />}
+        <div className="cv-special-info">
+          <span className="cv-special-title">{text}</span>
+          <span className="cv-special-sub">{isLoc ? (media_url ? 'Buka di Google Maps' : 'Lokasi') : (media_filename ? `Chat: +${String(media_filename).replace(/^\+/, '')}` : 'Kontak')}</span>
+        </div>
+      </div>
+    )
+    return media_url
+      ? <a href={media_url} target="_blank" rel="noreferrer" className="cv-special-link">{inner}</a>
+      : inner
+  }
   if (media_type && !media_url) {
     // Media dihapus karena kadaluarsa (TTL) -> tampilkan info, bukan skeleton
     if (msg.media_expired) {
@@ -1771,6 +1788,13 @@ export default function ChatPage({ chatId }) {
         .cv-media-broken-info { flex: 1; display: flex; flex-direction: column; gap: 2px; }
         .cv-media-broken-info span { font-size: 13px; font-weight: 600; }
         .cv-media-broken-sub { font-size: 11px; opacity: 0.65; font-weight: 400 !important; }
+        .cv-special-link { text-decoration: none; }
+        .cv-special-card { display: flex; align-items: center; gap: 11px; padding: 11px 13px; border-radius: 10px; min-width: 200px; }
+        .cv-special-card.sent { background: rgba(255,255,255,0.15); color: var(--on-primary); }
+        .cv-special-card.recv { background: var(--surface3); color: var(--text); border: 1px solid var(--border); }
+        .cv-special-info { display: flex; flex-direction: column; min-width: 0; }
+        .cv-special-title { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .cv-special-sub { font-size: 11.5px; opacity: 0.7; }
         .cv-media-doc { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 10px; text-decoration: none; min-width: 200px; cursor: pointer; }
         .cv-media-doc.sent { background: rgba(255,255,255,0.15); color: var(--on-primary); }
         .cv-media-doc.recv { background: var(--surface3); color: var(--text); border: 1px solid var(--border); }
