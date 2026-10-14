@@ -227,11 +227,10 @@ export default function AnalyticsPage() {
         <StatCard icon={TrendingUp} label="Pesan Masuk" value={totalIncoming} color="#2563eb" />
         <StatCard icon={TrendingUp} label="Pesan Keluar" value={totalOutgoing} color="#f59e0b" />
         <StatCard
-          icon={UserPlus}
-          label="Kontak Baru"
-          value={totalNewContacts}
-          sub={contacts?.total != null ? `${contacts.total} total` : null}
-          color="#2563eb"
+          icon={Clock}
+          label="Avg Respons"
+          value={globalAvgResponse != null ? `${globalAvgResponse} mnt` : '—'}
+          color="#f59e0b"
         />
         <StatCard
           icon={MessageSquare}
@@ -243,10 +242,11 @@ export default function AnalyticsPage() {
         <StatCard icon={UserCheck} label="Resolved" value={totalResolved} color="#10b981" />
         <StatCard icon={Users} label="Di-assign" value={totalHandled} color="#6366f1" />
         <StatCard
-          icon={Clock}
-          label="Avg Respons"
-          value={globalAvgResponse != null ? `${globalAvgResponse} mnt` : '—'}
-          color="#f59e0b"
+          icon={UserPlus}
+          label="Kontak Baru"
+          value={totalNewContacts}
+          sub={contacts?.total != null ? `${contacts.total} total` : null}
+          color="#2563eb"
         />
       </div>
 
