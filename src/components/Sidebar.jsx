@@ -73,9 +73,9 @@ export default function IconBar() {
 
   const navItems = [
     { path: '/inbox',    icon: MessageSquare, label: 'Chats',           adminOnly: false },
-    { path: '/contacts', icon: BookUser,      label: 'Kontak',          adminOnly: false },
     { path: '/analytics',icon: BarChart2,     label: 'Analytics',       adminOnly: true  },
     { path: '/agents',   icon: Users,         label: 'Manajemen Agent', adminOnly: true  },
+    { path: '/contacts', icon: BookUser,      label: 'Kontak',          adminOnly: false },
     { path: '/templates',icon: Zap,           label: 'Template & Galeri', adminOnly: true },
     { path: '/broadcast',icon: Megaphone,     label: 'Broadcast Promo', adminOnly: true  },
     { path: '/qr',       icon: QrCode,        label: 'QR Setup',        adminOnly: true  },
