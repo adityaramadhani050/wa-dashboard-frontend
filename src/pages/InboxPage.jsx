@@ -593,7 +593,7 @@ export default function InboxPage() {
         .cl-tagfilter-btn { width: 100%; justify-content: center; padding: 6px 8px; }
         .cl-tagfilter-btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .cl-overdue-badge { display: inline-flex; align-items: center; gap: 2px; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 20px; background: var(--danger); color: var(--on-primary); white-space: nowrap; }
-        .cl-item.overdue { background: rgba(229,62,62,0.05); box-shadow: inset 3px 0 0 var(--danger); }
+        .cl-item.overdue { background: rgba(229,62,62,0.05); }
         .cl-item.overdue:hover { background: rgba(229,62,62,0.09); }
         .cl-item.active .cl-overdue-badge { background: var(--surface); color: var(--danger); }
       `}</style>
