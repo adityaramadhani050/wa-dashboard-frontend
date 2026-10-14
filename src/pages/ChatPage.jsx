@@ -1955,8 +1955,8 @@ export default function ChatPage({ chatId }) {
         .cv-shared-menu-anchor { position: absolute; left: 14px; bottom: 100%; width: 0; height: 0; }
         .cv-attach-btn { width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: var(--muted); transition: all 0.15s; border: 1.5px solid var(--border); background: var(--surface2); }
         .cv-attach-btn:hover { background: var(--surface3); color: var(--primary); border-color: var(--border2); }
-        .cv-attach-group { display: contents; }
-        .cv-more-dd { display: none; }
+        .cv-attach-group { display: none; }
+        .cv-more-dd { display: block; }
         .cv-more-menu { min-width: 200px; }
         .cv-more-menu .cv-mi-title { gap: 10px; }
         .cv-input { flex: 1; background: var(--surface2); border: 1.5px solid var(--border); border-radius: 12px; color: var(--text); padding: 11px 14px; font-size: 14px; line-height: 22px; height: 44px; min-height: 44px; max-height: 120px; outline: none; resize: none; overflow-y: auto; transition: border-color 0.15s; font-family: inherit; }
