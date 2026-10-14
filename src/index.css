@@ -33,23 +33,23 @@
 /* Palet gelap — otomatis mengikuti tema device (prefers-color-scheme). */
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0f1720;
-    --surface: #1a232f;
-    --surface2: #212c3a;
-    --surface3: #263243;
+    --bg: #0b141a;
+    --surface: #202c33;
+    --surface2: #273440;
+    --surface3: #2f3d4a;
     --primary: #5b8cff;
     --primary-hover: #7aa2ff;
     --primary-light: rgba(91,140,255,0.16);
-    --border: #2b384a;
-    --border2: #3a4a60;
+    --border: #30404f;
+    --border2: #3f5164;
     --text: #f4f7ff;
     --text2: #c6d2e6;
     --muted: #93a4be;
     --sent: #2f6fed;
     --sent-text: #ffffff;
-    --recv: #232f3e;
+    --recv: #2a3942;
     --recv-text: #f4f7ff;
-    --sidebar-bg: #141c26;
+    --sidebar-bg: #111b21;
     --sidebar-active: #5b8cff;
     --sidebar-muted: #8a9ab4;
     --danger: #ff6b6b;
