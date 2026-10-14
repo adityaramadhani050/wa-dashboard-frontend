@@ -286,6 +286,7 @@ export default function AgentManagementPage() {
         </button>
       </div>
 
+      <div className="aa-grid">
       <div className="aa-card">
         <div className="aa-info">
           <div className="aa-icon"><Shuffle size={18} /></div>
@@ -394,6 +395,7 @@ export default function AgentManagementPage() {
             </div>
           </div>
         </div>
+      </div>
       </div>
 
       <div className="am-table-box">
@@ -522,6 +524,9 @@ export default function AgentManagementPage() {
         .am-header h1 { font-size: 20px; font-weight: 700; margin-bottom: 3px; color: var(--text); }
         .am-header p { font-size: 13px; color: var(--text2); }
         .aa-card { display: flex; align-items: center; justify-content: space-between; gap: 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; margin-bottom: 18px; box-shadow: var(--shadow); }
+        .aa-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 18px; align-items: start; }
+        .aa-grid .aa-card { margin-bottom: 0; height: 100%; }
+        @media (max-width: 860px) { .aa-grid { grid-template-columns: 1fr; } }
         .bt-result { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; margin-bottom: 18px; margin-top: -8px; box-shadow: var(--shadow); }
         .bt-error { color: var(--danger); font-size: 13px; }
         .bt-warn { color: var(--warning); font-size: 12px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 8px 10px; margin-bottom: 10px; }
