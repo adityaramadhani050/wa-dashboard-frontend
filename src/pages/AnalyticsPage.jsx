@@ -60,7 +60,7 @@ const Tip = ({ active, payload, label }) => {
 
 export default function AnalyticsPage() {
   const defaultTo = fmtDate(new Date())
-  const defaultFrom = fmtDate(new Date(Date.now() - 13 * 86400000))
+  const defaultFrom = fmtDate(new Date()) // default: hari ini
 
   const [from, setFrom] = useState(defaultFrom)
   const [to, setTo] = useState(defaultTo)
@@ -204,6 +204,7 @@ export default function AnalyticsPage() {
       <div className="an-filter">
         <Calendar size={15} className="an-filter-icon" />
         <div className="an-presets">
+          <button onClick={() => handlePreset(1)}>Hari ini</button>
           <button onClick={() => handlePreset(7)}>7 Hari</button>
           <button onClick={() => handlePreset(14)}>14 Hari</button>
           <button onClick={() => handlePreset(30)}>30 Hari</button>
@@ -248,6 +249,59 @@ export default function AnalyticsPage() {
           color="#f59e0b"
         />
       </div>
+
+      {/* Detail per Agent (dipindah ke atas KPI & Funnel) */}
+      {!loading && agents.length > 0 && (
+        <div className="an-table-box">
+          <h3>Detail per Agent</h3>
+          <div className="an-table-wrap">
+            <table className="an-table">
+              <thead>
+                <tr>
+                  <th>Agent</th>
+                  <th>Aktif</th><th>Open</th><th>Resolved</th>
+                  <th>Lead</th><th>Penawaran</th><th>Survey</th><th>Deal</th>
+                  <th>Avg Respons</th><th>Deal Rate</th>
+                </tr>
+              </thead>
+              <tbody>
+                {agents.map((a, i) => {
+                  const lead = a.lead != null ? a.lead : (a.total || 0)
+                  const rate = lead > 0 ? Math.round(((a.deal || 0) / lead) * 100) : 0
+                  const active = (a.open || 0) + (a.in_progress || 0)
+                  return (
+                    <tr key={i}>
+                      <td>
+                        <div className="an-agent-cell">
+                          <div className="an-avatar">{(a.name || 'A')[0].toUpperCase()}</div>
+                          <div>
+                            <div className="an-agent-name">{a.name}</div>
+                            <div className="an-agent-email">{a.email}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td><span className="an-badge active" title={`${a.open||0} open + ${a.in_progress||0} in progress`}>{active}</span></td>
+                      <td><span className="an-badge open">{a.open || 0}</span></td>
+                      <td><span className="an-badge resolved">{a.resolved || 0}</span></td>
+                      <td><span className="an-badge lead">{lead}</span></td>
+                      <td><span className="an-badge penawaran">{a.penawaran || 0}</span></td>
+                      <td><span className="an-badge survey">{a.survey || 0}</span></td>
+                      <td><span className="an-badge deal">{a.deal || 0}</span></td>
+                      <td><span className="an-resp">{a.avgResponse != null ? `${a.avgResponse} mnt` : '—'}</span></td>
+                      <td>
+                        <div className="an-rate">
+                          <div className="an-rate-bar"><div className="an-rate-fill" style={{ width: `${rate}%` }} /></div>
+                          <span>{rate}%</span>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* KPI Response Time & Funnel */}
       <div className="an-kpi-row">
@@ -367,59 +421,6 @@ export default function AnalyticsPage() {
                 <span className="an-tpl-count">{t.usage_count || 0}x dipakai</span>
               </div>
             ))}
-          </div>
-        </div>
-      )}
-
-      {/* Agent table */}
-      {!loading && agents.length > 0 && (
-        <div className="an-table-box">
-          <h3>Detail per Agent</h3>
-          <div className="an-table-wrap">
-            <table className="an-table">
-              <thead>
-                <tr>
-                  <th>Agent</th>
-                  <th>Aktif</th><th>Open</th><th>Resolved</th>
-                  <th>Lead</th><th>Penawaran</th><th>Survey</th><th>Deal</th>
-                  <th>Avg Respons</th><th>Deal Rate</th>
-                </tr>
-              </thead>
-              <tbody>
-                {agents.map((a, i) => {
-                  const lead = a.lead != null ? a.lead : (a.total || 0)
-                  const rate = lead > 0 ? Math.round(((a.deal || 0) / lead) * 100) : 0
-                  const active = (a.open || 0) + (a.in_progress || 0)
-                  return (
-                    <tr key={i}>
-                      <td>
-                        <div className="an-agent-cell">
-                          <div className="an-avatar">{(a.name || 'A')[0].toUpperCase()}</div>
-                          <div>
-                            <div className="an-agent-name">{a.name}</div>
-                            <div className="an-agent-email">{a.email}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td><span className="an-badge active" title={`${a.open||0} open + ${a.in_progress||0} in progress`}>{active}</span></td>
-                      <td><span className="an-badge open">{a.open || 0}</span></td>
-                      <td><span className="an-badge resolved">{a.resolved || 0}</span></td>
-                      <td><span className="an-badge lead">{lead}</span></td>
-                      <td><span className="an-badge penawaran">{a.penawaran || 0}</span></td>
-                      <td><span className="an-badge survey">{a.survey || 0}</span></td>
-                      <td><span className="an-badge deal">{a.deal || 0}</span></td>
-                      <td><span className="an-resp">{a.avgResponse != null ? `${a.avgResponse} mnt` : '—'}</span></td>
-                      <td>
-                        <div className="an-rate">
-                          <div className="an-rate-bar"><div className="an-rate-fill" style={{ width: `${rate}%` }} /></div>
-                          <span>{rate}%</span>
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
           </div>
         </div>
       )}
