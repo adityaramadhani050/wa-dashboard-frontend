@@ -503,7 +503,8 @@ export default function InboxPage() {
                         </span>
                       )}
                       {isUnread && <span className="cl-unread-dot" />}
-                      <span className="cl-time">{timeStr(conv.lastMessageAt || conv.updated_at)}</span>
+                      {/* Chat overdue: badge sudah menunjukkan lama menunggu -> waktu pesan terakhir disembunyikan */}
+                      {!overdue && <span className="cl-time">{timeStr(conv.lastMessageAt || conv.updated_at)}</span>}
                     </span>
                   </div>
                   <div className="cl-row">
