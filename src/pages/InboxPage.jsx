@@ -23,6 +23,29 @@ function waitMinutes(awaitingSince, now) {
   return Math.floor((now - new Date(awaitingSince).getTime()) / 60000)
 }
 
+// Durasi ringkas untuk badge: 45m · 2j 15m · 3h 4j · 13h  (m=menit, j=jam, h=hari)
+function formatWaitShort(mins) {
+  if (mins < 60) return `${mins}m`
+  const d = Math.floor(mins / 1440)
+  const h = Math.floor((mins % 1440) / 60)
+  const m = mins % 60
+  if (d === 0) return m ? `${h}j ${m}m` : `${h}j`
+  if (d >= 7 || !h) return `${d}h`
+  return `${d}h ${h}j`
+}
+
+// Durasi lengkap untuk tooltip: "2 jam 15 menit", "13 hari 2 jam"
+function formatWaitLong(mins) {
+  const d = Math.floor(mins / 1440)
+  const h = Math.floor((mins % 1440) / 60)
+  const m = mins % 60
+  const parts = []
+  if (d) parts.push(`${d} hari`)
+  if (h) parts.push(`${h} jam`)
+  if (m && !d) parts.push(`${m} menit`)
+  return parts.join(' ') || '0 menit'
+}
+
 // Apakah saat ini (ms) berada dalam jam & hari kerja (zona WIB / UTC+7)?
 // Jika fitur mati atau tidak ada config -> selalu dianggap "dalam jam kerja".
 function isWithinWorkHours(nowMs, wh) {
@@ -498,8 +521,8 @@ export default function InboxPage() {
                     <span className="cl-name">{name}</span>
                     <span className="cl-row-right">
                       {overdue && (
-                        <span className="cl-overdue-badge" title={`Belum dibalas ${waitMins} menit (lewat KPI 5 menit)`}>
-                          <Clock size={10} />{waitMins}m
+                        <span className="cl-overdue-badge" title={`Belum dibalas ${formatWaitLong(waitMins)} (lewat KPI 5 menit)`}>
+                          <Clock size={10} />{formatWaitShort(waitMins)}
                         </span>
                       )}
                       {isUnread && <span className="cl-unread-dot" />}
