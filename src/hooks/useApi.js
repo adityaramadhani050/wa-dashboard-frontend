@@ -54,6 +54,8 @@ export const sendContact = (conversationId, { name, phone }) =>
 export const assignAgent = (id, agent_id) => api.post(`/conversations/${id}/assign`, { agent_id }).then(r => r.data)
 export const unassignAgent = (id) => api.post(`/conversations/${id}/unassign`).then(r => r.data)
 export const updateStatus = (id, status) => api.patch(`/conversations/${id}/status`, { status }).then(r => r.data)
+// Regional chat (admin): 'barat' | 'timur' -> diarahkan ke agent regional tsb bila belum ada agent
+export const setConversationRegion = (id, region) => api.patch(`/conversations/${id}/region`, { region }).then(r => r.data)
 export const deleteConversation = (id) => api.delete(`/conversations/${id}`).then(r => r.data)
 export const getContacts = (agentId) =>
   api.get('/contacts', agentId ? { params: { agent_id: agentId } } : {}).then(r => r.data)
@@ -69,6 +71,7 @@ export const updateAgent = (id, payload) => api.put(`/agents/${id}`, payload).th
 export const deleteAgent = (id) => api.delete(`/agents/${id}`).then(r => r.data)
 // Ketersediaan agent (aktif/non-aktif untuk auto-assign)
 export const setAgentAvailability = (id, available) => api.patch(`/agents/${id}/availability`, { available }).then(r => r.data)
+export const setAgentRegion = (id, region) => api.patch(`/agents/${id}/region`, { region: region || null }).then(r => r.data)
 export const getMyAvailability = () => api.get('/me/availability').then(r => r.data)
 export const setMyAvailability = (available) => api.patch('/me/availability', { available }).then(r => r.data)
 export const resetWASession = () => api.post('/wa/reset').then(r => r.data)
@@ -155,6 +158,9 @@ export const setAutoAssign = (enabled) => api.put('/settings/auto-assign', { ena
 // Jam & hari kerja (pengecualian overdue di luar jam kerja)
 export const getWorkHours = () => api.get('/settings/work-hours').then(r => r.data)
 export const setWorkHours = (payload) => api.put('/settings/work-hours', payload).then(r => r.data)
+// Routing regional (bot tanya lokasi -> agent Barat/Timur)
+export const getRegionalRouting = () => api.get('/settings/regional-routing').then(r => r.data)
+export const setRegionalRouting = (payload) => api.put('/settings/regional-routing', payload).then(r => r.data)
 // Backfill hapus media lama (bebaskan storage)
 export const cleanupMedia = (days) => api.post('/settings/cleanup-media', { days }, { timeout: 120000 }).then(r => r.data)
 

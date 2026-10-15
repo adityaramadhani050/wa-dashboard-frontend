@@ -3,7 +3,17 @@ import { useNavigate, useMatch } from 'react-router-dom'
 import { useSocket } from '../context/SocketContext'
 import { useAuth } from '../context/AuthContext'
 import { getConversations, getTags, getAgents, syncMessages, getWorkHours, getMyAvailability, setMyAvailability } from '../hooks/useApi'
-import { Search, RefreshCw, UserCheck, Tag as TagIcon, ChevronDown, Clock, RotateCw, X } from 'lucide-react'
+import { Search, RefreshCw, UserCheck, Tag as TagIcon, ChevronDown, Clock, RotateCw, X, MapPin, Bot } from 'lucide-react'
+
+// Regional chat: dari percakapan, atau dari kontak (customer lama)
+const chatRegion = (c) => c.region || c.contact?.region || null
+const REGION_FILTER_OPTIONS = [
+  { key: 'all', label: 'Semua Regional' },
+  { key: 'barat', label: 'Barat' },
+  { key: 'timur', label: 'Timur' },
+  { key: 'unknown', label: 'Regional belum diketahui' },
+  { key: 'bot', label: 'Sedang ditanya bot' },
+]
 
 // KPI response time: customer harus dibalas dalam 5 menit
 const RESPONSE_KPI_MS = 5 * 60 * 1000
@@ -66,9 +76,11 @@ export default function InboxPage() {
   const [agents, setAgents] = useState([])
   const [agentFilter, setAgentFilter] = useState(null)
   const [showAgentFilter, setShowAgentFilter] = useState(false)
+  const [regionFilter, setRegionFilter] = useState('all')
+  const [showRegionFilter, setShowRegionFilter] = useState(false)
   const [now, setNow] = useState(() => Date.now())
   const [workHours, setWorkHours] = useState(null)
-  const { newMessages, assignmentUpdates, socketConnected, waConnected, syncing } = useSocket()
+  const { newMessages, assignmentUpdates, conversationUpdates, socketConnected, waConnected, syncing } = useSocket()
   const [refreshing, setRefreshing] = useState(false)
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
@@ -195,6 +207,30 @@ export default function InboxPage() {
     if (needFetch && user?.role === 'agent') fetch()
   }, [assignmentUpdates, fetch, user])
 
+  // Regional / status bot lokasi berubah: update badge tanpa refetch
+  const processedConvUpdRef = useRef(null)
+  useEffect(() => {
+    if (processedConvUpdRef.current === null) { processedConvUpdRef.current = conversationUpdates.length; return }
+    const fresh = conversationUpdates.slice(processedConvUpdRef.current)
+    processedConvUpdRef.current = conversationUpdates.length
+    if (!fresh.length) return
+    setConversations(prev => prev.map(c => {
+      const evts = fresh.filter(e => String(e.conversationId) === String(c.id))
+      if (!evts.length) return c
+      let next = { ...c, contact: c.contact ? { ...c.contact } : c.contact }
+      for (const e of evts) {
+        if (e.region !== undefined) {
+          next.region = e.region
+          if (next.contact) next.contact.region = e.region
+        }
+        if (e.bot_state !== undefined) next.bot_state = e.bot_state
+        if (next.contact && e.city !== undefined) next.contact.city = e.city
+        if (next.contact && e.province !== undefined) next.contact.province = e.province
+      }
+      return next
+    }))
+  }, [conversationUpdates])
+
   useEffect(() => { getTags().then(d => setTags(Array.isArray(d) ? d : [])).catch(() => {}) }, [])
   useEffect(() => { getWorkHours().then(setWorkHours).catch(() => {}) }, [])
   useEffect(() => { if (!isAdmin) getMyAvailability().then(d => setMyAvailable(d?.available !== false)).catch(() => {}) }, [isAdmin])
@@ -255,7 +291,11 @@ export default function InboxPage() {
       const st = c.status || 'open'
       matchesLifecycle = st === lifecycleFilter
     }
-    return matchesSearch && matchesTag && matchesStatus && matchesLifecycle
+    let matchesRegion = true
+    if (regionFilter === 'barat' || regionFilter === 'timur') matchesRegion = chatRegion(c) === regionFilter
+    else if (regionFilter === 'unknown') matchesRegion = !chatRegion(c)
+    else if (regionFilter === 'bot') matchesRegion = c.bot_state === 'awaiting_location'
+    return matchesSearch && matchesTag && matchesStatus && matchesLifecycle && matchesRegion
   })
 
   // Urutkan: chat overdue (>5 menit) paling atas, yang paling lama menunggu duluan;
@@ -398,6 +438,24 @@ export default function InboxPage() {
               )}
             </div>
           )}
+          {isAdmin && (
+            <div className="cv-dd">
+              <button className={`cl-tagfilter-btn${regionFilter !== 'all' ? ' active' : ''}`} onClick={() => { setShowRegionFilter(s => !s); setShowTagFilter(false); setShowLifecycleFilter(false); setShowAgentFilter(false) }}>
+                <MapPin size={13} />
+                <span>{REGION_FILTER_OPTIONS.find(o => o.key === regionFilter)?.label || 'Semua Regional'}</span>
+                <ChevronDown size={12} />
+              </button>
+              {showRegionFilter && (
+                <div className="cv-menu" style={{ minWidth: 200, left: 'auto', right: 0 }}>
+                  {REGION_FILTER_OPTIONS.map(o => (
+                    <button key={o.key} className={`cv-mi${regionFilter === o.key ? ' active' : ''}`} onClick={() => { setRegionFilter(o.key); setShowRegionFilter(false) }}>
+                      {o.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -409,7 +467,7 @@ export default function InboxPage() {
           ))
         ) : sorted.length === 0 ? (
           <div className="cl-empty">
-            {search || statusFilter !== 'all' || activeTagFilter || agentFilter ? 'Tidak ditemukan' : 'Belum ada percakapan'}
+            {search || statusFilter !== 'all' || activeTagFilter || agentFilter || regionFilter !== 'all' ? 'Tidak ditemukan' : 'Belum ada percakapan'}
           </div>
         ) : (
           sorted.map(conv => {
@@ -458,6 +516,17 @@ export default function InboxPage() {
                   </div>
                   <div className="cl-tags-row">
                     <span className={`cl-status-badge st-${conv.status || 'open'}`}>{statusLabel(conv.status)}</span>
+                    {isAdmin && conv.bot_state === 'awaiting_location' && (
+                      <span className="cl-region-badge bot" title="Bot sedang menanyakan lokasi customer"><Bot size={10} />Bot bertanya</span>
+                    )}
+                    {isAdmin && conv.bot_state !== 'awaiting_location' && chatRegion(conv) && (
+                      <span className={`cl-region-badge ${chatRegion(conv)}`} title={[conv.contact?.city, conv.contact?.province].filter(Boolean).join(', ') || 'Regional'}>
+                        <MapPin size={10} />{chatRegion(conv) === 'barat' ? 'Barat' : 'Timur'}
+                      </span>
+                    )}
+                    {isAdmin && conv.bot_state === 'unresolved' && !chatRegion(conv) && (
+                      <span className="cl-region-badge unknown" title="Lokasi tidak terdeteksi — tentukan regional secara manual">Regional?</span>
+                    )}
                     {conv.tags?.slice(0, 3).map(t => (
                       <span key={t.id} className="tag-chip" style={{ background: t.color }}>{t.name}</span>
                     ))}
@@ -579,6 +648,12 @@ export default function InboxPage() {
         .cl-status-badge.st-in_progress { background: var(--primary-light); color: var(--primary); }
         .cl-status-badge.st-resolved { background: rgba(39,168,122,0.12); color: var(--success); }
         .cl-item.active .cl-status-badge { background: rgba(255,255,255,0.22); color: var(--on-primary); }
+        .cl-region-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 999px; white-space: nowrap; border: 1px solid transparent; }
+        .cl-region-badge.barat { color: #2563eb; background: rgba(37,99,235,0.12); border-color: rgba(37,99,235,0.3); }
+        .cl-region-badge.timur { color: #d97706; background: rgba(217,119,6,0.12); border-color: rgba(217,119,6,0.3); }
+        .cl-region-badge.bot { color: var(--primary); background: var(--primary-light); }
+        .cl-region-badge.unknown { color: var(--warning, #d08b28); background: rgba(208,139,40,0.12); border: 1px dashed rgba(208,139,40,0.5); }
+        .cl-item.active .cl-region-badge { background: rgba(255,255,255,0.22); color: var(--on-primary); border-color: transparent; }
         .cl-row-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
         .cl-unread-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--primary); flex-shrink: 0; }
         .cl-item.unread .cl-name { font-weight: 800; color: var(--text); }
@@ -588,8 +663,8 @@ export default function InboxPage() {
         .cl-statuschip { flex-shrink: 0; padding: 5px 11px; border-radius: 20px; font-size: 12px; font-weight: 500; color: var(--text2); background: var(--surface2); border: 1px solid var(--border); white-space: nowrap; transition: all 0.15s; }
         .cl-statuschip:hover { background: var(--surface3); }
         .cl-statuschip.active { background: var(--primary); color: var(--on-primary); border-color: var(--primary); }
-        .cl-tagfilter-row { gap: 6px; flex-wrap: nowrap; }
-        .cl-tagfilter-row .cv-dd { flex: 1 1 0; min-width: 0; }
+        .cl-tagfilter-row { gap: 6px; flex-wrap: wrap; }
+        .cl-tagfilter-row .cv-dd { flex: 1 1 calc(50% - 3px); min-width: 0; }
         .cl-tagfilter-btn { width: 100%; justify-content: center; padding: 6px 8px; }
         .cl-tagfilter-btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .cl-overdue-badge { display: inline-flex; align-items: center; gap: 2px; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 20px; background: var(--danger); color: var(--on-primary); white-space: nowrap; }

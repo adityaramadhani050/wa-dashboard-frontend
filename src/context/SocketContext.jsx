@@ -43,6 +43,7 @@ export function SocketProvider({ children }) {
   const [statusUpdates, setStatusUpdates] = useState([])
   const [messageUpdates, setMessageUpdates] = useState([])
   const [assignmentUpdates, setAssignmentUpdates] = useState([])
+  const [conversationUpdates, setConversationUpdates] = useState([])
   const [deletedMessages, setDeletedMessages] = useState([])
   const socketRef = useRef(null)
   const baseTitleRef = useRef('RenusPro Chat')
@@ -132,6 +133,8 @@ export function SocketProvider({ children }) {
     s.on('message_updated', (data) => setMessageUpdates(prev => [...prev.slice(-99), data]))
     // Chat ter-assign otomatis (auto-assign) — update badge agent realtime
     s.on('conversation_assigned', (data) => setAssignmentUpdates(prev => [...prev.slice(-99), data]))
+    // Regional / status bot lokasi berubah — update badge regional realtime
+    s.on('conversation_updated', (data) => setConversationUpdates(prev => [...prev.slice(-99), data]))
     // Pesan dihapus — hilangkan dari daftar secara realtime
     s.on('message_deleted', (data) => setDeletedMessages(prev => [...prev.slice(-99), data]))
 
@@ -143,7 +146,7 @@ export function SocketProvider({ children }) {
       socket, socketConnected, socketError,
       waConnected, syncing, qrCode, setQrCode,
       newMessages, clearNewMessages: () => setNewMessages([]),
-      statusUpdates, messageUpdates, assignmentUpdates, deletedMessages,
+      statusUpdates, messageUpdates, assignmentUpdates, conversationUpdates, deletedMessages,
     }}>
       {children}
     </SocketContext.Provider>

@@ -4,7 +4,7 @@ import { useSocket } from '../context/SocketContext'
 import { useAuth } from '../context/AuthContext'
 import {
   getMessages, sendMessage, sendMedia, assignAgent, unassignAgent, getConversation, getConversations, getAgents,
-  forwardMessage, deleteMessage, editMessage, sendLocation, sendContact,
+  forwardMessage, deleteMessage, editMessage, sendLocation, sendContact, setConversationRegion,
   getTemplates, getQuickMedia, sendQuickMedia, useTemplate,
   getTags, addTagToConversation, removeTagFromConversation,
   getContactNotes, createContactNote, createReminder, getContactConversations,
@@ -12,7 +12,7 @@ import {
 } from '../hooks/useApi'
 import { supabase } from '../lib/supabase'
 import PdfThumb, { isPdf } from '../components/PdfThumb'
-import { Send, ArrowLeft, ArrowDown, UserCheck, Paperclip, X, FileText, Play, Download, Check, Image, Film, Clock, Zap, Package, Tag as TagIcon, StickyNote, BellPlus, MoreVertical, Sparkles, Reply, Pencil, Forward, Search as SearchIcon, Trash2, Copy, MapPin, User } from 'lucide-react'
+import { Send, ArrowLeft, ArrowDown, UserCheck, Paperclip, X, FileText, Play, Download, Check, Image, Film, Clock, Zap, Package, Tag as TagIcon, StickyNote, BellPlus, MoreVertical, Sparkles, Reply, Pencil, Forward, Search as SearchIcon, Trash2, Copy, MapPin, User, Bot } from 'lucide-react'
 
 
 const MSG_PAGE = 60 // jumlah pesan per halaman (muat bertahap saat scroll ke atas)
@@ -558,7 +558,7 @@ export default function ChatPage({ chatId }) {
   const hasMoreRef = useRef(false)
   const prependingRef = useRef(false)
   const setHasMoreBoth = (v) => { hasMoreRef.current = v; setHasMore(v) }
-  const { newMessages, statusUpdates, messageUpdates, assignmentUpdates, deletedMessages } = useSocket()
+  const { newMessages, statusUpdates, messageUpdates, assignmentUpdates, conversationUpdates, deletedMessages } = useSocket()
   const [showScrollBtn, setShowScrollBtn] = useState(false)
 
   const fetchData = useCallback(async () => {
@@ -684,6 +684,23 @@ export default function ChatPage({ chatId }) {
       return { ...prev, agents: null, status: prev.status === 'in_progress' ? 'open' : prev.status }
     })
   }, [assignmentUpdates, id])
+
+  // Regional / status bot lokasi berubah (bot menjawab, admin mengganti regional)
+  useEffect(() => {
+    const relevant = (conversationUpdates || []).filter(u => String(u.conversationId) === String(id))
+    if (!relevant.length) return
+    setConversation(prev => {
+      if (!prev) return prev
+      let next = { ...prev, contact: prev.contact ? { ...prev.contact } : prev.contact }
+      for (const u of relevant) {
+        if (u.region !== undefined) { next.region = u.region; if (next.contact) next.contact.region = u.region }
+        if (u.bot_state !== undefined) next.bot_state = u.bot_state
+        if (next.contact && u.city !== undefined) next.contact.city = u.city
+        if (next.contact && u.province !== undefined) next.contact.province = u.province
+      }
+      return next
+    })
+  }, [conversationUpdates, id])
 
   const scrolledForRef = useRef(null)
 
@@ -940,6 +957,26 @@ export default function ChatPage({ chatId }) {
     finally { setSharing(false) }
   }
 
+  // Admin menentukan/mengganti regional chat -> bila belum ada agent, langsung
+  // diarahkan ke agent regional tsb (backend).
+  const [regionBusy, setRegionBusy] = useState(false)
+  const handleSetRegion = async (region) => {
+    if (regionBusy) return
+    setRegionBusy(true)
+    try {
+      const r = await setConversationRegion(id, region)
+      setConversation(p => p ? {
+        ...p, region, bot_state: 'done',
+        contact: p.contact ? { ...p.contact, region } : p.contact,
+        ...(r?.agent ? { agents: r.agent, status: 'in_progress' } : {}),
+      } : p)
+      window.dispatchEvent(new Event('cv:conversation-updated'))
+      setShowAgentMenu(false)
+    } catch (e) {
+      setError(e?.response?.data?.error || 'Gagal mengubah regional chat.')
+    } finally { setRegionBusy(false) }
+  }
+
   const handleAgentAssign = async (agent) => {
     closeMenus()
     try { await assignAgent(id, agent.id); setConversation(p => p ? { ...p, agents: agent, status: 'in_progress' } : p) }
@@ -1156,6 +1193,7 @@ export default function ChatPage({ chatId }) {
   const name = conversation?.contact?.name || conversation?.contact?.phone || 'Unknown'
   const phone = conversation?.contact?.manual_wa_number || cleanPhone(conversation?.contact?.phone)
   const assignedAgent = conversation?.agents
+  const chatRegionVal = conversation?.region || conversation?.contact?.region || null
 
   const messageItems = []
   let lastDateKey = null
@@ -1189,6 +1227,17 @@ export default function ChatPage({ chatId }) {
             )}
             {isAdmin && assignedAgent && <span className="cv-assigned"><UserCheck size={10} />{assignedAgent.name}</span>}
             {isAdmin && !assignedAgent && <span className="cv-unassigned">Unassigned</span>}
+            {isAdmin && conversation?.bot_state === 'awaiting_location' && (
+              <span className="cv-region-badge bot"><Bot size={10} />Bot bertanya lokasi</span>
+            )}
+            {isAdmin && conversation?.bot_state !== 'awaiting_location' && chatRegionVal && (
+              <span className={`cv-region-badge ${chatRegionVal}`} title={[conversation?.contact?.city, conversation?.contact?.province].filter(Boolean).join(', ') || undefined}>
+                <MapPin size={10} />{chatRegionVal === 'barat' ? 'Barat' : 'Timur'}{conversation?.contact?.city ? ` · ${conversation.contact.city}` : ''}
+              </span>
+            )}
+            {isAdmin && conversation?.bot_state === 'unresolved' && !chatRegionVal && (
+              <span className="cv-region-badge unknown" title="Lokasi tidak terdeteksi — tentukan lewat menu Assign">Regional?</span>
+            )}
             {conversationTags.map(t => (
               <span key={t.id} className="tag-chip" style={{ background: t.color }}>{t.name}</span>
             ))}
@@ -1211,7 +1260,9 @@ export default function ChatPage({ chatId }) {
                     : agents.map(a => (
                       <button key={a.id} className={`cv-mi${assignedAgent?.id === a.id ? ' active' : ''}`} onClick={() => handleAgentAssign(a)}>
                         <span>{a.name}</span>
-                        <span className="cv-mi-sub">{a.username ? `@${a.username}` : a.email}</span>
+                        <span className="cv-mi-sub">
+                          {a.region ? `${a.region === 'barat' ? 'Barat' : 'Timur'} · ` : ''}{a.username ? `@${a.username}` : a.email}
+                        </span>
                       </button>
                     ))
                   }
@@ -1220,6 +1271,18 @@ export default function ChatPage({ chatId }) {
                       <span><X size={13} style={{verticalAlign:-2,marginRight:5}} />Hapus assign</span>
                     </button>
                   )}
+                  <div className="cv-menu-lbl">Regional chat</div>
+                  <div className="cv-region-pick">
+                    {['barat', 'timur'].map(r => (
+                      <button
+                        key={r}
+                        className={`cv-region-opt ${r}${chatRegionVal === r ? ' active' : ''}`}
+                        disabled={regionBusy}
+                        onClick={() => handleSetRegion(r)}
+                        title={assignedAgent ? 'Ubah regional chat' : 'Tentukan regional & bagikan ke agent regional tsb'}
+                      >{r === 'barat' ? 'Barat' : 'Timur'}</button>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -1769,6 +1832,16 @@ export default function ChatPage({ chatId }) {
         .cv-name { font-size: 14px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .cv-sub { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 1px; }
         .cv-assigned { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 10px; background: rgba(39,168,122,0.1); color: var(--success); }
+        .cv-region-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 10px; white-space: nowrap; }
+        .cv-region-badge.barat { color: #2563eb; background: rgba(37,99,235,0.12); }
+        .cv-region-badge.timur { color: #d97706; background: rgba(217,119,6,0.12); }
+        .cv-region-badge.bot { color: var(--primary); background: var(--primary-light); }
+        .cv-region-badge.unknown { color: var(--warning, #d08b28); background: rgba(208,139,40,0.12); border: 1px dashed rgba(208,139,40,0.5); }
+        .cv-region-pick { display: flex; gap: 6px; padding: 4px 10px 10px; }
+        .cv-region-opt { flex: 1; padding: 6px 0; border-radius: 8px; font-size: 12.5px; font-weight: 600; border: 1px solid var(--border); background: var(--surface2); color: var(--text2); transition: all 0.15s; }
+        .cv-region-opt.barat.active, .cv-region-opt.barat:hover { color: #2563eb; border-color: rgba(37,99,235,0.5); background: rgba(37,99,235,0.1); }
+        .cv-region-opt.timur.active, .cv-region-opt.timur:hover { color: #d97706; border-color: rgba(217,119,6,0.5); background: rgba(217,119,6,0.1); }
+        .cv-region-opt:disabled { opacity: 0.6; cursor: not-allowed; }
         .cv-unassigned { font-size: 11px; padding: 1px 7px; border-radius: 10px; background: rgba(208,139,40,0.1); color: var(--warning); }
         .cv-status-badge { font-size: 11px; font-weight: 600; padding: 1px 8px; border-radius: 10px; }
         .cv-status-badge.st-open { background: rgba(208,139,40,0.12); color: var(--warning); }

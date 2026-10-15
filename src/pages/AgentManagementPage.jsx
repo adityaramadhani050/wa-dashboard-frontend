@@ -1,6 +1,20 @@
 import { useState, useEffect, useCallback } from 'react'
-import { getAgents, createAgent, updateAgent, deleteAgent, getAutoAssign, setAutoAssign, generateBotToken, getWorkHours, setWorkHours, setAgentAvailability, cleanupMedia } from '../hooks/useApi'
-import { Plus, Pencil, Trash2, X, Eye, EyeOff, Users, Shuffle, KeyRound, Copy, Check, Clock, HardDrive } from 'lucide-react'
+import { getAgents, createAgent, updateAgent, deleteAgent, getAutoAssign, setAutoAssign, generateBotToken, getWorkHours, setWorkHours, setAgentAvailability, cleanupMedia, getRegionalRouting, setRegionalRouting, setAgentRegion } from '../hooks/useApi'
+import { Plus, Pencil, Trash2, X, Eye, EyeOff, Users, Shuffle, KeyRound, Copy, Check, Clock, HardDrive, MapPin, AlertTriangle } from 'lucide-react'
+
+const REGION_OPTIONS = [
+  { value: '', label: '— Belum diatur' },
+  { value: 'barat', label: 'Barat' },
+  { value: 'timur', label: 'Timur' },
+]
+
+// Pesan bot yang bisa diubah admin (urut sesuai alur bot)
+const BOT_MESSAGES = [
+  { key: 'msg_ask', label: 'Pertanyaan lokasi', hint: 'Dikirim ke nomor baru. Variabel: {{nama}}' },
+  { key: 'msg_retry', label: 'Tanya ulang', hint: 'Bila jawaban pertama tidak dikenali. Variabel: {{nama}}' },
+  { key: 'msg_confirm', label: 'Konfirmasi regional', hint: 'Setelah lokasi terdeteksi. Variabel: {{nama}}, {{regional}}' },
+  { key: 'msg_fail', label: 'Lokasi tidak terdeteksi', hint: 'Sebelum masuk antrian admin. Variabel: {{nama}}' },
+]
 
 const WEEKDAYS = [
   { d: 1, label: 'Sen' }, { d: 2, label: 'Sel' }, { d: 3, label: 'Rab' },
@@ -209,6 +223,46 @@ export default function AgentManagementPage() {
     } finally { setAvailBusy(null) }
   }
 
+  // ── Regional agent ────────────────────────────────────────────────────────
+  const [regionBusy, setRegionBusy] = useState(null)
+  const handleChangeAgentRegion = async (agent, region) => {
+    if (regionBusy) return
+    setRegionBusy(agent.id)
+    try {
+      await setAgentRegion(agent.id, region)
+      setAgents(prev => prev.map(a => a.id === agent.id ? { ...a, region: region || null } : a))
+      getRegionalRouting().then(d => setRr(prev => prev ? { ...prev, status: d.status } : prev)).catch(() => {})
+    } catch (e) {
+      alert(e?.response?.data?.error || 'Gagal mengubah regional agent. Pastikan SQL migrasi regional sudah dijalankan.')
+    } finally { setRegionBusy(null) }
+  }
+
+  // ── Routing regional (bot tanya lokasi) ──────────────────────────────────
+  const [rr, setRr] = useState(null)
+  const [rrBusy, setRrBusy] = useState(false)
+  const [rrSaved, setRrSaved] = useState(false)
+  const [rrError, setRrError] = useState('')
+  const toRrState = (d) => ({ ...d, internal_numbers: (d.internal_numbers || []).join('\n') })
+  useEffect(() => { getRegionalRouting().then(d => setRr(toRrState(d))).catch(() => {}) }, [])
+
+  const saveRegional = async (patch = {}) => {
+    if (!rr || rrBusy) return
+    setRrBusy(true); setRrError(''); setRrSaved(false)
+    try {
+      const next = { ...rr, ...patch }
+      const d = await setRegionalRouting({
+        enabled: next.enabled,
+        timeout_minutes: next.timeout_minutes,
+        internal_numbers: next.internal_numbers,
+        msg_ask: next.msg_ask, msg_retry: next.msg_retry, msg_confirm: next.msg_confirm, msg_fail: next.msg_fail,
+      })
+      setRr(toRrState(d))
+      setRrSaved(true); setTimeout(() => setRrSaved(false), 2000)
+    } catch (e) {
+      setRrError(e?.response?.data?.error || 'Gagal menyimpan pengaturan routing regional')
+    } finally { setRrBusy(false) }
+  }
+
   const handleGenerateBotToken = async () => {
     if (botTokenBusy) return
     setBotTokenBusy(true); setBotTokenError(''); setBotTokenCopied(false)
@@ -396,6 +450,79 @@ export default function AgentManagementPage() {
           </div>
         </div>
       </div>
+
+      <div className="aa-card rr-card">
+        <div className="aa-info">
+          <div className="aa-icon"><MapPin size={18} /></div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="rr-head">
+              <div>
+                <div className="aa-title">Routing Regional (Barat / Timur)</div>
+                <div className="aa-desc">Bot menanyakan kota customer baru, lalu chat diarahkan ke agent regional yang sesuai. Customer lama kembali ke agent terakhirnya.</div>
+              </div>
+              {rr && (
+                <button
+                  className={`aa-switch${rr.enabled ? ' on' : ''}`}
+                  onClick={() => saveRegional({ enabled: !rr.enabled })}
+                  disabled={rrBusy || rr.status?.migrated === false}
+                  role="switch"
+                  aria-checked={!!rr.enabled}
+                  title={rr.enabled ? 'Nonaktifkan routing regional' : 'Aktifkan routing regional'}
+                ><span className="aa-knob" /></button>
+              )}
+            </div>
+
+            {rr && (
+              <div className="rr-body">
+                <div className="rr-status">
+                  <span className="rr-chip barat">Barat: {rr.status?.per_region?.barat ?? 0} agent tersedia</span>
+                  <span className="rr-chip timur">Timur: {rr.status?.per_region?.timur ?? 0} agent tersedia</span>
+                </div>
+                {rr.status?.migrated === false && (
+                  <div className="rr-warn"><AlertTriangle size={14} /> Kolom database regional belum ada. Jalankan SQL migrasi regional di Supabase terlebih dahulu.</div>
+                )}
+                {rr.status?.agents_without_region?.length > 0 && (
+                  <div className="rr-warn"><AlertTriangle size={14} /> Agent belum diberi regional (tidak akan menerima lead baru): {rr.status.agents_without_region.join(', ')}</div>
+                )}
+                {rr.enabled && !autoAssign && (
+                  <div className="rr-warn"><AlertTriangle size={14} /> Auto-assign sedang mati: bot tetap bertanya & menyimpan regional, tetapi chat tidak dibagikan otomatis.</div>
+                )}
+
+                <div className="rr-grid">
+                  <label className="rr-field">
+                    <span>Batas waktu menunggu jawaban (menit)</span>
+                    <input type="number" min="5" max="1440" value={rr.timeout_minutes}
+                      onChange={e => setRr({ ...rr, timeout_minutes: e.target.value })} />
+                    <small>Tidak dijawab dalam waktu ini → masuk antrian admin.</small>
+                  </label>
+                  <label className="rr-field">
+                    <span>Nomor internal (tidak ditanya bot)</span>
+                    <textarea rows={3} value={rr.internal_numbers}
+                      placeholder={'Satu nomor per baris, mis.\n081234567890'}
+                      onChange={e => setRr({ ...rr, internal_numbers: e.target.value })} />
+                    <small>Staf, teknisi, penerima notifikasi RenusPro. Grup WA otomatis dikecualikan.</small>
+                  </label>
+                </div>
+
+                <div className="rr-msgs">
+                  {BOT_MESSAGES.map(m => (
+                    <label key={m.key} className="rr-field">
+                      <span>{m.label}</span>
+                      <textarea rows={3} value={rr[m.key] || ''} onChange={e => setRr({ ...rr, [m.key]: e.target.value })} />
+                      <small>{m.hint}</small>
+                    </label>
+                  ))}
+                </div>
+
+                {rrError && <div className="am-form-err">{rrError}</div>}
+                <button className="am-btn primary" onClick={() => saveRegional()} disabled={rrBusy}>
+                  {rrSaved ? <><Check size={15} /> Tersimpan</> : rrBusy ? 'Menyimpan...' : 'Simpan Pengaturan Regional'}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
       </div>
 
       <div className="am-table-box">
@@ -417,6 +544,7 @@ export default function AgentManagementPage() {
                   <th>Username</th>
                   <th>Email</th>
                   <th>Role</th>
+                  <th>Regional</th>
                   <th>Ketersediaan</th>
                   <th>Dibuat</th>
                   <th>Aksi</th>
@@ -434,6 +562,18 @@ export default function AgentManagementPage() {
                     <td><span className="am-username">@{a.username || '—'}</span></td>
                     <td className="am-email">{a.email || <span style={{color:'var(--muted)'}}>-</span>}</td>
                     <td>{roleBadge(a.role)}</td>
+                    <td>
+                      {a.role === 'agent' ? (
+                        <select
+                          className={`am-region-select${a.region ? ` ${a.region}` : ' none'}`}
+                          value={a.region || ''}
+                          disabled={regionBusy === a.id}
+                          onChange={e => handleChangeAgentRegion(a, e.target.value)}
+                        >
+                          {REGION_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                        </select>
+                      ) : <span style={{ color: 'var(--muted)' }}>—</span>}
+                    </td>
                     <td>
                       {a.role === 'agent' ? (
                         <div className="am-avail">
@@ -525,6 +665,28 @@ export default function AgentManagementPage() {
         .am-header p { font-size: 13px; color: var(--text2); }
         .aa-card { display: flex; align-items: center; justify-content: space-between; gap: 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; margin-bottom: 18px; box-shadow: var(--shadow); }
         .aa-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 18px; align-items: start; }
+        .aa-grid .rr-card { grid-column: 1 / -1; align-items: flex-start; }
+        .rr-card > .aa-info { flex: 1; width: 100%; }
+        .rr-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+        .rr-body { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; align-items: flex-start; }
+        .rr-status { display: flex; gap: 8px; flex-wrap: wrap; }
+        .rr-chip { font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border); }
+        .rr-chip.barat { color: #2563eb; background: rgba(37,99,235,0.1); border-color: rgba(37,99,235,0.3); }
+        .rr-chip.timur { color: #d97706; background: rgba(217,119,6,0.1); border-color: rgba(217,119,6,0.3); }
+        .rr-warn { display: flex; align-items: flex-start; gap: 7px; font-size: 12.5px; line-height: 1.5; color: var(--warning, #d08b28); background: rgba(208,139,40,0.1); border: 1px solid rgba(208,139,40,0.3); border-radius: 8px; padding: 8px 10px; width: 100%; }
+        .rr-warn svg { flex-shrink: 0; margin-top: 2px; }
+        .rr-grid, .rr-msgs { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%; }
+        .rr-field { display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; }
+        .rr-field > span { font-weight: 600; color: var(--text2); }
+        .rr-field input, .rr-field textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface2); color: var(--text); font-size: 13px; font-family: inherit; resize: vertical; }
+        .rr-field input:focus, .rr-field textarea:focus { outline: none; border-color: var(--primary); }
+        .rr-field small { color: var(--muted); font-size: 11.5px; }
+        .am-region-select { padding: 5px 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface2); color: var(--text); font-size: 12.5px; font-weight: 600; cursor: pointer; }
+        .am-region-select.barat { color: #2563eb; border-color: rgba(37,99,235,0.4); }
+        .am-region-select.timur { color: #d97706; border-color: rgba(217,119,6,0.4); }
+        .am-region-select.none { color: var(--warning, #d08b28); border-style: dashed; }
+        .am-region-select:disabled { opacity: 0.6; cursor: not-allowed; }
+        @media (max-width: 860px) { .rr-grid, .rr-msgs { grid-template-columns: 1fr; } }
         .aa-grid .aa-card { margin-bottom: 0; height: 100%; }
         @media (max-width: 860px) { .aa-grid { grid-template-columns: 1fr; } }
         .bt-result { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; margin-bottom: 18px; margin-top: -8px; box-shadow: var(--shadow); }
