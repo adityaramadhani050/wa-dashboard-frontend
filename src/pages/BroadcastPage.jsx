@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   Megaphone, ArrowLeft, Search, Send, Clock, Users, Image as ImageIcon,
-  Play, Pause, X, CheckCircle2, AlertCircle, RefreshCw, Calendar, MessageSquareText, Trash2,
+  Play, Pause, X, CheckCircle2, AlertCircle, RefreshCw, Calendar, MessageSquareText, Trash2, MapPin,
 } from 'lucide-react'
 import PdfThumb, { isPdf } from '../components/PdfThumb'
 import {
@@ -241,6 +241,7 @@ function CreateWizard({ onBack, onCreated }) {
   const [loadingCand, setLoadingCand] = useState(false)
   const [selected, setSelected] = useState(() => new Set())
   const [search, setSearch] = useState('')
+  const [regionFilter, setRegionFilter] = useState('all') // all | barat | timur | none
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
@@ -263,10 +264,15 @@ function CreateWizard({ onBack, onCreated }) {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
-    if (!q) return candidates
-    return candidates.filter(c =>
-      (c.name || '').toLowerCase().includes(q) || (c.phone || '').includes(q))
-  }, [candidates, search])
+    return candidates.filter(c => {
+      if (regionFilter === 'none' ? !!c.region : regionFilter !== 'all' && c.region !== regionFilter) return false
+      if (!q) return true
+      return (c.name || '').toLowerCase().includes(q) || (c.phone || '').includes(q) || (c.city || '').toLowerCase().includes(q)
+    })
+  }, [candidates, search, regionFilter])
+
+  const regionCount = (key) => key === 'all' ? candidates.length
+    : candidates.filter(c => key === 'none' ? !c.region : c.region === key).length
 
   const selectableAll = () => {
     const next = new Set(selected)
@@ -358,10 +364,17 @@ function CreateWizard({ onBack, onCreated }) {
 
           <div className="bc-field">
             <label>Penerima <span className="bc-hint">chat <b>Resolved</b> (bukan Non-Client) · dalam cooldown tak bisa dipilih · dipilih <b>{chosen.length}</b></span></label>
+            <div className="bc-region-chips">
+              {[['all', 'Semua'], ['barat', 'Barat'], ['timur', 'Timur'], ['none', 'Belum diatur']].map(([k, l]) => (
+                <button key={k} type="button" className={`bc-region-chip ${k}${regionFilter === k ? ' active' : ''}`} onClick={() => setRegionFilter(k)}>
+                  {k !== 'all' && k !== 'none' && <MapPin size={11} />}{l}<span className="bc-region-count">{regionCount(k)}</span>
+                </button>
+              ))}
+            </div>
             <div className="bc-recip-toolbar">
               <div className="bc-search">
                 <Search size={15} />
-                <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Cari nama / nomor…" />
+                <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Cari nama / nomor / kota…" />
               </div>
               <button type="button" className="bc-btn ghost sm" onClick={selectableAll}>Pilih semua yang boleh</button>
               <button type="button" className="bc-btn ghost sm" onClick={clearAll}>Kosongkan</button>
@@ -378,8 +391,9 @@ function CreateWizard({ onBack, onCreated }) {
                       checked={selected.has(c.wa_jid)} onChange={() => toggle(c.wa_jid)} />
                     <div className="bc-cand-info">
                       <span className="bc-cand-name">{c.name || c.phone}</span>
-                      <span className="bc-cand-phone">{c.phone}</span>
+                      <span className="bc-cand-phone">{c.phone}{c.city ? ` · ${c.city}` : ''}</span>
                     </div>
+                    {c.region && <span className={`bc-cand-region ${c.region}`}>{c.region === 'barat' ? 'Barat' : 'Timur'}</span>}
                     {c.on_cooldown
                       ? <span className="bc-cand-cd"><Clock size={12} /> cooldown s/d {fmtDate(c.cooldown_until)}</span>
                       : <span className="bc-cand-ok">boleh</span>}
@@ -576,6 +590,16 @@ const BC_CSS = `
 .bc-cand-info { display: flex; flex-direction: column; min-width: 0; flex: 1; }
 .bc-cand-name { font-size: 13px; font-weight: 600; color: var(--text); }
 .bc-cand-phone { font-size: 11.5px; color: var(--muted); }
+.bc-region-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.bc-region-chip { display: inline-flex; align-items: center; gap: 5px; padding: 5px 11px; border-radius: 999px; font-size: 12px; font-weight: 600; color: var(--text2); background: var(--surface); border: 1px solid var(--border); }
+.bc-region-chip.active { background: var(--primary); color: var(--on-primary); border-color: var(--primary); }
+.bc-region-chip.barat.active { background: #2563eb; border-color: #2563eb; }
+.bc-region-chip.timur.active { background: #d97706; border-color: #d97706; }
+.bc-region-count { font-size: 10.5px; font-weight: 700; padding: 0 6px; border-radius: 999px; background: var(--surface3); color: var(--text2); }
+.bc-region-chip.active .bc-region-count { background: rgba(255,255,255,0.25); color: #fff; }
+.bc-cand-region { font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px; flex-shrink: 0; }
+.bc-cand-region.barat { color: #2563eb; background: rgba(37,99,235,0.12); }
+.bc-cand-region.timur { color: #d97706; background: rgba(217,119,6,0.12); }
 .bc-cand-cd { font-size: 11px; color: #b57414; display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; }
 .bc-cand-ok { font-size: 11px; color: #128a5a; flex-shrink: 0; }
 .bc-review-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }

@@ -516,20 +516,23 @@ export default function InboxPage() {
                   </div>
                   <div className="cl-tags-row">
                     <span className={`cl-status-badge st-${conv.status || 'open'}`}>{statusLabel(conv.status)}</span>
-                    {isAdmin && conv.bot_state === 'awaiting_location' && (
-                      <span className="cl-region-badge bot" title="Bot sedang menanyakan lokasi customer"><Bot size={10} />Bot bertanya</span>
-                    )}
-                    {isAdmin && conv.bot_state !== 'awaiting_location' && chatRegion(conv) && (
-                      <span className={`cl-region-badge ${chatRegion(conv)}`} title={[conv.contact?.city, conv.contact?.province].filter(Boolean).join(', ') || 'Regional'}>
-                        <MapPin size={10} />{chatRegion(conv) === 'barat' ? 'Barat' : 'Timur'}
-                      </span>
-                    )}
-                    {isAdmin && conv.bot_state === 'unresolved' && !chatRegion(conv) && (
-                      <span className="cl-region-badge unknown" title="Lokasi tidak terdeteksi — tentukan regional secara manual">Regional?</span>
-                    )}
                     {conv.tags?.slice(0, 3).map(t => (
                       <span key={t.id} className="tag-chip" style={{ background: t.color }}>{t.name}</span>
                     ))}
+                    {/* Kolom kanan: badge regional tepat di bawah badge nama agent */}
+                    {isAdmin && (conv.bot_state === 'awaiting_location' || chatRegion(conv) || conv.bot_state === 'unresolved') && (
+                      <span className="cl-region-slot">
+                        {conv.bot_state === 'awaiting_location' ? (
+                          <span className="cl-region-badge bot" title="Bot sedang menanyakan lokasi customer"><Bot size={10} />Bot bertanya</span>
+                        ) : chatRegion(conv) ? (
+                          <span className={`cl-region-badge ${chatRegion(conv)}`} title={[conv.contact?.city, conv.contact?.province].filter(Boolean).join(', ') || 'Regional'}>
+                            <MapPin size={10} />{chatRegion(conv) === 'barat' ? 'Barat' : 'Timur'}
+                          </span>
+                        ) : (
+                          <span className="cl-region-badge unknown" title="Lokasi tidak terdeteksi — tentukan regional secara manual">Regional?</span>
+                        )}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -642,6 +645,7 @@ export default function InboxPage() {
         .cv-mi:hover { background: var(--surface3); }
         .cv-mi.active { background: var(--primary-light); color: var(--primary); }
         .cl-tags-row { display: flex; gap: 4px; margin-top: 4px; flex-wrap: wrap; align-items: center; }
+        .cl-region-slot { margin-left: auto; display: inline-flex; flex-shrink: 0; }
         .tag-chip { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 600; color: var(--on-primary); white-space: nowrap; }
         .cl-status-badge { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
         .cl-status-badge.st-open { background: rgba(208,139,40,0.12); color: var(--warning); }

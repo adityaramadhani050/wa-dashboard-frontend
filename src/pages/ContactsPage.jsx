@@ -1,7 +1,24 @@
 import { useState, useEffect } from 'react'
-import { getContacts, updateContact } from '../hooks/useApi'
+import { getContacts, updateContact, bulkSetContactRegion } from '../hooks/useApi'
 import { useAuth } from '../context/AuthContext'
-import { Search, Users, Phone, Calendar, Clock, EyeOff, Pencil, X } from 'lucide-react'
+import { Search, Users, Phone, Calendar, Clock, EyeOff, Pencil, X, MapPin } from 'lucide-react'
+
+const REGION_LABEL = { barat: 'Barat', timur: 'Timur' }
+const REGION_FILTERS = [
+  { key: 'all', label: 'Semua' },
+  { key: 'barat', label: 'Barat' },
+  { key: 'timur', label: 'Timur' },
+  { key: 'none', label: 'Belum diatur' },
+]
+
+function RegionBadge({ region }) {
+  if (!region) return <span className="ct-region none">Belum diatur</span>
+  return <span className={`ct-region ${region}`}><MapPin size={11} />{REGION_LABEL[region] || region}</span>
+}
+
+function locationText(c) {
+  return [c.city, c.province].filter(Boolean).join(', ')
+}
 
 function formatDateTime(dateStr) {
   if (!dateStr) return '-'
@@ -46,9 +63,11 @@ function Avatar({ name }) {
   )
 }
 
-function EditContactModal({ contact, onClose, onSaved }) {
+function EditContactModal({ contact, onClose, onSaved, isAdmin }) {
   const [name, setName] = useState(contact.name || '')
   const [manualWa, setManualWa] = useState(contact.manual_wa_number || '')
+  const [city, setCity] = useState(contact.city || '')
+  const [region, setRegion] = useState(contact.region || '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -56,7 +75,12 @@ function EditContactModal({ contact, onClose, onSaved }) {
     e.preventDefault()
     setSaving(true); setError('')
     try {
-      const updated = await updateContact(contact.id, { name, manual_wa_number: manualWa })
+      const payload = { name, manual_wa_number: manualWa }
+      if (isAdmin) {
+        if ((contact.region || '') !== region) payload.region = region || null
+        if ((contact.city || '') !== city) payload.city = city
+      }
+      const updated = await updateContact(contact.id, payload)
       onSaved(updated)
       onClose()
     } catch (err) {
@@ -81,6 +105,23 @@ function EditContactModal({ contact, onClose, onSaved }) {
             <input value={manualWa} onChange={e => setManualWa(e.target.value)} placeholder="Contoh: 6281234567890" />
             <span className="ct-field-hint">Untuk referensi sales, tidak memengaruhi pengiriman pesan otomatis.</span>
           </div>
+          {isAdmin && (
+            <>
+              <div className="ct-field">
+                <label>Kota / Kabupaten</label>
+                <input value={city} onChange={e => setCity(e.target.value)} placeholder="Contoh: Malang" />
+              </div>
+              <div className="ct-field">
+                <label>Regional</label>
+                <select value={region} onChange={e => setRegion(e.target.value)}>
+                  <option value="">— Belum diatur</option>
+                  <option value="barat">Barat</option>
+                  <option value="timur">Timur</option>
+                </select>
+                <span className="ct-field-hint">Chat kontak ini berikutnya diarahkan ke agent regional tsb.</span>
+              </div>
+            </>
+          )}
           {error && <div className="ct-form-err">{error}</div>}
           <div className="ct-form-actions">
             <button type="button" className="ct-btn secondary" onClick={onClose}>Batal</button>
@@ -100,7 +141,11 @@ export default function ContactsPage() {
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
   const [editTarget, setEditTarget] = useState(null)
+  const [regionFilter, setRegionFilter] = useState('all')
+  const [selected, setSelected] = useState(() => new Set())
+  const [bulkBusy, setBulkBusy] = useState(false)
   const { user } = useAuth()
+  const isAdmin = user?.role === 'admin'
 
   useEffect(() => {
     const agentId = user?.role === 'agent' ? user.id : null
@@ -114,16 +159,53 @@ export default function ContactsPage() {
     setContacts(prev => prev.map(c => c.id === updated.id ? { ...c, ...updated } : c))
   }
 
+  const regionCounts = contacts.reduce((acc, c) => {
+    acc[c.region || 'none'] = (acc[c.region || 'none'] || 0) + 1
+    return acc
+  }, {})
+
   const filtered = contacts.filter(c => {
+    if (regionFilter === 'none' ? !!c.region : regionFilter !== 'all' && c.region !== regionFilter) return false
     if (!search.trim()) return true
     const q = search.toLowerCase()
     const phone = cleanPhone(c.phone) || ''
     return (
       c.name?.toLowerCase().includes(q) ||
       phone.includes(q) ||
-      c.manual_wa_number?.toLowerCase().includes(q)
+      c.manual_wa_number?.toLowerCase().includes(q) ||
+      c.city?.toLowerCase().includes(q) ||
+      c.province?.toLowerCase().includes(q)
     )
   })
+
+  // ── Pilih banyak & ubah regional sekaligus (admin) ──
+  const allFilteredSelected = filtered.length > 0 && filtered.every(c => selected.has(c.id))
+  const toggleOne = (id) => setSelected(prev => {
+    const next = new Set(prev)
+    next.has(id) ? next.delete(id) : next.add(id)
+    return next
+  })
+  const toggleAllFiltered = () => setSelected(prev => {
+    const next = new Set(prev)
+    if (allFilteredSelected) filtered.forEach(c => next.delete(c.id))
+    else filtered.forEach(c => next.add(c.id))
+    return next
+  })
+  const applyBulkRegion = async (region) => {
+    if (!selected.size || bulkBusy) return
+    const label = region ? `Regional ${REGION_LABEL[region]}` : 'tanpa regional'
+    if (!window.confirm(`Ubah ${selected.size} kontak menjadi ${label}?`)) return
+    setBulkBusy(true)
+    try {
+      const ids = [...selected]
+      await bulkSetContactRegion(ids, region)
+      const idSet = new Set(ids)
+      setContacts(prev => prev.map(c => idSet.has(c.id) ? { ...c, region } : c))
+      setSelected(new Set())
+    } catch (e) {
+      alert(e?.response?.data?.error || 'Gagal mengubah regional kontak. Pastikan SQL migrasi regional sudah dijalankan.')
+    } finally { setBulkBusy(false) }
+  }
 
   return (
     <div className="ct-root">
@@ -140,7 +222,7 @@ export default function ContactsPage() {
           <Search size={15} className="ct-search-icon" />
           <input
             className="ct-search"
-            placeholder="Cari nama atau nomor..."
+            placeholder="Cari nama, nomor, atau kota..."
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
@@ -150,6 +232,30 @@ export default function ContactsPage() {
       {/* Content */}
       <div className="ct-body">
         {error && <div className="ct-error">{error}</div>}
+
+        <div className="ct-toolbar">
+          <div className="ct-region-filters">
+            {REGION_FILTERS.map(f => (
+              <button
+                key={f.key}
+                className={`ct-chip${regionFilter === f.key ? ' active' : ''}`}
+                onClick={() => setRegionFilter(f.key)}
+              >
+                {f.label}
+                <span className="ct-chip-count">{f.key === 'all' ? contacts.length : (regionCounts[f.key] || 0)}</span>
+              </button>
+            ))}
+          </div>
+          {isAdmin && selected.size > 0 && (
+            <div className="ct-bulk">
+              <span className="ct-bulk-count">{selected.size} dipilih</span>
+              <button className="ct-bulk-btn barat" disabled={bulkBusy} onClick={() => applyBulkRegion('barat')}>Jadikan Barat</button>
+              <button className="ct-bulk-btn timur" disabled={bulkBusy} onClick={() => applyBulkRegion('timur')}>Jadikan Timur</button>
+              <button className="ct-bulk-btn" disabled={bulkBusy} onClick={() => applyBulkRegion(null)}>Kosongkan</button>
+              <button className="ct-bulk-btn ghost" disabled={bulkBusy} onClick={() => setSelected(new Set())}>Batal</button>
+            </div>
+          )}
+        </div>
 
         {loading ? (
           <div className="ct-skel-list">
@@ -169,9 +275,16 @@ export default function ContactsPage() {
               <table className="ct-table">
                 <thead>
                   <tr>
+                    {isAdmin && (
+                      <th className="ct-check-col">
+                        <input type="checkbox" checked={allFilteredSelected} onChange={toggleAllFiltered} title="Pilih semua yang tampil" />
+                      </th>
+                    )}
                     <th>Nama</th>
                     <th><Phone size={13} style={{marginRight:4,verticalAlign:'middle'}}/>LID</th>
                     <th><Phone size={13} style={{marginRight:4,verticalAlign:'middle'}}/>No WA</th>
+                    <th><MapPin size={13} style={{marginRight:4,verticalAlign:'middle'}}/>Lokasi</th>
+                    <th>Regional</th>
                     <th><Calendar size={13} style={{marginRight:4,verticalAlign:'middle'}}/>Pertama Chat</th>
                     <th><Clock size={13} style={{marginRight:4,verticalAlign:'middle'}}/>Terakhir Chat</th>
                     <th>Aksi</th>
@@ -179,7 +292,12 @@ export default function ContactsPage() {
                 </thead>
                 <tbody>
                   {filtered.map(c => (
-                    <tr key={c.id}>
+                    <tr key={c.id} className={selected.has(c.id) ? 'selected' : ''}>
+                      {isAdmin && (
+                        <td className="ct-check-col">
+                          <input type="checkbox" checked={selected.has(c.id)} onChange={() => toggleOne(c.id)} />
+                        </td>
+                      )}
                       <td>
                         <div className="ct-name-cell">
                           <Avatar name={c.name} />
@@ -190,6 +308,10 @@ export default function ContactsPage() {
                       <td>{c.manual_wa_number
                         ? <span className="ct-phone">{c.manual_wa_number}</span>
                         : <span className="ct-no-wa">—</span>}</td>
+                      <td>{locationText(c)
+                        ? <span className="ct-location">{locationText(c)}</span>
+                        : <span className="ct-no-wa">—</span>}</td>
+                      <td><RegionBadge region={c.region} /></td>
                       <td><span className="ct-date">{formatDateTime(c.first_seen)}</span></td>
                       <td><span className="ct-date">{formatDateTime(c.last_message_at)}</span></td>
                       <td>
@@ -219,6 +341,10 @@ export default function ContactsPage() {
                         ? <span className="ct-phone">{c.manual_wa_number}</span>
                         : <span className="ct-no-wa">—</span>}
                     </div>
+                    <div className="ct-card-phone-wrap">
+                      <RegionBadge region={c.region} />
+                      {locationText(c) && <span className="ct-location">{locationText(c)}</span>}
+                    </div>
                     <div className="ct-card-dates">
                       <span><Calendar size={11} /> {formatDateTime(c.first_seen)}</span>
                       <span><Clock size={11} /> {formatDateTime(c.last_message_at)}</span>
@@ -239,6 +365,7 @@ export default function ContactsPage() {
           contact={editTarget}
           onClose={() => setEditTarget(null)}
           onSaved={handleSaved}
+          isAdmin={isAdmin}
         />
       )}
 
@@ -275,6 +402,29 @@ export default function ContactsPage() {
         .ct-phone-hidden { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); font-style: italic; }
         .ct-no-wa { font-size: 13px; color: var(--muted); }
         .ct-date { font-size: 12px; color: var(--text2); }
+        .ct-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+        .ct-region-filters { display: flex; gap: 6px; flex-wrap: wrap; }
+        .ct-chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 600; color: var(--text2); background: var(--surface); border: 1px solid var(--border); transition: all 0.15s; }
+        .ct-chip:hover { background: var(--surface3); }
+        .ct-chip.active { background: var(--primary); color: var(--on-primary); border-color: var(--primary); }
+        .ct-chip-count { font-size: 11px; font-weight: 700; padding: 0 6px; border-radius: 999px; background: var(--surface3); color: var(--text2); }
+        .ct-chip.active .ct-chip-count { background: rgba(255,255,255,0.25); color: var(--on-primary); }
+        .ct-bulk { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 6px 8px; border-radius: 10px; background: var(--primary-light); border: 1px solid var(--border); }
+        .ct-bulk-count { font-size: 12.5px; font-weight: 700; color: var(--primary); padding: 0 4px; }
+        .ct-bulk-btn { padding: 6px 11px; border-radius: 8px; font-size: 12px; font-weight: 600; background: var(--surface); color: var(--text2); border: 1px solid var(--border); }
+        .ct-bulk-btn.barat { color: #2563eb; border-color: rgba(37,99,235,0.4); }
+        .ct-bulk-btn.timur { color: #d97706; border-color: rgba(217,119,6,0.4); }
+        .ct-bulk-btn.ghost { background: transparent; border-color: transparent; }
+        .ct-bulk-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .ct-check-col { width: 36px; padding-right: 0 !important; }
+        .ct-check-col input { width: 16px; height: 16px; accent-color: var(--primary); cursor: pointer; }
+        .ct-table tbody tr.selected { background: var(--primary-light); }
+        .ct-region { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; font-weight: 700; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+        .ct-region.barat { color: #2563eb; background: rgba(37,99,235,0.12); }
+        .ct-region.timur { color: #d97706; background: rgba(217,119,6,0.12); }
+        .ct-region.none { color: var(--muted); background: var(--surface3); font-weight: 600; }
+        .ct-location { font-size: 12.5px; color: var(--text2); }
+        .ct-field select { background: var(--surface2); border: 1.5px solid var(--border); border-radius: 8px; color: var(--text); padding: 10px 12px; font-size: 14px; outline: none; font-family: inherit; }
         .ct-edit-btn { width: 30px; height: 30px; border-radius: 7px; display: flex; align-items: center; justify-content: center; color: var(--muted); transition: all 0.15s; flex-shrink: 0; }
         .ct-edit-btn:hover { background: var(--primary-light); color: var(--primary); }
         /* Mobile card list (hidden on desktop) */

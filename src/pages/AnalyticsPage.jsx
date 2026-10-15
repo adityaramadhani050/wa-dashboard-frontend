@@ -1,10 +1,16 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { getDailyStats, getAgentStats, getContactStats, getContacts, getConversations, getTopTemplates, getResponseKpi, getFunnel } from '../hooks/useApi'
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer
 } from 'recharts'
-import { RefreshCw, TrendingUp, Users, MessageSquare, UserCheck, Clock, UserPlus, Calendar, Download, Zap } from 'lucide-react'
+import { RefreshCw, TrendingUp, Users, MessageSquare, UserCheck, Clock, UserPlus, Calendar, Download, Zap, MapPin } from 'lucide-react'
+
+const REGION_OPTIONS = [
+  { key: '', label: 'Semua Regional' },
+  { key: 'barat', label: 'Barat' },
+  { key: 'timur', label: 'Timur' },
+]
 
 function fmtDate(d) {
   return d.toISOString().split('T')[0]
@@ -73,16 +79,20 @@ export default function AnalyticsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [exporting, setExporting] = useState('')
+  // Filter regional ('' = semua). Disimpan juga di ref agar semua pemanggilan load() ikut.
+  const [region, setRegion] = useState('')
+  const regionRef = useRef('')
 
   const load = useCallback(async (f, t) => {
     setLoading(true)
     setError('')
+    const r = regionRef.current || undefined
     try {
       const [d, a, c, tpl, k, fn] = await Promise.all([
-        getDailyStats(f, t), getAgentStats(f, t), getContactStats(),
+        getDailyStats(f, t, r), getAgentStats(f, t, r), getContactStats(r),
         getTopTemplates(5).catch(() => []),
-        getResponseKpi(f, t).catch(() => null),
-        getFunnel(f, t).catch(() => null),
+        getResponseKpi(f, t, r).catch(() => null),
+        getFunnel(f, t, r).catch(() => null),
       ])
       setDaily(Array.isArray(d) ? d : [])
       setAgents(Array.isArray(a) ? a : [])
@@ -105,6 +115,9 @@ export default function AnalyticsPage() {
         nama: c.name || '',
         telepon: c.phone || '',
         no_wa_manual: c.manual_wa_number || '',
+        kota: c.city || '',
+        provinsi: c.province || '',
+        regional: c.region ? (c.region === 'barat' ? 'Barat' : 'Timur') : '',
         pertama_dilihat: c.first_seen || '',
         pesan_terakhir: c.last_message_at || '',
       }))
@@ -217,6 +230,26 @@ export default function AnalyticsPage() {
             Terapkan
           </button>
         </div>
+      </div>
+
+      {/* Filter regional */}
+      <div className="an-region-bar">
+        <MapPin size={15} className="an-filter-icon" />
+        <div className="an-region-seg">
+          {REGION_OPTIONS.map(o => (
+            <button
+              key={o.key || 'all'}
+              className={`${region === o.key ? 'active' : ''}${o.key ? ` ${o.key}` : ''}`}
+              disabled={loading}
+              onClick={() => { regionRef.current = o.key; setRegion(o.key); load(from, to) }}
+            >{o.label}</button>
+          ))}
+        </div>
+        {region && (
+          <span className="an-region-note">
+            Data dihitung dari chat & kontak Regional {region === 'barat' ? 'Barat' : 'Timur'}; tabel agent hanya menampilkan agent regional tsb.
+          </span>
+        )}
       </div>
 
       {error && <div className="an-error">{error}</div>}
@@ -473,6 +506,15 @@ export default function AnalyticsPage() {
           border: 1px solid var(--border); transition: all 0.15s;
         }
         .an-presets button:hover { background: var(--surface3); color: var(--primary); border-color: var(--primary); }
+        .an-region-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: -6px 0 18px; }
+        .an-region-seg { display: inline-flex; gap: 4px; padding: 3px; border-radius: 10px; background: var(--surface); border: 1px solid var(--border); }
+        .an-region-seg button { padding: 6px 14px; border-radius: 7px; font-size: 12.5px; font-weight: 600; color: var(--text2); transition: all 0.15s; }
+        .an-region-seg button:hover { background: var(--surface3); }
+        .an-region-seg button.active { background: var(--primary); color: var(--on-primary); }
+        .an-region-seg button.barat.active { background: #2563eb; }
+        .an-region-seg button.timur.active { background: #d97706; }
+        .an-region-seg button:disabled { cursor: progress; }
+        .an-region-note { font-size: 12px; color: var(--muted); }
         .an-date-range {
           display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-left: auto;
         }

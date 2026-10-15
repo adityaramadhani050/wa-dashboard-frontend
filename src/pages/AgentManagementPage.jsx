@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { getAgents, createAgent, updateAgent, deleteAgent, getAutoAssign, setAutoAssign, generateBotToken, getWorkHours, setWorkHours, setAgentAvailability, cleanupMedia, getRegionalRouting, setRegionalRouting, setAgentRegion } from '../hooks/useApi'
+import { getAgents, createAgent, updateAgent, deleteAgent, getAutoAssign, setAutoAssign, generateBotToken, getWorkHours, setWorkHours, setAgentAvailability, cleanupMedia, getRegionalRouting, setRegionalRouting, setAgentRegion, backfillRegional } from '../hooks/useApi'
 import { Plus, Pencil, Trash2, X, Eye, EyeOff, Users, Shuffle, KeyRound, Copy, Check, Clock, HardDrive, MapPin, AlertTriangle } from 'lucide-react'
 
 const REGION_OPTIONS = [
@@ -12,7 +12,8 @@ const REGION_OPTIONS = [
 const BOT_MESSAGES = [
   { key: 'msg_ask', label: 'Pertanyaan lokasi', hint: 'Dikirim ke nomor baru. Variabel: {{nama}}' },
   { key: 'msg_retry', label: 'Tanya ulang', hint: 'Bila jawaban pertama tidak dikenali. Variabel: {{nama}}' },
-  { key: 'msg_confirm', label: 'Konfirmasi regional', hint: 'Setelah lokasi terdeteksi. Variabel: {{nama}}, {{regional}}' },
+  { key: 'msg_confirm', label: 'Konfirmasi regional (dengan agent)', hint: 'Lokasi terdeteksi & agent sudah ditugaskan. Variabel: {{nama}}, {{regional}}, {{agent}}' },
+  { key: 'msg_confirm_queue', label: 'Konfirmasi regional (agent belum tersedia)', hint: 'Lokasi terdeteksi tapi semua agent regional itu sedang tidak tersedia. Variabel: {{nama}}, {{regional}}' },
   { key: 'msg_fail', label: 'Lokasi tidak terdeteksi', hint: 'Sebelum masuk antrian admin. Variabel: {{nama}}' },
 ]
 
@@ -254,13 +255,25 @@ export default function AgentManagementPage() {
         enabled: next.enabled,
         timeout_minutes: next.timeout_minutes,
         internal_numbers: next.internal_numbers,
-        msg_ask: next.msg_ask, msg_retry: next.msg_retry, msg_confirm: next.msg_confirm, msg_fail: next.msg_fail,
+        msg_ask: next.msg_ask, msg_retry: next.msg_retry, msg_confirm: next.msg_confirm,
+        msg_confirm_queue: next.msg_confirm_queue, msg_fail: next.msg_fail,
       })
       setRr(toRrState(d))
       setRrSaved(true); setTimeout(() => setRrSaved(false), 2000)
     } catch (e) {
       setRrError(e?.response?.data?.error || 'Gagal menyimpan pengaturan routing regional')
     } finally { setRrBusy(false) }
+  }
+
+  const [backfillBusy, setBackfillBusy] = useState(false)
+  const [backfillResult, setBackfillResult] = useState(null)
+  const handleBackfill = async () => {
+    if (backfillBusy) return
+    if (!window.confirm('Isi regional kontak lama berdasarkan regional agent yang menanganinya? Kontak yang sudah punya regional tidak diubah.')) return
+    setBackfillBusy(true); setBackfillResult(null)
+    try { setBackfillResult(await backfillRegional()) }
+    catch (e) { alert(e?.response?.data?.error || 'Gagal mengisi regional kontak lama') }
+    finally { setBackfillBusy(false) }
   }
 
   const handleGenerateBotToken = async () => {
@@ -515,9 +528,21 @@ export default function AgentManagementPage() {
                 </div>
 
                 {rrError && <div className="am-form-err">{rrError}</div>}
-                <button className="am-btn primary" onClick={() => saveRegional()} disabled={rrBusy}>
-                  {rrSaved ? <><Check size={15} /> Tersimpan</> : rrBusy ? 'Menyimpan...' : 'Simpan Pengaturan Regional'}
-                </button>
+                <div className="rr-actions">
+                  <button className="am-btn primary" onClick={() => saveRegional()} disabled={rrBusy}>
+                    {rrSaved ? <><Check size={15} /> Tersimpan</> : rrBusy ? 'Menyimpan...' : 'Simpan Pengaturan Regional'}
+                  </button>
+                  <button className="am-btn secondary" onClick={handleBackfill} disabled={backfillBusy || rr.status?.migrated === false}
+                    title="Isi regional kontak lama dari regional agent yang menanganinya (sekali jalan)">
+                    <MapPin size={15} /> {backfillBusy ? 'Mengisi...' : 'Isi Regional Kontak Lama'}
+                  </button>
+                  {backfillResult && (
+                    <span className="cm-result">
+                      <Check size={14} /> {backfillResult.contacts_updated} kontak & {backfillResult.conversations_updated} chat terisi
+                      {backfillResult.without_source > 0 ? ` · ${backfillResult.without_source} chat belum bisa ditentukan (atur di menu Kontak)` : ''}
+                    </span>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -667,6 +692,7 @@ export default function AgentManagementPage() {
         .aa-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 18px; align-items: start; }
         .aa-grid .rr-card { grid-column: 1 / -1; align-items: flex-start; }
         .rr-card > .aa-info { flex: 1; width: 100%; }
+        .rr-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
         .rr-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
         .rr-body { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; align-items: flex-start; }
         .rr-status { display: flex; gap: 8px; flex-wrap: wrap; }
