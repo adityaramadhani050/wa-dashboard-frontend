@@ -20,8 +20,7 @@ export default function QRSetupPage() {
   return (
     <div className="qr-page fade-in">
       <div className="page-header">
-        <h1>WhatsApp Connection</h1>
-        <p>Scan the QR code with your WhatsApp to connect</p>
+        <h1>Koneksi WhatsApp</h1>
       </div>
 
       {/* CORS / connection error banner */}

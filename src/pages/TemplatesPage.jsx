@@ -474,7 +474,6 @@ export default function TemplatesPage() {
       <div className="am-header">
         <div>
           <h1>Template & Galeri Produk</h1>
-          <p>Kelola template pesan cepat dan galeri media untuk dikirim ke customer</p>
         </div>
         {tab === 'templates' && (
           <button className="am-btn primary" onClick={() => { setTplError(''); setTplModal('create') }}>

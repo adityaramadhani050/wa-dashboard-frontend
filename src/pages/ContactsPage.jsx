@@ -214,8 +214,7 @@ export default function ContactsPage() {
         <div className="ct-header-left">
           <div className="ct-header-icon"><Users size={20} /></div>
           <div>
-            <h1 className="ct-title">Kontak</h1>
-            <p className="ct-sub">{loading ? 'Memuat...' : `${contacts.length} kontak terdaftar`}</p>
+            <h1 className="ct-title">Kontak{!loading && <span className="ct-count" title={`${contacts.length} kontak terdaftar`}>{contacts.length.toLocaleString('id-ID')}</span>}</h1>
           </div>
         </div>
         <div className="ct-search-wrap">
@@ -374,8 +373,8 @@ export default function ContactsPage() {
         .ct-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 20px 28px; background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0; flex-wrap: wrap; }
         .ct-header-left { display: flex; align-items: center; gap: 12px; }
         .ct-header-icon { width: 42px; height: 42px; border-radius: 12px; background: var(--primary-light); color: var(--primary); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-        .ct-title { font-size: 17px; font-weight: 700; color: var(--text); }
-        .ct-sub { font-size: 12px; color: var(--muted); margin-top: 1px; }
+        .ct-title { display: flex; align-items: center; gap: 8px; font-size: 17px; font-weight: 700; color: var(--text); }
+        .ct-count { font-size: 11.5px; font-weight: 700; color: var(--text2); background: var(--surface3); padding: 2px 8px; border-radius: 999px; }
         .ct-search-wrap { position: relative; }
         .ct-search-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
         .ct-search { background: var(--surface2); border: 1.5px solid var(--border); border-radius: 10px; padding: 9px 14px 9px 34px; font-size: 13px; color: var(--text); outline: none; width: 240px; transition: border-color 0.15s; font-family: inherit; }

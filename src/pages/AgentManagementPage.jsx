@@ -346,7 +346,6 @@ export default function AgentManagementPage() {
       <div className="am-header">
         <div>
           <h1>Manajemen Agent</h1>
-          <p>Kelola akun agent dan admin</p>
         </div>
         <button className="am-btn primary" onClick={() => { setFormError(''); setModal('create') }}>
           <Plus size={16} /> Tambah Agent

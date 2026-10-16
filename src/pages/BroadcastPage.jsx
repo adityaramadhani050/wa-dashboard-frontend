@@ -72,7 +72,6 @@ function CampaignList({ campaigns, loading, onNew, onOpen, onReload }) {
         <div className="bc-title-wrap">
           <div>
             <div className="bc-title"><Megaphone size={20} /> Broadcast Promo</div>
-            <div className="bc-sub">Kirim pesan promo ke calon customer yang pernah menghubungi tapi belum deal.</div>
           </div>
         </div>
         <div className="bc-header-actions">

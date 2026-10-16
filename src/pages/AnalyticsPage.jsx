@@ -199,7 +199,6 @@ export default function AnalyticsPage() {
       <div className="an-header">
         <div>
           <h1>Analytics</h1>
-          <p>Statistik pesan dan performa agent</p>
         </div>
         <div className="an-header-actions">
           <button className="an-refresh" onClick={handleExportContacts} disabled={!!exporting}>

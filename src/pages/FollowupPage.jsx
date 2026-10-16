@@ -14,6 +14,12 @@ const TABS = [
 ]
 const TEMPLATE_KEYS = ['confirm', 'feedback', 'objection', 'values', 'reactivation', 'nurture']
 
+const AVATAR_COLORS = ['#3563e9', '#27a87a', '#d08b28', '#e05c8a', '#7c5cd6', '#2aaccc']
+function avatarStyle(name) {
+  const c = AVATAR_COLORS[(name || '?').toUpperCase().charCodeAt(0) % AVATAR_COLORS.length]
+  return { background: c + '22', color: c }
+}
+
 function StepBadge({ step }) {
   const s = STEP_INFO[step] || { label: step }
   return <span className="fu-step" style={{ background: s.color || 'var(--primary)' }}>{s.day ? `${s.day} · ` : ''}{s.label}</span>
@@ -96,13 +102,10 @@ export default function FollowupPage() {
   return (
     <div className="fu-page">
       <div className="fu-header">
-        <div>
-          <h1><ListChecks size={20} /> Follow-up</h1>
-          <p>Tugas follow-up chat bertag Penawaran / Follow-Up setelah chat Resolved: H+1 CONFIRM · H+3 FEEDBACK · H+7 OBJECTION · H+14 VALUES · H+30 REACTIVATION.</p>
-        </div>
+        <h1><ListChecks size={21} /> Follow-up</h1>
         <div className="fu-header-actions">
-          {isAdmin && <button className="fu-btn ghost" onClick={() => setShowSettings(true)}><Settings2 size={15} /> Template & pengaturan</button>}
-          <button className="fu-btn ghost" onClick={load} disabled={loading}><RefreshCw size={15} className={loading ? 'spin' : ''} /> Refresh</button>
+          {isAdmin && <button className="fu-btn ghost" onClick={() => setShowSettings(true)} title="Template & pengaturan"><Settings2 size={15} /><span className="fu-hide-m">Template & pengaturan</span><span className="fu-show-m">Pengaturan</span></button>}
+          <button className="fu-btn ghost icon" onClick={load} disabled={loading} title="Muat ulang" aria-label="Muat ulang"><RefreshCw size={15} className={loading ? 'spin' : ''} /></button>
         </div>
       </div>
 
@@ -122,12 +125,15 @@ export default function FollowupPage() {
           {summary.map(s => (
             <button key={s.agent_id || 'none'} className={`fu-sum-card${agentFilter === (s.agent_id || 'unassigned') ? ' sel' : ''}`}
               onClick={() => setAgentFilter(agentFilter === (s.agent_id || 'unassigned') ? '' : (s.agent_id || 'unassigned'))}>
-              <span className="fu-sum-name"><UserCheck size={13} />{s.name}</span>
+              <span className="fu-sum-top">
+                <span className="fu-sum-av" style={avatarStyle(s.name)}>{(s.name || '?')[0].toUpperCase()}</span>
+                <span className="fu-sum-name">{s.name}</span>
+                {s.late_alert > 0 && <span className="fu-sum-alert" title={`${s.late_alert} tugas terlambat > ${lateDays} hari kerja`}><AlertTriangle size={11} />{s.late_alert}</span>}
+              </span>
               <span className="fu-sum-nums">
-                <span className="today"><b>{s.today}</b> hari ini</span>
-                <span className={s.overdue ? 'late' : ''}><b>{s.overdue}</b> terlambat</span>
-                <span><b>{s.done_week}</b> selesai 7 hari</span>
-                {s.late_alert > 0 && <span className="late"><AlertTriangle size={11} /><b>{s.late_alert}</b> &gt;{lateDays} hari</span>}
+                <span className="today"><b>{s.today}</b><small>Hari ini</small></span>
+                <span className={s.overdue ? 'late' : ''}><b>{s.overdue}</b><small>Terlambat</small></span>
+                <span className="done"><b>{s.done_week}</b><small>Selesai 7 hr</small></span>
               </span>
             </button>
           ))}
@@ -176,6 +182,7 @@ export default function FollowupPage() {
         <div className="fu-list">
           {tasks.map(t => (
             <div key={t.id} className={`fu-row${t.alert ? ' alert' : ''}`}>
+              <span className="fu-av" style={avatarStyle(t.conversation.contact_name)}>{(t.conversation.contact_name || '?')[0].toUpperCase()}</span>
               <div className="fu-main">
                 <div className="fu-line1">
                   <span className="fu-name">{t.conversation.contact_name}</span>
@@ -278,10 +285,11 @@ export default function FollowupPage() {
 
       <style>{`
         .fu-page { padding: 24px 24px 48px; width: 100%; color: var(--text); }
-        .fu-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
-        .fu-header h1 { display: flex; align-items: center; gap: 8px; font-size: 20px; font-weight: 700; }
-        .fu-header p { font-size: 13px; color: var(--text2); margin-top: 4px; max-width: 760px; line-height: 1.5; }
-        .fu-header-actions { display: flex; gap: 8px; flex-wrap: wrap; flex-shrink: 0; }
+        .fu-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; min-height: 38px; }
+        .fu-header h1 { display: flex; align-items: center; gap: 9px; font-size: 21px; font-weight: 700; }
+        .fu-header-actions { display: flex; gap: 8px; flex-shrink: 0; }
+        .fu-show-m { display: none; }
+        .fu-btn.icon { width: 38px; padding: 0; justify-content: center; }
         .fu-btn.danger { background: var(--danger, #e53e3e); color: #fff; }
         .fu-alert { display: flex; align-items: center; gap: 12px; padding: 11px 14px; margin-bottom: 14px; border-radius: 11px; background: rgba(229,62,62,0.08); border: 1px solid rgba(229,62,62,0.35); color: var(--danger, #e53e3e); }
         .fu-alert-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
@@ -290,30 +298,38 @@ export default function FollowupPage() {
         .fu-chip.on { background: var(--danger, #e53e3e); color: #fff; border-color: var(--danger, #e53e3e); }
         .fu-row.alert { box-shadow: inset 3px 0 0 var(--danger, #e53e3e); }
         .fu-late-chip { display: inline-flex; align-items: center; gap: 3px; font-size: 10.5px; font-weight: 700; padding: 1px 7px; border-radius: 10px; color: var(--danger, #e53e3e); background: rgba(229,62,62,0.1); }
-        .fu-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 9px; font-size: 13px; font-weight: 600; white-space: nowrap; }
-        .fu-btn.sm { padding: 6px 11px; font-size: 12.5px; }
+        .fu-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 38px; padding: 0 14px; border-radius: 10px; font-size: 13px; font-weight: 600; white-space: nowrap; transition: background 0.15s, border-color 0.15s; }
+        .fu-btn.sm { height: 34px; padding: 0 12px; font-size: 12.5px; }
+        .fu-btn.ghost:hover:not(:disabled) { background: var(--surface2); border-color: var(--border2); }
         .fu-btn.primary { background: var(--primary); color: var(--on-primary); }
         .fu-btn.primary:disabled { opacity: .6; }
         .fu-btn.ghost { background: var(--surface); color: var(--text2); border: 1px solid var(--border); }
         .spin { animation: fu-spin 0.8s linear infinite; }
         @keyframes fu-spin { to { transform: rotate(360deg); } }
-        .fu-summary { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; margin-bottom: 16px; }
-        .fu-sum-card { text-align: left; display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border-radius: 12px; background: var(--surface); border: 1.5px solid var(--border); }
+        .fu-summary { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; margin-bottom: 18px; }
+        .fu-sum-card { text-align: left; display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; border-radius: 12px; background: var(--surface); border: 1.5px solid var(--border); transition: border-color 0.15s, background 0.15s; }
+        .fu-sum-card:hover { border-color: var(--border2); }
         .fu-sum-card.sel { border-color: var(--primary); background: var(--primary-light); }
-        .fu-sum-name { display: flex; align-items: center; gap: 6px; font-size: 13.5px; font-weight: 700; color: var(--text); }
-        .fu-sum-nums { display: flex; gap: 10px; flex-wrap: wrap; font-size: 11.5px; color: var(--muted); }
-        .fu-sum-nums b { font-size: 14px; color: var(--text); }
-        .fu-sum-nums .late b, .fu-sum-nums .late { color: var(--danger, #e53e3e); }
-        .fu-sum-nums .late { display: inline-flex; align-items: center; gap: 3px; }
+        .fu-sum-top { display: flex; align-items: center; gap: 8px; min-width: 0; }
+        .fu-sum-av { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; }
+        .fu-sum-name { flex: 1; min-width: 0; font-size: 13.5px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .fu-sum-alert { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 999px; color: var(--danger, #e53e3e); background: rgba(229,62,62,0.12); }
+        .fu-sum-nums { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+        .fu-sum-nums > span { display: flex; flex-direction: column; gap: 1px; padding: 6px 8px; border-radius: 8px; background: var(--surface2); }
+        .fu-sum-card.sel .fu-sum-nums > span { background: var(--surface); }
+        .fu-sum-nums b { font-size: 16px; font-weight: 800; color: var(--text); line-height: 1.2; }
+        .fu-sum-nums small { font-size: 10.5px; color: var(--muted); font-weight: 600; white-space: nowrap; }
+        .fu-sum-nums .today b { color: #d97706; }
+        .fu-sum-nums .late b { color: var(--danger, #e53e3e); }
         .fu-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
         .fu-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
-        .fu-tab { display: inline-flex; align-items: center; gap: 7px; padding: 7px 14px; border-radius: 999px; font-size: 13px; font-weight: 600; color: var(--text2); background: var(--surface); border: 1px solid var(--border); }
+        .fu-tab { display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 14px; border-radius: 999px; white-space: nowrap; font-size: 13px; font-weight: 600; color: var(--text2); background: var(--surface); border: 1px solid var(--border); }
         .fu-tab.active { background: var(--primary); color: var(--on-primary); border-color: var(--primary); }
         .fu-count { font-size: 11px; font-weight: 700; padding: 0 7px; border-radius: 999px; background: var(--surface3); color: var(--text2); }
         .fu-tab.active .fu-count { background: rgba(255,255,255,0.25); color: var(--on-primary); }
         .fu-tab.alert:not(.active) .fu-count { background: var(--danger, #e53e3e); color: #fff; }
         .fu-filters { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-        .fu-filters select { padding: 7px 10px; border-radius: 9px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: 13px; }
+        .fu-filters select { height: 36px; padding: 0 10px; border-radius: 9px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: 13px; }
         .fu-seg { display: inline-flex; gap: 3px; padding: 3px; border-radius: 9px; background: var(--surface); border: 1px solid var(--border); }
         .fu-seg button { padding: 5px 11px; border-radius: 6px; font-size: 12.5px; font-weight: 600; color: var(--text2); }
         .fu-seg button.active { background: var(--primary); color: var(--on-primary); }
@@ -322,9 +338,11 @@ export default function FollowupPage() {
         .fu-empty { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 50px 0; color: var(--muted); font-size: 13.5px; }
         .fu-empty.sm { padding: 16px 0; }
         .fu-list { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--surface); }
-        .fu-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 13px 16px; border-bottom: 1px solid var(--border); }
+        .fu-row { display: flex; align-items: center; gap: 12px; padding: 13px 16px; border-bottom: 1px solid var(--border); transition: background 0.12s; }
+        .fu-row:hover { background: var(--surface2); }
+        .fu-av { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700; flex-shrink: 0; }
         .fu-row:last-child { border-bottom: none; }
-        .fu-main { min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+        .fu-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
         .fu-line1, .fu-line2 { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
         .fu-name { font-size: 14px; font-weight: 700; color: var(--text); }
         .fu-agent { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 10px; background: rgba(39,168,122,0.1); color: var(--success); }
@@ -360,9 +378,20 @@ export default function FollowupPage() {
         .fu-tpl-field textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface2); color: var(--text); font-size: 13px; font-family: inherit; resize: vertical; }
         @media (max-width: 760px) {
           .fu-page { padding: 16px 14px 40px; }
-          .fu-header { flex-direction: column; }
-          .fu-row { flex-direction: column; align-items: stretch; }
-          .fu-actions { justify-content: flex-end; }
+          .fu-hide-m { display: none; } .fu-show-m { display: inline; }
+          /* Ringkasan per agent: geser horizontal */
+          .fu-summary { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; margin: 0 -14px 16px; padding: 0 14px 2px; scrollbar-width: none; }
+          .fu-summary::-webkit-scrollbar { display: none; }
+          .fu-sum-card { flex: 0 0 78%; scroll-snap-align: start; }
+          .fu-toolbar { flex-direction: column; flex-wrap: nowrap; align-items: stretch; }
+          .fu-filters select { min-width: 0; width: 100%; }
+          .fu-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 -14px; padding: 0 14px; }
+          .fu-tabs::-webkit-scrollbar { display: none; }
+          .fu-filters { display: grid; grid-template-columns: 1fr auto; }
+          .fu-filters .fu-chip { grid-column: 1 / -1; justify-self: start; }
+          .fu-row { flex-wrap: wrap; align-items: flex-start; }
+          .fu-av { width: 36px; height: 36px; font-size: 14px; }
+          .fu-actions { flex-basis: 100%; display: grid; grid-template-columns: 1fr 1fr; padding-left: 48px; }
           .fu-tpl-grid { grid-template-columns: 1fr; }
         }
       `}</style>
