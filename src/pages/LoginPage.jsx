@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff, AlertCircle, User, Lock } from 'lucide-react'
 
 export default function LoginPage() {
   const [username, setUsername] = useState('')
@@ -43,36 +43,43 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} className="lp-form">
           <div className="lp-field">
-            <label>USERNAME</label>
+            <label htmlFor="lp-username">Username</label>
+            <div className="lp-input-wrap">
+            <User size={16} className="lp-input-ico" />
             <input
+              id="lp-username"
               type="text"
               value={username}
               onChange={e => setUsername(e.target.value)}
               placeholder="Masukkan username"
               autoComplete="username"
+              autoCapitalize="none"
               autoFocus
             />
+            </div>
           </div>
           <div className="lp-field">
-            <label>PASSWORD</label>
-            <div className="lp-pw-wrap">
+            <label htmlFor="lp-password">Password</label>
+            <div className="lp-input-wrap lp-pw-wrap">
+              <Lock size={16} className="lp-input-ico" />
               <input
+                id="lp-password"
                 type={showPw ? 'text' : 'password'}
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 placeholder="Masukkan password"
                 autoComplete="current-password"
               />
-              <button type="button" className="lp-pw-eye" onClick={() => setShowPw(s => !s)}>
+              <button type="button" className="lp-pw-eye" onClick={() => setShowPw(s => !s)} aria-label={showPw ? 'Sembunyikan password' : 'Tampilkan password'}>
                 {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
           </div>
 
-          {error && <div className="lp-error">{error}</div>}
+          {error && <div className="lp-error" role="alert"><AlertCircle size={15} />{error}</div>}
 
           <button type="submit" className="lp-submit" disabled={loading}>
-            {loading ? 'Masuk...' : 'Masuk'}
+            {loading ? <><span className="lp-spin" /> Memproses…</> : 'Masuk'}
           </button>
         </form>
 
@@ -108,11 +115,14 @@ export default function LoginPage() {
         .lp-desc { font-size: 13px; color: var(--muted); margin-bottom: 28px; }
         .lp-form { display: flex; flex-direction: column; gap: 18px; }
         .lp-field { display: flex; flex-direction: column; gap: 6px; }
-        .lp-field label { font-size: 11px; font-weight: 700; color: var(--muted); letter-spacing: 0.7px; }
+        .lp-field label { font-size: 12.5px; font-weight: 600; color: var(--text2); }
+        .lp-input-wrap { position: relative; }
+        .lp-input-ico { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
         .lp-field input {
+          height: 46px;
           background: var(--surface2); border: 1.5px solid var(--border);
-          border-radius: 10px; color: var(--text);
-          padding: 12px 14px; font-size: 14px; outline: none;
+          border-radius: 11px; color: var(--text);
+          padding: 0 14px 0 40px; font-size: 14px; outline: none; font-family: inherit;
           transition: border-color 0.15s, box-shadow 0.15s; width: 100%;
         }
         .lp-field input:focus {
@@ -129,20 +139,25 @@ export default function LoginPage() {
         }
         .lp-pw-eye:hover { color: var(--primary); }
         .lp-error {
+          display: flex; align-items: center; gap: 8px;
           padding: 10px 14px;
-          background: rgba(229,62,62,0.06); border: 1px solid rgba(229,62,62,0.18);
-          border-radius: 8px; color: var(--danger); font-size: 13px;
+          background: rgba(229,62,62,0.08); border: 1px solid rgba(229,62,62,0.25);
+          border-radius: 10px; color: var(--danger); font-size: 13px;
         }
+        .lp-error svg { flex-shrink: 0; }
+        .lp-spin { width: 16px; height: 16px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.4); border-top-color: #fff; animation: lpSpin 0.7s linear infinite; }
+        @keyframes lpSpin { to { transform: rotate(360deg); } }
         .lp-submit {
-          display: flex; align-items: center; justify-content: center;
-          background: var(--primary); color: white;
-          border-radius: 10px; padding: 13px;
+          display: flex; align-items: center; justify-content: center; gap: 8px;
+          background: var(--primary); color: var(--on-primary);
+          border-radius: 11px; height: 48px;
           font-size: 15px; font-weight: 600;
           transition: background 0.15s, box-shadow 0.15s; margin-top: 4px;
           box-shadow: 0 4px 14px rgba(53,99,233,0.30);
         }
         .lp-submit:hover { background: var(--primary-hover); }
-        .lp-submit:disabled { opacity: 0.55; cursor: not-allowed; box-shadow: none; }
+        .lp-submit:disabled { opacity: 0.7; cursor: not-allowed; box-shadow: none; }
+        @media (max-width: 480px) { .lp-card { padding: 32px 22px; border-radius: 18px; } }
         .lp-footer { text-align: center; font-size: 12px; color: var(--muted); margin-top: 24px; }
       `}</style>
     </div>
