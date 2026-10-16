@@ -3,7 +3,7 @@ import { useNavigate, useMatch } from 'react-router-dom'
 import { useSocket } from '../context/SocketContext'
 import { useAuth } from '../context/AuthContext'
 import { getConversations, getTags, getAgents, syncMessages, getWorkHours, getMyAvailability, setMyAvailability } from '../hooks/useApi'
-import { Search, RefreshCw, UserCheck, Tag as TagIcon, ChevronDown, Clock, RotateCw, X, MapPin, Bot } from 'lucide-react'
+import { Search, RefreshCw, UserCheck, Tag as TagIcon, ChevronDown, Clock, RotateCw, X, MapPin, Bot, CheckCheck, SearchX, MessagesSquare, ListFilter } from 'lucide-react'
 
 // Regional chat: dari percakapan, atau dari kontak (customer lama)
 const chatRegion = (c) => c.region || c.contact?.region || null
@@ -72,18 +72,17 @@ function avatarStyle(name) {
   return { background: c + '22', color: c }
 }
 
+// Waktu pesan terakhir ala WhatsApp: 14.05 · Kemarin · Senin · 7 Okt
 function timeStr(dateStr) {
   if (!dateStr) return ''
   const d = new Date(dateStr)
-  const diff = Date.now() - d
-  const mins = Math.floor(diff / 60000)
-  if (mins < 1) return 'now'
-  if (mins < 60) return `${mins}m`
-  const hrs = Math.floor(mins / 60)
-  if (hrs < 24) return `${hrs}h`
-  const days = Math.floor(hrs / 24)
-  if (days < 7) return `${days}d`
-  return d.toLocaleDateString([], { day: 'numeric', month: 'short' })
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+  const t = d.getTime()
+  if (t >= today) return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+  if (t >= today - 86400000) return 'Kemarin'
+  if (t >= today - 6 * 86400000) return d.toLocaleDateString('id-ID', { weekday: 'long' })
+  return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', ...(d.getFullYear() !== now.getFullYear() ? { year: '2-digit' } : {}) })
 }
 
 export default function InboxPage() {
@@ -332,10 +331,10 @@ export default function InboxPage() {
   })
 
   const STATUS_FILTERS = [
-    { key: 'all', label: 'Semua' },
-    { key: 'unread', label: 'Belum Dibaca' },
-    { key: 'unreplied', label: 'Belum Dibalas' },
-    { key: 'replied', label: 'Sudah Dibalas' },
+    { key: 'all', label: 'Semua', short: 'Semua' },
+    { key: 'unread', label: 'Belum dibaca', short: 'Belum baca' },
+    { key: 'unreplied', label: 'Belum dibalas', short: 'Belum balas' },
+    { key: 'replied', label: 'Sudah dibalas', short: 'Dibalas' },
   ]
   const LIFECYCLE_OPTIONS = [
     { key: 'all', label: 'Semua Status' },
@@ -344,13 +343,17 @@ export default function InboxPage() {
     { key: 'resolved', label: 'Resolved' },
   ]
   const lifecycleLabel = LIFECYCLE_OPTIONS.find(o => o.key === lifecycleFilter)?.label || 'Semua Status'
+  const hasFilter = !!search || statusFilter !== 'all' || !!activeTagFilter || lifecycleFilter !== 'all' || !!agentFilter || regionFilter !== 'all'
+  const resetFilters = () => {
+    setSearch(''); setStatusFilter('all'); setActiveTagFilter(null); setLifecycleFilter('all'); setAgentFilter(null); setRegionFilter('all')
+  }
 
   return (
     <div className="cl-root" onClick={() => { if (showTagFilter) setShowTagFilter(false); if (showAgentFilter) setShowAgentFilter(false); if (showLifecycleFilter) setShowLifecycleFilter(false) }}>
       {/* Header */}
       <div className="cl-header">
         <div className="cl-header-top">
-          <h2>Chats</h2>
+          <h2>Chats{!loading && <span className="cl-count">{sorted.length}</span>}</h2>
           <div className="cl-header-actions">
             {/* Toggle ketersediaan hanya untuk agent — auto-assign tidak berlaku ke admin */}
             {!isAdmin && (
@@ -394,46 +397,50 @@ export default function InboxPage() {
             </button>
           )}
         </div>
-        {/* Status filter chips */}
-        <div className="cl-statusfilter-row">
+        {/* Status filter (segmented) */}
+        <div className="cl-seg" role="tablist">
           {STATUS_FILTERS.map(f => (
             <button
               key={f.key}
-              className={`cl-statuschip${statusFilter === f.key ? ' active' : ''}`}
+              role="tab"
+              aria-selected={statusFilter === f.key}
+              className={statusFilter === f.key ? 'active' : ''}
               onClick={() => setStatusFilter(f.key)}
-            >{f.label}</button>
+              title={f.label}
+            ><span className="cl-seg-full">{f.label}</span><span className="cl-seg-short">{f.short}</span></button>
           ))}
         </div>
         {/* Filter Tag + Status + Agent — satu baris sejajar (Agent hanya admin) */}
         <div className="cl-tagfilter-row" onClick={e => e.stopPropagation()}>
-          <div className="cv-dd">
+          <div className="cl-dd">
             <button className={`cl-tagfilter-btn${activeTagFilter ? ' active' : ''}`} onClick={() => { setShowTagFilter(s => !s); setShowAgentFilter(false); setShowLifecycleFilter(false) }}>
               <TagIcon size={13} />
               <span>{activeTagFilter ? (tags.find(t => t.id === activeTagFilter)?.name || 'Tag') : 'Semua Tag'}</span>
-              <ChevronDown size={12} />
+              <ChevronDown size={13} className="cl-chev" />
             </button>
             {showTagFilter && (
-              <div className="cv-menu" style={{ minWidth: 160 }}>
-                <button className={`cv-mi${!activeTagFilter ? ' active' : ''}`} onClick={() => { setActiveTagFilter(null); setShowTagFilter(false) }}>
+              <div className="cl-menu" style={{ minWidth: 160 }}>
+                <button className={`cl-mi${!activeTagFilter ? ' active' : ''}`} onClick={() => { setActiveTagFilter(null); setShowTagFilter(false) }}>
                   Semua Tag
                 </button>
                 {tags.map(t => (
-                  <button key={t.id} className={`cv-mi${activeTagFilter === t.id ? ' active' : ''}`} onClick={() => { setActiveTagFilter(t.id); setShowTagFilter(false) }}>
+                  <button key={t.id} className={`cl-mi${activeTagFilter === t.id ? ' active' : ''}`} onClick={() => { setActiveTagFilter(t.id); setShowTagFilter(false) }}>
                     <span className="tag-chip" style={{ background: t.color }}>{t.name}</span>
                   </button>
                 ))}
               </div>
             )}
           </div>
-          <div className="cv-dd">
+          <div className="cl-dd">
             <button className={`cl-tagfilter-btn${lifecycleFilter !== 'all' ? ' active' : ''}`} onClick={() => { setShowLifecycleFilter(s => !s); setShowTagFilter(false); setShowAgentFilter(false) }}>
+              <ListFilter size={13} />
               <span>{lifecycleLabel}</span>
-              <ChevronDown size={12} />
+              <ChevronDown size={13} className="cl-chev" />
             </button>
             {showLifecycleFilter && (
-              <div className="cv-menu" style={{ minWidth: 150 }}>
+              <div className="cl-menu" style={{ minWidth: 150 }}>
                 {LIFECYCLE_OPTIONS.map(o => (
-                  <button key={o.key} className={`cv-mi${lifecycleFilter === o.key ? ' active' : ''}`} onClick={() => { setLifecycleFilter(o.key); setShowLifecycleFilter(false) }}>
+                  <button key={o.key} className={`cl-mi${lifecycleFilter === o.key ? ' active' : ''}`} onClick={() => { setLifecycleFilter(o.key); setShowLifecycleFilter(false) }}>
                     {o.label}
                   </button>
                 ))}
@@ -441,19 +448,19 @@ export default function InboxPage() {
             )}
           </div>
           {isAdmin && (
-            <div className="cv-dd">
+            <div className="cl-dd">
               <button className={`cl-tagfilter-btn${agentFilter ? ' active' : ''}`} onClick={() => { setShowAgentFilter(s => !s); setShowTagFilter(false); setShowLifecycleFilter(false) }}>
                 <UserCheck size={13} />
                 <span>{agentFilter ? (agents.find(a => a.id === agentFilter)?.name || 'Agent') : 'Semua Agent'}</span>
-                <ChevronDown size={12} />
+                <ChevronDown size={13} className="cl-chev" />
               </button>
               {showAgentFilter && (
-                <div className="cv-menu" style={{ minWidth: 180, left: 'auto', right: 0 }}>
-                  <button className={`cv-mi${!agentFilter ? ' active' : ''}`} onClick={() => { setAgentFilter(null); setShowAgentFilter(false) }}>
+                <div className="cl-menu" style={{ minWidth: 180, left: 'auto', right: 0 }}>
+                  <button className={`cl-mi${!agentFilter ? ' active' : ''}`} onClick={() => { setAgentFilter(null); setShowAgentFilter(false) }}>
                     Semua Agent
                   </button>
                   {agents.map(a => (
-                    <button key={a.id} className={`cv-mi${agentFilter === a.id ? ' active' : ''}`} onClick={() => { setAgentFilter(a.id); setShowAgentFilter(false) }}>
+                    <button key={a.id} className={`cl-mi${agentFilter === a.id ? ' active' : ''}`} onClick={() => { setAgentFilter(a.id); setShowAgentFilter(false) }}>
                       {a.name}
                     </button>
                   ))}
@@ -462,16 +469,16 @@ export default function InboxPage() {
             </div>
           )}
           {isAdmin && (
-            <div className="cv-dd">
+            <div className="cl-dd">
               <button className={`cl-tagfilter-btn${regionFilter !== 'all' ? ' active' : ''}`} onClick={() => { setShowRegionFilter(s => !s); setShowTagFilter(false); setShowLifecycleFilter(false); setShowAgentFilter(false) }}>
                 <MapPin size={13} />
                 <span>{REGION_FILTER_OPTIONS.find(o => o.key === regionFilter)?.label || 'Semua Regional'}</span>
-                <ChevronDown size={12} />
+                <ChevronDown size={13} className="cl-chev" />
               </button>
               {showRegionFilter && (
-                <div className="cv-menu" style={{ minWidth: 200, left: 'auto', right: 0 }}>
+                <div className="cl-menu" style={{ minWidth: 200, left: 'auto', right: 0 }}>
                   {REGION_FILTER_OPTIONS.map(o => (
-                    <button key={o.key} className={`cv-mi${regionFilter === o.key ? ' active' : ''}`} onClick={() => { setRegionFilter(o.key); setShowRegionFilter(false) }}>
+                    <button key={o.key} className={`cl-mi${regionFilter === o.key ? ' active' : ''}`} onClick={() => { setRegionFilter(o.key); setShowRegionFilter(false) }}>
                       {o.label}
                     </button>
                   ))}
@@ -485,12 +492,17 @@ export default function InboxPage() {
       {/* List */}
       <div className="cl-list">
         {loading ? (
-          [...Array(6)].map((_, i) => (
-            <div key={i} className="cl-skel" style={{ animationDelay: `${i * 0.06}s` }} />
+          [...Array(7)].map((_, i) => (
+            <div key={i} className="cl-skel" style={{ animationDelay: `${i * 0.06}s` }}>
+              <span className="cl-skel-av" />
+              <span className="cl-skel-lines"><i /><i /></span>
+            </div>
           ))
         ) : sorted.length === 0 ? (
           <div className="cl-empty">
-            {search || statusFilter !== 'all' || activeTagFilter || agentFilter || regionFilter !== 'all' ? 'Tidak ditemukan' : 'Belum ada percakapan'}
+            {hasFilter ? <SearchX size={34} strokeWidth={1.5} /> : <MessagesSquare size={34} strokeWidth={1.5} />}
+            <p>{hasFilter ? 'Tidak ada chat yang cocok dengan filter.' : 'Belum ada percakapan.'}</p>
+            {hasFilter && <button className="cl-empty-reset" onClick={resetFilters}>Reset filter</button>}
           </div>
         ) : (
           sorted.map(conv => {
@@ -512,10 +524,7 @@ export default function InboxPage() {
                 className={`cl-item${isActive ? ' active' : ''}${isUnread ? ' unread' : ''}${overdue ? ' overdue' : ''}`}
                 onClick={() => handleOpenConversation(conv.id)}
               >
-                <div
-                  className="cl-avatar"
-                  style={isActive ? { background: 'rgba(255,255,255,0.22)', color: 'var(--on-primary)' } : avatarStyle(name)}
-                >{initial}</div>
+                <div className="cl-avatar" style={avatarStyle(name)}>{initial}</div>
                 <div className="cl-info">
                   <div className="cl-row">
                     <span className="cl-name">{name}</span>
@@ -531,7 +540,10 @@ export default function InboxPage() {
                     </span>
                   </div>
                   <div className="cl-row">
-                    <span className="cl-preview">{preview}</span>
+                    <span className="cl-preview">
+                      {conv.lastFromMe && conv.lastMessage && <CheckCheck size={14} className="cl-tick" />}
+                      <span className="cl-preview-text">{preview}</span>
+                    </span>
                     {isAdmin && assignedAgent && (
                       <span className="cl-agent-badge" title={assignedAgent.name}>
                         <UserCheck size={9} />{agentLabel}
@@ -566,139 +578,98 @@ export default function InboxPage() {
       </div>
 
       <style>{`
-        .cl-root {
-          display: flex; flex-direction: column;
-          width: 100%; height: 100%;
-          background: var(--surface); overflow: hidden;
-        }
-        .cl-header {
-          padding: 18px 16px 0;
-          border-bottom: 1px solid var(--border);
-          flex-shrink: 0;
-        }
-        .cl-header-top {
-          display: flex; align-items: center; justify-content: space-between;
-          margin-bottom: 12px;
-        }
-        .cl-header-top h2 { font-size: 18px; font-weight: 700; color: var(--text); }
-        .cl-icon-btn {
-          width: 32px; height: 32px; border-radius: 8px;
-          display: flex; align-items: center; justify-content: center;
-          color: var(--muted); transition: all 0.15s;
-        }
+        .cl-root { display: flex; flex-direction: column; width: 100%; height: 100%; background: var(--surface); overflow: hidden; }
+        .cl-header { padding: 16px 16px 12px; border-bottom: 1px solid var(--border); flex-shrink: 0; display: flex; flex-direction: column; gap: 10px; }
+        .cl-header-top { display: flex; align-items: center; justify-content: space-between; min-height: 32px; }
+        .cl-header-top h2 { display: flex; align-items: center; gap: 8px; font-size: 19px; font-weight: 700; color: var(--text); }
+        .cl-count { font-size: 11.5px; font-weight: 700; color: var(--text2); background: var(--surface3); padding: 2px 8px; border-radius: 999px; }
+        .cl-icon-btn { width: 34px; height: 34px; border-radius: 9px; display: flex; align-items: center; justify-content: center; color: var(--muted); transition: background 0.15s, color 0.15s; }
         .cl-icon-btn:hover { background: var(--surface3); color: var(--text2); }
         .cl-icon-btn:disabled { opacity: 0.6; cursor: not-allowed; }
         .cl-header-actions { display: flex; align-items: center; gap: 6px; }
-        .cl-avail { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; border: 1px solid var(--border); background: var(--surface2); color: var(--muted); transition: all 0.15s; }
+        .cl-avail { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 11px; border-radius: 999px; font-size: 12px; font-weight: 600; border: 1px solid var(--border); background: var(--surface2); color: var(--muted); transition: all 0.15s; }
         .cl-avail:disabled { opacity: 0.6; }
         .cl-avail .cl-avail-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex-shrink: 0; transition: background 0.15s; }
         .cl-avail.on { color: var(--success); border-color: color-mix(in srgb, var(--success) 40%, transparent); background: color-mix(in srgb, var(--success) 12%, transparent); }
         .cl-avail.on .cl-avail-dot { background: var(--success); box-shadow: 0 0 0 3px color-mix(in srgb, var(--success) 25%, transparent); }
         @media (max-width: 380px) { .cl-avail-text { display: none; } }
-        .cl-sync-banner { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; padding: 7px 12px; border-radius: 8px; background: var(--primary-light); color: var(--primary); font-size: 12px; font-weight: 600; }
+        .cl-sync-banner { display: flex; align-items: center; gap: 8px; padding: 7px 12px; border-radius: 9px; background: var(--primary-light); color: var(--primary); font-size: 12px; font-weight: 600; }
         .cl-spin { animation: spin 0.8s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
-        .cl-search {
-          display: flex; align-items: center; gap: 8px;
-          padding: 8px 12px; margin-bottom: 12px;
-          background: var(--surface2); border: 1px solid var(--border);
-          border-radius: 10px;
-        }
+        .cl-search { display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; transition: border-color 0.15s, background 0.15s; }
+        .cl-search:focus-within { border-color: var(--primary); background: var(--surface); }
         .cl-search svg { color: var(--muted); flex-shrink: 0; }
-        .cl-search input {
-          background: none; border: none; outline: none;
-          color: var(--text); font-size: 13px; width: 100%;
-        }
+        .cl-search input { background: none; border: none; outline: none; color: var(--text); font-size: 13.5px; width: 100%; }
         .cl-search input::placeholder { color: var(--muted); }
-        .cl-search-clear { flex-shrink: 0; display: flex; align-items: center; justify-content: center; width: 16px; height: 16px; padding: 0; color: var(--muted); background: none; transition: color 0.12s; }
-        .cl-search-clear:hover { color: var(--text); }
-        .cl-search-clear svg { width: 15px; height: 15px; color: inherit; }
+        .cl-search-clear { flex-shrink: 0; display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; color: var(--muted); transition: background 0.12s, color 0.12s; }
+        .cl-search-clear:hover { background: var(--surface3); color: var(--text); }
+        .cl-search-clear svg { color: inherit; }
+        /* Filter status: segmented control (selalu muat, tanpa scroll) */
+        .cl-seg { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 2px; padding: 3px; border-radius: 10px; background: var(--surface2); border: 1px solid var(--border); }
+        .cl-seg button { height: 28px; padding: 0 4px; border-radius: 7px; font-size: 12px; font-weight: 600; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: background 0.15s, color 0.15s; }
+        .cl-seg button:hover:not(.active) { background: var(--surface3); }
+        .cl-seg button.active { background: var(--primary); color: var(--on-primary); box-shadow: 0 1px 3px var(--shadow); }
+        .cl-seg-short { display: none; }
+        @media (max-width: 480px) { .cl-seg-full { display: none; } .cl-seg-short { display: inline; } .cl-seg button { font-size: 11.5px; } }
+        .cl-tagfilter-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+        .cl-dd { position: relative; min-width: 0; }
+        .cl-tagfilter-btn { width: 100%; height: 34px; display: flex; align-items: center; gap: 7px; padding: 0 10px; border-radius: 9px; font-size: 12.5px; font-weight: 500; color: var(--text2); background: var(--surface); border: 1px solid var(--border); transition: all 0.15s; }
+        .cl-tagfilter-btn svg { flex-shrink: 0; color: var(--muted); }
+        .cl-tagfilter-btn span { flex: 1; min-width: 0; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .cl-tagfilter-btn:hover { background: var(--surface2); border-color: var(--border2); }
+        .cl-tagfilter-btn.active { color: var(--primary); border-color: color-mix(in srgb, var(--primary) 45%, transparent); background: var(--primary-light); }
+        .cl-tagfilter-btn.active svg { color: var(--primary); }
+        .cl-chev { margin-left: auto; }
+        .cl-menu { position: absolute; left: 0; top: calc(100% + 6px); min-width: 100%; max-height: 320px; overflow-y: auto; padding: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; z-index: 200; box-shadow: 0 10px 30px var(--shadow); }
+        .cl-mi { display: flex; align-items: center; width: 100%; text-align: left; padding: 8px 10px; border-radius: 8px; font-size: 13px; color: var(--text); transition: background 0.1s; }
+        .cl-mi:hover { background: var(--surface3); }
+        .cl-mi.active { background: var(--primary-light); color: var(--primary); font-weight: 600; }
         .cl-list { flex: 1; min-height: 0; overflow-y: auto; }
-        .cl-skel {
-          height: 64px; margin: 4px 12px; border-radius: 10px;
-          background: var(--skeleton); animation: pulse 1.4s ease infinite;
-        }
-        .cl-empty {
-          text-align: center; padding: 48px 20px;
-          color: var(--muted); font-size: 13px;
-        }
-        .cl-item {
-          display: flex; align-items: center; gap: 12px;
-          padding: 12px 16px; cursor: pointer;
-          border-bottom: 1px solid var(--border);
-          transition: background 0.1s;
-        }
-        .cl-item:hover { background: var(--surface3); }
-        .cl-item.active { background: var(--primary); }
-        .cl-item.active .cl-name { color: var(--on-primary); }
-        .cl-item.active .cl-time { color: rgba(255,255,255,0.7); }
-        .cl-item.active .cl-preview { color: rgba(255,255,255,0.75); }
-        .cl-item.active .cl-agent-badge {
-          background: rgba(255,255,255,0.18); color: var(--on-primary);
-        }
-        .cl-avatar {
-          width: 42px; height: 42px; border-radius: 50%;
-          display: flex; align-items: center; justify-content: center;
-          font-size: 16px; font-weight: 700; flex-shrink: 0;
-        }
-        .cl-info { flex: 1; min-width: 0; }
-        .cl-row {
-          display: flex; align-items: center;
-          justify-content: space-between; gap: 6px; margin-bottom: 3px;
-        }
-        .cl-row:last-child { margin-bottom: 0; }
-        .cl-name { font-size: 14px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
-        .cl-time { font-size: 11px; color: var(--muted); flex-shrink: 0; }
-        .cl-preview { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
-        .cl-agent-badge {
-          display: inline-flex; align-items: center; gap: 3px;
-          font-size: 10px; font-weight: 600;
-          padding: 2px 7px; border-radius: 20px;
-          background: rgba(39,168,122,0.1); color: var(--success);
-          white-space: nowrap; flex-shrink: 0;
-        }
+        .cl-skel { display: flex; align-items: center; gap: 12px; padding: 14px 16px; animation: pulse 1.4s ease infinite; }
+        .cl-skel-av { width: 44px; height: 44px; border-radius: 50%; background: var(--skeleton); flex-shrink: 0; }
+        .cl-skel-lines { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+        .cl-skel-lines i { display: block; height: 11px; border-radius: 6px; background: var(--skeleton); }
+        .cl-skel-lines i:first-child { width: 45%; } .cl-skel-lines i:last-child { width: 80%; }
+        .cl-empty { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; padding: 56px 24px; color: var(--muted); font-size: 13px; }
+        .cl-empty-reset { padding: 7px 14px; border-radius: 8px; font-size: 12.5px; font-weight: 600; color: var(--primary); background: var(--primary-light); }
+        .cl-item { position: relative; display: flex; align-items: center; gap: 12px; padding: 12px 16px; cursor: pointer; transition: background 0.1s; }
+        .cl-item::after { content: ''; position: absolute; left: 72px; right: 0; bottom: 0; height: 1px; background: var(--border); }
+        .cl-item:hover { background: var(--surface2); }
+        .cl-item.active { background: var(--primary-light); box-shadow: inset 3px 0 0 var(--primary); }
+        .cl-avatar { width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; flex-shrink: 0; }
+        .cl-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+        .cl-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
+        .cl-name { font-size: 14.5px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
+        .cl-time { font-size: 11.5px; color: var(--muted); flex-shrink: 0; }
+        .cl-preview { flex: 1; min-width: 0; display: flex; align-items: center; gap: 4px; font-size: 13px; color: var(--muted); }
+        .cl-preview-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .cl-tick { flex-shrink: 0; color: var(--primary); opacity: 0.85; }
+        .cl-agent-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 10.5px; font-weight: 600; padding: 2px 7px; border-radius: 999px; background: rgba(39,168,122,0.12); color: var(--success); white-space: nowrap; flex-shrink: 0; max-width: 120px; overflow: hidden; text-overflow: ellipsis; }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
         @media (max-width: 768px) { .cl-root { width: 100vw; } }
-        .cl-tagfilter-row { display: flex; padding: 10px 0; }
-        .cv-dd { position: relative; }
-        .cl-tagfilter-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 500; color: var(--text2); background: var(--surface2); border: 1px solid var(--border); transition: all 0.15s; }
-        .cl-tagfilter-btn:hover { background: var(--surface3); }
-        .cl-tagfilter-btn.active { color: var(--primary); border-color: var(--border2); background: var(--primary-light); }
-        .cv-menu { position: absolute; left: 0; top: calc(100% + 6px); background: var(--surface); border: 1px solid var(--border); border-radius: 12px; z-index: 200; box-shadow: 0 8px 24px var(--shadow); overflow: hidden; }
-        .cv-mi { display: flex; align-items: center; width: 100%; text-align: left; padding: 9px 14px; font-size: 13px; color: var(--text); transition: background 0.1s; }
-        .cv-mi:hover { background: var(--surface3); }
-        .cv-mi.active { background: var(--primary-light); color: var(--primary); }
-        .cl-tags-row { display: flex; gap: 4px; margin-top: 4px; flex-wrap: wrap; align-items: center; }
+        .cl-tags-row { display: flex; gap: 4px; margin-top: 2px; flex-wrap: wrap; align-items: center; }
         .cl-region-slot { margin-left: auto; display: inline-flex; flex-shrink: 0; }
         .tag-chip { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 600; color: var(--on-primary); white-space: nowrap; }
         .cl-status-badge { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
-        .cl-status-badge.st-open { background: rgba(208,139,40,0.12); color: var(--warning); }
+        .cl-status-badge.st-open { background: rgba(208,139,40,0.14); color: var(--warning); }
         .cl-status-badge.st-in_progress { background: var(--primary-light); color: var(--primary); }
-        .cl-status-badge.st-resolved { background: rgba(39,168,122,0.12); color: var(--success); }
-        .cl-item.active .cl-status-badge { background: rgba(255,255,255,0.22); color: var(--on-primary); }
+        .cl-status-badge.st-resolved { background: rgba(39,168,122,0.14); color: var(--success); }
         .cl-region-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 999px; white-space: nowrap; border: 1px solid transparent; }
         .cl-region-badge.barat { color: #2563eb; background: rgba(37,99,235,0.12); border-color: rgba(37,99,235,0.3); }
         .cl-region-badge.timur { color: #d97706; background: rgba(217,119,6,0.12); border-color: rgba(217,119,6,0.3); }
         .cl-region-badge.bot { color: var(--primary); background: var(--primary-light); }
         .cl-region-badge.unknown { color: var(--warning, #d08b28); background: rgba(208,139,40,0.12); border: 1px dashed rgba(208,139,40,0.5); }
-        .cl-item.active .cl-region-badge { background: rgba(255,255,255,0.22); color: var(--on-primary); border-color: transparent; }
+        @media (prefers-color-scheme: dark) {
+          .cl-region-badge.barat { color: #7aa7ff; } .cl-region-badge.timur { color: #f0a94a; }
+        }
         .cl-row-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
-        .cl-unread-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--primary); flex-shrink: 0; }
-        .cl-item.unread .cl-name { font-weight: 800; color: var(--text); }
+        .cl-unread-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--primary); flex-shrink: 0; }
+        .cl-item.unread .cl-name { font-weight: 800; }
         .cl-item.unread .cl-preview { color: var(--text); font-weight: 600; }
-        .cl-statusfilter-row { display: flex; gap: 6px; padding: 0 0 4px; overflow-x: auto; scrollbar-width: none; }
-        .cl-statusfilter-row::-webkit-scrollbar { display: none; }
-        .cl-statuschip { flex-shrink: 0; padding: 5px 11px; border-radius: 20px; font-size: 12px; font-weight: 500; color: var(--text2); background: var(--surface2); border: 1px solid var(--border); white-space: nowrap; transition: all 0.15s; }
-        .cl-statuschip:hover { background: var(--surface3); }
-        .cl-statuschip.active { background: var(--primary); color: var(--on-primary); border-color: var(--primary); }
-        .cl-tagfilter-row { gap: 6px; flex-wrap: wrap; }
-        .cl-tagfilter-row .cv-dd { flex: 1 1 calc(50% - 3px); min-width: 0; }
-        .cl-tagfilter-btn { width: 100%; justify-content: center; padding: 6px 8px; }
-        .cl-tagfilter-btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .cl-overdue-badge { display: inline-flex; align-items: center; gap: 2px; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 20px; background: var(--danger); color: var(--on-primary); white-space: nowrap; }
-        .cl-item.overdue { background: rgba(229,62,62,0.05); box-shadow: inset 3px 0 0 var(--danger); }
-        .cl-item.overdue:hover { background: rgba(229,62,62,0.09); }
-        .cl-item.active .cl-overdue-badge { background: var(--surface); color: var(--danger); }
+        .cl-item.unread .cl-time { color: var(--primary); font-weight: 700; }
+        .cl-overdue-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 10.5px; font-weight: 700; padding: 2px 7px; border-radius: 999px; background: var(--danger); color: var(--on-primary); white-space: nowrap; }
+        .cl-item.overdue { background: rgba(229,62,62,0.06); box-shadow: inset 3px 0 0 var(--danger); }
+        .cl-item.overdue:hover { background: rgba(229,62,62,0.1); }
       `}</style>
     </div>
   )

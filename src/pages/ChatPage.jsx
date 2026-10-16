@@ -14,7 +14,7 @@ import { supabase } from '../lib/supabase'
 import PdfThumb, { isPdf } from '../components/PdfThumb'
 import FollowupPanel from '../components/FollowupPanel'
 import { dueTone } from '../components/followupUi'
-import { Send, ArrowLeft, ArrowDown, UserCheck, Paperclip, X, FileText, Play, Download, Check, Image, Film, Clock, Zap, Package, Tag as TagIcon, StickyNote, ListChecks, MoreVertical, Sparkles, Reply, Pencil, Forward, Search as SearchIcon, Trash2, Copy, MapPin, User, Bot } from 'lucide-react'
+import { Send, ArrowLeft, ArrowDown, UserCheck, Paperclip, X, FileText, Play, Download, Check, Image, Film, Clock, Zap, Package, Tag as TagIcon, StickyNote, MoreVertical, Sparkles, Reply, Pencil, Forward, Search as SearchIcon, Trash2, Copy, MapPin, User, Bot, PanelRight, ExternalLink, Phone } from 'lucide-react'
 
 
 const MSG_PAGE = 60 // jumlah pesan per halaman (muat bertahap saat scroll ke atas)
@@ -28,7 +28,7 @@ function avatarStyle(name) {
 
 function formatTime(dateStr) {
   if (!dateStr) return ''
-  return new Date(dateStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  return new Date(dateStr).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
 }
 
 function formatDateLabel(dateStr) {
@@ -236,8 +236,8 @@ function ShareModal({ mode, onClose, onSendLocation, onSendContact, loading }) {
     <div className="cv-share-overlay" onClick={onClose}>
       <div className="cv-share-modal" onClick={e => e.stopPropagation()}>
         <div className="cv-share-head">
-          <span>{isLoc ? 'Kirim Lokasi' : 'Kirim Kontak'}</span>
-          <button onClick={onClose}><X size={18} /></button>
+          <span className="cv-share-title">{isLoc ? <MapPin size={16} /> : <User size={16} />}{isLoc ? 'Kirim lokasi' : 'Kirim kontak'}</span>
+          <button className="cv-modal-close" onClick={onClose}><X size={18} /></button>
         </div>
         <form onSubmit={submit} className="cv-share-form">
           {isLoc ? (
@@ -246,10 +246,10 @@ function ShareModal({ mode, onClose, onSendLocation, onSendContact, loading }) {
                 <MapPin size={15} /> {geoBusy ? 'Mengambil lokasi…' : 'Gunakan lokasi saya'}
               </button>
               {geoErr && <div className="cv-share-err">{geoErr}</div>}
-              <label>Latitude</label>
-              <input value={lat} onChange={e => setLat(e.target.value)} placeholder="-7.2575" inputMode="decimal" />
-              <label>Longitude</label>
-              <input value={lng} onChange={e => setLng(e.target.value)} placeholder="112.7521" inputMode="decimal" />
+              <div className="cv-share-grid">
+                <div><label>Latitude</label><input value={lat} onChange={e => setLat(e.target.value)} placeholder="-7.2575" inputMode="decimal" /></div>
+                <div><label>Longitude</label><input value={lng} onChange={e => setLng(e.target.value)} placeholder="112.7521" inputMode="decimal" /></div>
+              </div>
               <label>Nama tempat (opsional)</label>
               <input value={name} onChange={e => setName(e.target.value)} placeholder="mis. Kantor Renus" />
               <label>Alamat (opsional)</label>
@@ -270,19 +270,24 @@ function ShareModal({ mode, onClose, onSendLocation, onSendContact, loading }) {
         </form>
       </div>
       <style>{`
-        .cv-share-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 500; display: flex; align-items: center; justify-content: center; padding: 16px; }
-        .cv-share-modal { background: var(--surface); border-radius: 14px; width: 100%; max-width: 380px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); overflow: hidden; }
-        .cv-share-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--border); font-weight: 700; color: var(--text); }
-        .cv-share-head button { color: var(--muted); }
-        .cv-share-form { padding: 16px; display: flex; flex-direction: column; gap: 6px; }
-        .cv-share-form label { font-size: 12px; font-weight: 600; color: var(--text2); margin-top: 6px; }
-        .cv-share-form input { padding: 9px 11px; border: 1px solid var(--border); border-radius: 8px; font-size: 13.5px; background: var(--surface2, var(--surface)); color: var(--text); }
-        .cv-share-geo { display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 10px; border-radius: 9px; background: var(--primary-light); color: var(--primary); font-weight: 600; font-size: 13px; }
-        .cv-share-err { font-size: 11.5px; color: var(--danger, #e53e3e); }
+        .cv-share-overlay { position: fixed; inset: 0; background: var(--scrim); z-index: 500; display: flex; align-items: center; justify-content: center; padding: 16px; animation: fadeIn 0.15s ease; }
+        .cv-share-modal { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; width: 100%; max-width: 400px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); overflow: hidden; }
+        .cv-share-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px 12px 18px; border-bottom: 1px solid var(--border); }
+        .cv-share-title { display: inline-flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 700; color: var(--text); }
+        .cv-share-title svg { color: var(--primary); }
+        .cv-share-form { padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 6px; }
+        .cv-share-form label { display: block; font-size: 12px; font-weight: 600; color: var(--text2); margin: 6px 0 5px; }
+        .cv-share-form input { width: 100%; height: 40px; padding: 0 12px; border: 1px solid var(--border); border-radius: 9px; font-size: 13.5px; background: var(--surface2); color: var(--text); outline: none; transition: border-color 0.15s; }
+        .cv-share-form input:focus { border-color: var(--primary); background: var(--surface); }
+        .cv-share-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .cv-share-geo { display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 40px; border-radius: 9px; background: var(--primary-light); color: var(--primary); font-weight: 600; font-size: 13px; }
+        .cv-share-geo:disabled { opacity: 0.7; }
+        .cv-share-err { font-size: 12px; color: var(--danger, #e53e3e); }
         .cv-share-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
-        .cv-share-cancel { padding: 9px 14px; border-radius: 8px; background: var(--surface3); color: var(--text2); font-weight: 600; font-size: 13px; }
-        .cv-share-send { padding: 9px 16px; border-radius: 8px; background: var(--primary); color: var(--on-primary); font-weight: 600; font-size: 13px; }
+        .cv-share-cancel { height: 38px; padding: 0 16px; border-radius: 9px; background: var(--surface3); color: var(--text2); font-weight: 600; font-size: 13px; }
+        .cv-share-send { height: 38px; padding: 0 20px; border-radius: 9px; background: var(--primary); color: var(--on-primary); font-weight: 600; font-size: 13px; }
         .cv-share-send:disabled { opacity: 0.6; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
       `}</style>
     </div>
   )
@@ -296,12 +301,20 @@ function MediaContent({ msg, sent, onImageClick }) {
   if (media_type === 'contact' || media_type === 'location') {
     const isLoc = media_type === 'location'
     const text = (body || '').replace(/^📍\s?|^📇\s?/, '') || (isLoc ? 'Lokasi' : 'Kontak')
+    // Baris pertama = nama tempat/kontak, sisanya = alamat
+    const [title, ...rest] = text.split('\n')
+    const detail = isLoc ? rest.join(', ') : (media_filename ? `+${String(media_filename).replace(/^\+/, '')}` : '')
     const inner = (
       <div className={`cv-special-card ${sent ? 'sent' : 'recv'}`}>
-        {isLoc ? <MapPin size={20} /> : <User size={20} />}
+        <span className={`cv-special-icon ${isLoc ? 'loc' : 'contact'}`}>{isLoc ? <MapPin size={18} /> : <User size={18} />}</span>
         <div className="cv-special-info">
-          <span className="cv-special-title">{text}</span>
-          <span className="cv-special-sub">{isLoc ? (media_url ? 'Buka di Google Maps' : 'Lokasi') : (media_filename ? `Chat: +${String(media_filename).replace(/^\+/, '')}` : 'Kontak')}</span>
+          <span className="cv-special-title">{title || (isLoc ? 'Lokasi' : 'Kontak')}</span>
+          {detail && <span className="cv-special-detail">{detail}</span>}
+          {(media_url || detail) && (
+            <span className="cv-special-action">
+              {isLoc ? <><ExternalLink size={11} /> Buka di Google Maps</> : media_url ? <><Phone size={11} /> Chat kontak ini</> : null}
+            </span>
+          )}
         </div>
       </div>
     )
@@ -368,7 +381,7 @@ function mergeMessage(prev, message) {
 }
 
 // Baris pesan dengan gesture geser-untuk-balas (recv: geser kanan, sent: geser kiri)
-function SwipeMessageRow({ msg, sent, isSending, hasMedia, hasReply, name, onReply, onForward, onDelete, onEdit, canEdit, onMenu, onQuoteClick, onImageClick }) {
+function SwipeMessageRow({ msg, sent, isSending, hasMedia, hasReply, name, grpStart, onReply, onForward, onDelete, onEdit, canEdit, onMenu, onQuoteClick, onImageClick }) {
   const [dragX, setDragX] = useState(0)
   const start = useRef(null)
   const swiping = useRef(false)
@@ -420,7 +433,7 @@ function SwipeMessageRow({ msg, sent, isSending, hasMedia, hasReply, name, onRep
   const showCue = Math.abs(dragX) > 12
   return (
     <div
-      className={`cv-row ${sent ? 'sent' : 'recv'}`}
+      className={`cv-row ${sent ? 'sent' : 'recv'}${grpStart ? ' grp-start' : ''}`}
       id={msg.wa_message_id ? `m-${msg.wa_message_id}` : undefined}
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
@@ -457,6 +470,7 @@ function SwipeMessageRow({ msg, sent, isSending, hasMedia, hasReply, name, onRep
           : <p>{msg.body || msg.content || msg.text}</p>
         }
         <div className="cv-meta">
+          {msg.sent_by_bot && <span className="cv-bot-tag" title="Dikirim otomatis oleh bot"><Bot size={11} />Bot</span>}
           {msg.edited && <span className="cv-edited">Diedit</span>}
           {isSending
             ? <Clock size={11} style={{ color: 'rgba(255,255,255,0.5)', flexShrink: 0 }} />
@@ -1192,11 +1206,15 @@ export default function ChatPage({ chatId }) {
     const tb = new Date(b.timestamp || b.createdAt || 0).getTime()
     return ta - tb
   })
+  let prevSent = null
   for (const msg of orderedMessages) {
     const ts = msg.timestamp || msg.createdAt
     const dk = getDateKey(ts)
-    if (dk && dk !== lastDateKey) { messageItems.push({ type: 'date', key: dk, label: formatDateLabel(ts) }); lastDateKey = dk }
-    messageItems.push({ type: 'msg', msg })
+    if (dk && dk !== lastDateKey) { messageItems.push({ type: 'date', key: dk, label: formatDateLabel(ts) }); lastDateKey = dk; prevSent = null }
+    // Awal kelompok = pengirim berganti -> beri jarak lebih (seperti WhatsApp)
+    const sentNow = !!isFromMe(msg)
+    messageItems.push({ type: 'msg', msg, grpStart: prevSent !== sentNow })
+    prevSent = sentNow
   }
 
   return (
@@ -1238,8 +1256,8 @@ export default function ChatPage({ chatId }) {
         <div className="cv-actions" onClick={e => e.stopPropagation()}>
           {isAdmin && (
             <div className="cv-dd">
-              <button className="cv-assign-btn" onClick={() => setShowAgentMenu(!showAgentMenu)}>
-                <UserCheck size={15} /><span className="cv-btn-label">Assign</span>
+              <button className={`cv-hdr-btn cv-assign-btn${showAgentMenu ? ' active' : ''}`} onClick={() => setShowAgentMenu(!showAgentMenu)} title="Assign agent & regional">
+                <UserCheck size={16} /><span className="cv-btn-label">Assign</span>
               </button>
               {showAgentMenu && (
                 <div className="cv-menu cv-header-menu" style={{minWidth:200}}>
@@ -1247,11 +1265,15 @@ export default function ChatPage({ chatId }) {
                   {agents.length === 0
                     ? <div className="cv-mi muted">Tidak ada agent</div>
                     : agents.map(a => (
-                      <button key={a.id} className={`cv-mi${assignedAgent?.id === a.id ? ' active' : ''}`} onClick={() => handleAgentAssign(a)}>
-                        <span>{a.name}</span>
-                        <span className="cv-mi-sub">
-                          {a.region ? `${a.region === 'barat' ? 'Barat' : 'Timur'} · ` : ''}{a.username ? `@${a.username}` : a.email}
+                      <button key={a.id} className={`cv-mi cv-mi-agent${assignedAgent?.id === a.id ? ' active' : ''}`} onClick={() => handleAgentAssign(a)}>
+                        <span className="cv-mi-av" style={avatarStyle(a.name)}>{(a.name || '?')[0].toUpperCase()}</span>
+                        <span className="cv-mi-agent-info">
+                          <span className="cv-mi-agent-name">{a.name}</span>
+                          <span className="cv-mi-sub">
+                            {a.region ? `${a.region === 'barat' ? 'Barat' : 'Timur'} · ` : ''}{a.username ? `@${a.username}` : a.email}
+                          </span>
                         </span>
+                        {assignedAgent?.id === a.id && <Check size={15} className="cv-mi-check" />}
                       </button>
                     ))
                   }
@@ -1276,8 +1298,8 @@ export default function ChatPage({ chatId }) {
               )}
             </div>
           )}
-          <button className={`cv-del-conv-btn cv-notes-btn${showNotesPanel ? ' active' : ''}`} title="Catatan, follow-up & riwayat" onClick={handleToggleNotesPanel}>
-            <StickyNote size={15} />
+          <button className={`cv-hdr-btn cv-notes-btn${showNotesPanel ? ' active' : ''}`} title="Detail chat: kontak, follow-up, catatan & riwayat" onClick={handleToggleNotesPanel}>
+            <PanelRight size={16} /><span className="cv-btn-label">Detail</span>
             {fuData?.current && ['today', 'late'].includes(dueTone(fuData.current)) && (
               <span className={`cv-fu-dot ${dueTone(fuData.current)}`} title="Ada follow-up jatuh tempo" />
             )}
@@ -1286,11 +1308,11 @@ export default function ChatPage({ chatId }) {
       </div>
 
       {showTagModal && (
-        <Modal title="Atur Tag Percakapan" onClose={() => { setShowTagModal(false); setAiTagSuggested([]); setAiTagReason('') }}>
+        <Modal title="Atur Label Percakapan" onClose={() => { setShowTagModal(false); setAiTagSuggested([]); setAiTagReason('') }}>
           <div className="cv-tag-modal-list">
             {allTags.length > 0 && (
               <button className="cv-ai-tag-btn" onClick={handleAiSuggestTags} disabled={aiTagLoading}>
-                <Sparkles size={14} />{aiTagLoading ? 'Menganalisa...' : 'Saran Tag AI'}
+                <Sparkles size={14} />{aiTagLoading ? 'Menganalisa...' : 'Saran label dari AI'}
               </button>
             )}
             {aiTagReason && <div className="cv-ai-tag-reason">{aiTagReason}</div>}
@@ -1306,11 +1328,11 @@ export default function ChatPage({ chatId }) {
                   disabled={!!tagToggling}
                   onClick={() => handleToggleTag(t)}
                 >
+                  <span className={`cv-tag-check${checked ? ' on' : ''}`}>
+                    {tagToggling === t.id ? <span className="cv-sending-dot dark" /> : checked && <Check size={12} strokeWidth={3} />}
+                  </span>
                   <span className="tag-chip" style={{ background: t.color }}>{t.name}</span>
                   {suggested && <span className="cv-ai-tag-badge"><Sparkles size={11} />disarankan</span>}
-                  {tagToggling === t.id
-                    ? <div className="cv-sending-dot dark" />
-                    : checked && <Check size={14} />}
                 </button>
               )
             })}
@@ -1484,6 +1506,7 @@ export default function ChatPage({ chatId }) {
                 hasMedia={!!msg.media_type}
                 hasReply={!!(msg.reply_to_body || msg.reply_to_wa_id)}
                 name={name}
+                grpStart={item.grpStart}
                 onReply={() => handleReplyTo(msg)}
                 onForward={() => openForward(msg)}
                 onDelete={() => handleDeleteMessage(msg)}
@@ -1549,58 +1572,33 @@ export default function ChatPage({ chatId }) {
           </button>
           {showMoreMenu && (
             <div className="cv-menu cv-more-menu">
-              <button className="cv-mi" onClick={() => { setShowMoreMenu(false); fileInputRef.current?.click() }}>
-                <span className="cv-mi-title"><Paperclip size={14} /><span className="cv-mi-title-text">Lampirkan file</span></span>
-              </button>
-              <button className="cv-mi" onClick={() => { setShowMoreMenu(false); setShowTemplateMenu(true) }}>
-                <span className="cv-mi-title"><Zap size={14} /><span className="cv-mi-title-text">Template Pesan</span></span>
-              </button>
-              <button className="cv-mi" onClick={() => { setShowMoreMenu(false); setShowMediaGallery(true) }}>
-                <span className="cv-mi-title"><Package size={14} /><span className="cv-mi-title-text">Produk / Katalog</span></span>
-              </button>
-              <button className="cv-mi" onClick={() => { setShowMoreMenu(false); setShareModal('location') }}>
-                <span className="cv-mi-title"><MapPin size={14} /><span className="cv-mi-title-text">Kirim Lokasi</span></span>
-              </button>
-              <button className="cv-mi" onClick={() => { setShowMoreMenu(false); setShareModal('contact') }}>
-                <span className="cv-mi-title"><User size={14} /><span className="cv-mi-title-text">Kirim Kontak</span></span>
-              </button>
-              <button className="cv-mi" onClick={() => { setShowMoreMenu(false); handleRequestAiSuggestion() }}>
-                <span className="cv-mi-title"><Sparkles size={14} /><span className="cv-mi-title-text">Saran AI</span></span>
-              </button>
+              {[
+                { key: 'file', icon: Paperclip, label: 'Lampirkan file', sub: 'Foto, video, dokumen', tone: 'blue', run: () => fileInputRef.current?.click() },
+                { key: 'tpl', icon: Zap, label: 'Template pesan', sub: 'Ketik / untuk mencari', tone: 'amber', run: () => setShowTemplateMenu(true) },
+                { key: 'media', icon: Package, label: 'Produk / katalog', sub: 'Kirim dari galeri', tone: 'green', run: () => setShowMediaGallery(true) },
+                { key: 'loc', icon: MapPin, label: 'Kirim lokasi', tone: 'red', run: () => setShareModal('location') },
+                { key: 'contact', icon: User, label: 'Kirim kontak', tone: 'cyan', run: () => setShareModal('contact') },
+                { key: 'ai', icon: Sparkles, label: 'Saran balasan AI', tone: 'violet', run: () => handleRequestAiSuggestion() },
+              ].map(it => (
+                <button key={it.key} className="cv-mi cv-more-item" onClick={() => { setShowMoreMenu(false); it.run() }}>
+                  <span className={`cv-more-ico ${it.tone}`}><it.icon size={16} /></span>
+                  <span className="cv-more-text">
+                    <span className="cv-more-label">{it.label}</span>
+                    {it.sub && <span className="cv-mi-sub">{it.sub}</span>}
+                  </span>
+                </button>
+              ))}
             </div>
           )}
         </div>
 
-        <div className="cv-attach-group">
-        <button className="cv-attach-btn" onClick={() => fileInputRef.current?.click()} title="Lampirkan file">
-          <Paperclip size={19} />
-        </button>
-
-        <button className="cv-attach-btn" title="Template Pesan" onClick={() => { setShowTemplateMenu(!showTemplateMenu); setShowMediaGallery(false) }}>
-          <Zap size={19} />
-        </button>
-
-        <button className="cv-attach-btn" title="Produk/Katalog" onClick={() => { setShowMediaGallery(!showMediaGallery); setShowTemplateMenu(false) }}>
-          <Package size={19} />
-        </button>
-
-        <button className="cv-attach-btn" title="Kirim Lokasi" onClick={() => setShareModal('location')}>
-          <MapPin size={19} />
-        </button>
-
-        <button className="cv-attach-btn" title="Kirim Kontak" onClick={() => setShareModal('contact')}>
-          <User size={19} />
-        </button>
-
-        <button className="cv-attach-btn" title="Saran Balasan AI" onClick={() => { showAiMenu ? setShowAiMenu(false) : handleRequestAiSuggestion() }}>
-          <Sparkles size={19} />
-        </button>
-        </div>
-
         <div className="cv-dd cv-shared-menu-anchor">
           {showTemplateMenu && (
-            <div className="cv-menu cv-template-menu" style={{minWidth:260}}>
-              <div className="cv-menu-lbl">Template Pesan{slashQuery && <span> &middot; filter: "{slashQuery}"</span>}</div>
+            <div className="cv-menu cv-template-menu">
+              <div className="cv-menu-head">
+                <span><Zap size={13} /> Template pesan</span>
+                {slashQuery ? <span className="cv-menu-hint">filter: "{slashQuery}"</span> : <span className="cv-menu-hint">ketik / untuk mencari</span>}
+              </div>
               {filteredTemplates.length === 0 ? (
                 <div className="cv-mi muted">Tidak ada template cocok</div>
               ) : filteredTemplates.map(t => (
@@ -1609,14 +1607,14 @@ export default function ChatPage({ chatId }) {
                     <span className="cv-mi-title-text">{t.title}</span>
                     {t.shortcut && <span className="cv-mi-sub">/{t.shortcut}</span>}
                   </span>
-                  <span className="cv-mi-sub cv-tpl-preview">{t.body}</span>
+                  <span className="cv-tpl-preview">{t.body}</span>
                 </button>
               ))}
             </div>
           )}
           {showMediaGallery && (
-            <div className="cv-menu cv-media-menu" style={{minWidth:260}}>
-              <div className="cv-menu-lbl">Produk / Katalog</div>
+            <div className="cv-menu cv-media-menu">
+              <div className="cv-menu-head"><span><Package size={13} /> Produk / katalog</span><span className="cv-menu-hint">klik untuk kirim</span></div>
               {quickMedia.length === 0 ? (
                 <div className="cv-mi muted">Belum ada media di galeri</div>
               ) : (
@@ -1643,8 +1641,8 @@ export default function ChatPage({ chatId }) {
             </div>
           )}
           {showAiMenu && (
-            <div className="cv-menu cv-ai-menu" style={{minWidth:260}}>
-              <div className="cv-menu-lbl">Saran Balasan AI</div>
+            <div className="cv-menu cv-ai-menu">
+              <div className="cv-menu-head"><span><Sparkles size={13} /> Saran balasan AI</span></div>
               {aiLoading ? (
                 <div className="cv-mi muted cv-ai-loading"><div className="cv-sending-dot dark" /> Membuat saran...</div>
               ) : aiError ? (
@@ -1817,15 +1815,15 @@ export default function ChatPage({ chatId }) {
       <style>{`
         .cv-root { flex: 1; display: flex; flex-direction: row; min-height: 0; min-width: 0; background: var(--bg); overflow: hidden; }
         .cv-chat-col { flex: 1; display: flex; flex-direction: column; min-height: 0; min-width: 0; overflow: hidden; }
-        .cv-header { display: flex; align-items: center; gap: 12px; padding: 12px 20px; background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0; min-height: 64px; }
+        .cv-header { display: flex; align-items: center; gap: 12px; padding: 10px 16px 10px 20px; background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0; min-height: 64px; }
         .cv-back { display: none; width: 36px; height: 36px; border-radius: 8px; align-items: center; justify-content: center; color: var(--muted); flex-shrink: 0; }
         .cv-back:hover { background: var(--surface3); }
         @media (max-width: 768px) { .cv-back { display: flex; } }
         .cv-avatar { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700; flex-shrink: 0; }
         .cv-contact { flex: 1; min-width: 0; overflow: hidden; cursor: pointer; border-radius: 8px; padding: 2px 6px; margin: -2px -6px; transition: background 0.15s; }
         .cv-contact:hover { background: var(--surface3); }
-        .cv-name { font-size: 14px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .cv-sub { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 1px; }
+        .cv-name { font-size: 15px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .cv-sub { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; margin-top: 3px; }
         .cv-assigned { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 10px; background: rgba(39,168,122,0.1); color: var(--success); }
         .cv-region-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 10px; white-space: nowrap; }
         .cv-region-badge.barat { color: #2563eb; background: rgba(37,99,235,0.12); }
@@ -1842,24 +1840,41 @@ export default function ChatPage({ chatId }) {
         .cv-status-badge.st-open { background: rgba(208,139,40,0.12); color: var(--warning); }
         .cv-status-badge.st-in_progress { background: var(--primary-light); color: var(--primary); }
         .cv-status-badge.st-resolved { background: rgba(39,168,122,0.12); color: var(--success); }
-        .cv-actions { position: relative; display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+        .cv-actions { position: relative; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
         .cv-dd { position: relative; }
-        .cv-header-menu { position: fixed !important; top: 66px !important; right: 16px !important; left: auto !important; }
-        .cv-assign-btn { display: flex; align-items: center; gap: 5px; padding: 7px 14px; border-radius: 8px; font-size: 13px; font-weight: 500; color: var(--text2); background: var(--surface3); border: 1px solid var(--border); transition: all 0.15s; }
-        .cv-assign-btn:hover { background: var(--surface3); }
-        .cv-del-conv-btn { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--muted); transition: all 0.15s; }
-        .cv-del-conv-btn:hover { background: rgba(229,62,62,0.08); color: var(--danger); }
-        .cv-menu { position: absolute; right: 0; top: calc(100% + 6px); max-width: calc(100vw - 24px); box-sizing: border-box; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; z-index: 200; box-shadow: 0 8px 24px var(--shadow); overflow: hidden; }
+        .cv-header-menu { position: fixed !important; top: 66px !important; right: 16px !important; left: auto !important; min-width: 260px !important; }
+        .cv-hdr-btn { position: relative; display: flex; align-items: center; justify-content: center; gap: 6px; height: 36px; padding: 0 12px; border-radius: 9px; font-size: 13px; font-weight: 600; color: var(--text2); background: var(--surface); border: 1px solid var(--border); transition: background 0.15s, border-color 0.15s, color 0.15s; }
+        .cv-hdr-btn:hover { background: var(--surface2); border-color: var(--border2); }
+        .cv-hdr-btn.active { background: var(--primary-light); color: var(--primary); border-color: color-mix(in srgb, var(--primary) 40%, transparent); }
+        .cv-menu { position: absolute; right: 0; top: calc(100% + 6px); max-width: calc(100vw - 24px); box-sizing: border-box; padding: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; z-index: 200; box-shadow: 0 12px 32px var(--shadow), 0 2px 6px var(--shadow); overflow: hidden; }
+        .cv-menu-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px 6px; font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+        .cv-menu-head > span:first-child { display: inline-flex; align-items: center; gap: 6px; }
+        .cv-menu-hint { font-size: 11px; font-weight: 500; text-transform: none; letter-spacing: 0; }
         .cv-notes-btn { position: relative; }
-        .cv-fu-dot { position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; border-radius: 50%; }
+        .cv-fu-dot { position: absolute; top: -4px; right: -4px; width: 11px; height: 11px; border-radius: 50%; border: 2px solid var(--surface); }
         .cv-fu-dot.today { background: #d97706; } .cv-fu-dot.late { background: var(--danger, #e53e3e); }
-        .cv-menu-lbl { padding: 8px 14px 4px; font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
-        .cv-mi { display: flex; flex-direction: column; align-items: flex-start; width: 100%; text-align: left; padding: 9px 14px; font-size: 13px; color: var(--text); transition: background 0.1s; }
-        .cv-mi:hover { background: var(--surface2); }
+        .cv-menu-lbl { padding: 8px 10px 4px; font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+        .cv-mi { display: flex; flex-direction: column; align-items: flex-start; width: 100%; text-align: left; padding: 8px 10px; border-radius: 8px; font-size: 13px; color: var(--text); transition: background 0.1s; }
+        .cv-mi:hover { background: var(--surface3); }
         .cv-mi.muted { color: var(--muted); cursor: default; }
-        .cv-mi-unassign { color: var(--danger); border-top: 1px solid var(--border); }
+        .cv-mi-unassign { color: var(--danger); margin-top: 2px; }
         .cv-mi-unassign:hover { background: rgba(229,62,62,0.06); }
-        .cv-mi.active { background: rgba(39,168,122,0.06); color: var(--success); }
+        .cv-mi.active { background: var(--primary-light); }
+        .cv-mi-agent { flex-direction: row; align-items: center; gap: 10px; }
+        .cv-mi-av { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; flex-shrink: 0; }
+        .cv-mi-agent-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+        .cv-mi-agent-name { font-size: 13.5px; font-weight: 600; color: var(--text); }
+        .cv-mi-check { color: var(--primary); flex-shrink: 0; }
+        .cv-more-item { flex-direction: row; align-items: center; gap: 11px; padding: 7px 8px; }
+        .cv-more-ico { width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .cv-more-ico.blue { background: rgba(37,99,235,0.13); color: #3b82f6; }
+        .cv-more-ico.amber { background: rgba(217,119,6,0.14); color: #d97706; }
+        .cv-more-ico.green { background: rgba(22,163,74,0.14); color: #16a34a; }
+        .cv-more-ico.red { background: rgba(220,38,38,0.12); color: #ef4444; }
+        .cv-more-ico.cyan { background: rgba(8,145,178,0.14); color: #0891b2; }
+        .cv-more-ico.violet { background: rgba(124,92,214,0.14); color: #8b5cf6; }
+        .cv-more-text { display: flex; flex-direction: column; min-width: 0; }
+        .cv-more-label { font-size: 13.5px; font-weight: 500; color: var(--text); }
         .cv-mi-title { display: flex; align-items: baseline; justify-content: flex-start; gap: 6px; width: 100%; text-align: left; }
         .cv-mi-title-text { text-align: left; }
         .cv-mi-sub { font-size: 11px; color: var(--muted); margin-top: 1px; text-align: left; }
@@ -1889,9 +1904,10 @@ export default function ChatPage({ chatId }) {
         .cv-skel.left { align-self: flex-start; }
         .cv-skel.right { align-self: flex-end; }
         .cv-empty { margin: auto; color: var(--muted); font-size: 14px; text-align: center; padding: 32px; }
-        .cv-date-sep { display: flex; align-items: center; justify-content: center; margin: 12px 0 8px; }
-        .cv-date-sep span { background: var(--surface3); color: var(--text2); font-size: 11px; font-weight: 600; padding: 4px 14px; border-radius: 20px; }
-        .cv-row { display: flex; margin-bottom: 3px; align-items: center; gap: 6px; position: relative; touch-action: pan-y; }
+        .cv-date-sep { position: sticky; top: 2px; z-index: 5; display: flex; align-items: center; justify-content: center; margin: 12px 0 6px; pointer-events: none; }
+        .cv-date-sep span { background: var(--surface); color: var(--text2); border: 1px solid var(--border); box-shadow: 0 1px 3px var(--shadow); font-size: 11.5px; font-weight: 600; padding: 4px 12px; border-radius: 999px; }
+        .cv-row { display: flex; align-items: center; gap: 6px; position: relative; touch-action: pan-y; }
+        .cv-row.grp-start { margin-top: 8px; }
         .cv-row.sent { justify-content: flex-end; }
         .cv-row.recv { justify-content: flex-start; }
         /* Tombol aksi saat hover — hanya untuk perangkat desktop (punya hover & pointer presisi) */
@@ -1927,7 +1943,8 @@ export default function ChatPage({ chatId }) {
         .cv-forward-preview { background: var(--surface3); border-left: 3px solid var(--primary); border-radius: 6px; padding: 7px 10px; font-size: 13px; color: var(--text2); display: flex; flex-direction: column; gap: 2px; }
         .cv-forward-media { font-size: 11px; font-weight: 700; color: var(--primary); display: inline-flex; align-items: center; gap: 4px; text-transform: capitalize; }
         .cv-forward-preview-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .cv-forward-search { display: flex; align-items: center; gap: 8px; border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; color: var(--muted); }
+        .cv-forward-search { display: flex; align-items: center; gap: 8px; height: 40px; border: 1px solid var(--border); border-radius: 9px; padding: 0 12px; color: var(--muted); background: var(--surface2); }
+        .cv-forward-search:focus-within { border-color: var(--primary); }
         .cv-forward-search input { flex: 1; border: none; outline: none; font-size: 14px; color: var(--text); background: transparent; }
         .cv-forward-list { display: flex; flex-direction: column; max-height: 320px; overflow-y: auto; }
         .cv-forward-empty { text-align: center; color: var(--muted); font-size: 13px; padding: 20px 0; }
@@ -1937,7 +1954,7 @@ export default function ChatPage({ chatId }) {
         .cv-forward-item { display: flex; align-items: center; gap: 10px; padding: 9px 8px; border-radius: 8px; text-align: left; transition: background 0.12s; }
         .cv-forward-item:hover:not(:disabled) { background: var(--surface3); }
         .cv-forward-item:disabled { opacity: 0.6; }
-        .cv-forward-avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--border2); color: var(--primary); font-weight: 700; font-size: 13px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .cv-forward-avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--primary-light); color: var(--primary); font-weight: 700; font-size: 13px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
         .cv-forward-name { flex: 1; font-size: 14px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .cv-forward-ico { color: var(--muted); flex-shrink: 0; }
         .cv-forward-check { color: var(--success); flex-shrink: 0; }
@@ -1965,15 +1982,20 @@ export default function ChatPage({ chatId }) {
         .cv-reply-preview-text { font-size: 12px; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .cv-reply-preview-x { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: var(--muted); flex-shrink: 0; }
         .cv-reply-preview-x:hover { background: var(--surface3); color: var(--primary); }
-        .cv-bubble { max-width: 62%; padding: 10px 14px 7px; border-radius: 16px; box-shadow: 0 1px 3px var(--shadow); word-break: break-word; }
+        .cv-bubble { max-width: min(62%, 560px); padding: 8px 12px 6px; border-radius: 14px; box-shadow: 0 1px 2px var(--shadow); word-break: break-word; }
         .cv-bubble.media { padding: 4px 4px 7px; }
         .cv-bubble.sending { opacity: 0.65; }
-        .bsent { background: var(--sent); color: var(--sent-text); border-bottom-right-radius: 4px; }
-        .brecv { background: var(--recv); color: var(--recv-text); border-bottom-left-radius: 4px; border: 1px solid var(--border); }
-        .cv-bubble p { font-size: 14px; line-height: 1.55; white-space: pre-wrap; }
-        .cv-meta { display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: 4px; padding: 0 2px; }
+        .bsent { background: var(--sent); color: var(--sent-text); }
+        .brecv { background: var(--recv); color: var(--recv-text); border: 1px solid var(--border); }
+        /* "Ekor" bubble hanya di pesan pertama tiap kelompok */
+        .cv-row.grp-start .bsent { border-top-right-radius: 4px; }
+        .cv-row.grp-start .brecv { border-top-left-radius: 4px; }
+        .cv-bubble p { font-size: 14.2px; line-height: 1.5; white-space: pre-wrap; }
+        .cv-meta { display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: 3px; padding: 0 2px; }
+        .cv-bot-tag { display: inline-flex; align-items: center; gap: 2px; font-size: 10px; font-weight: 700; padding: 0 5px; border-radius: 6px; background: rgba(255,255,255,0.18); margin-right: 2px; }
+        .brecv .cv-bot-tag { background: var(--surface3); color: var(--text2); }
         .cv-edited { font-size: 10px; font-style: italic; opacity: 0.7; margin-right: 2px; }
-        .cv-time { font-size: 10px; color: rgba(255,255,255,0.6); white-space: nowrap; }
+        .cv-time { font-size: 10.5px; color: rgba(255,255,255,0.7); white-space: nowrap; }
         .brecv .cv-time { color: var(--muted); }
         .cv-media-wrap { min-width: 180px; }
         .cv-media-skeleton { width: 240px; height: 160px; border-radius: 8px; background: var(--skeleton); overflow: hidden; }
@@ -1992,12 +2014,18 @@ export default function ChatPage({ chatId }) {
         .cv-sticker-wrap { display: flex; flex-direction: column; gap: 4px; }
         .cv-sticker { width: 130px; height: 130px; object-fit: contain; }
         .cv-special-link { text-decoration: none; }
-        .cv-special-card { display: flex; align-items: center; gap: 11px; padding: 11px 13px; border-radius: 10px; min-width: 200px; }
+        .cv-special-card { display: flex; align-items: flex-start; gap: 11px; padding: 10px 12px; border-radius: 10px; min-width: 230px; max-width: 320px; }
         .cv-special-card.sent { background: rgba(255,255,255,0.15); color: var(--on-primary); }
-        .cv-special-card.recv { background: var(--surface3); color: var(--text); border: 1px solid var(--border); }
-        .cv-special-info { display: flex; flex-direction: column; min-width: 0; }
-        .cv-special-title { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .cv-special-sub { font-size: 11.5px; opacity: 0.7; }
+        .cv-special-card.recv { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+        .cv-special-icon { width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .cv-special-icon.loc { background: rgba(220,38,38,0.13); color: #ef4444; }
+        .cv-special-icon.contact { background: rgba(37,99,235,0.13); color: #3b82f6; }
+        .cv-special-card.sent .cv-special-icon { background: rgba(255,255,255,0.2); color: var(--on-primary); }
+        .cv-special-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+        .cv-special-title { font-size: 14px; font-weight: 700; line-height: 1.3; }
+        .cv-special-detail { font-size: 12px; opacity: 0.8; line-height: 1.35; }
+        .cv-special-action { display: inline-flex; align-items: center; gap: 4px; margin-top: 3px; font-size: 11.5px; font-weight: 600; color: var(--primary); }
+        .cv-special-card.sent .cv-special-action { color: var(--on-primary); opacity: 0.9; }
         .cv-media-doc { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 10px; text-decoration: none; min-width: 200px; cursor: pointer; }
         .cv-media-doc.sent { background: rgba(255,255,255,0.15); color: var(--on-primary); }
         .cv-media-doc.recv { background: var(--surface3); color: var(--text); border: 1px solid var(--border); }
@@ -2025,10 +2053,8 @@ export default function ChatPage({ chatId }) {
         .cv-shared-menu-anchor { position: absolute; left: 14px; bottom: 100%; width: 0; height: 0; }
         .cv-attach-btn { width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: var(--muted); transition: all 0.15s; border: 1.5px solid var(--border); background: var(--surface2); }
         .cv-attach-btn:hover { background: var(--surface3); color: var(--primary); border-color: var(--border2); }
-        .cv-attach-group { display: none; }
-        .cv-more-dd { display: block; }
-        .cv-more-menu { min-width: 200px; }
-        .cv-more-menu .cv-mi-title { gap: 10px; }
+                .cv-more-dd { display: block; }
+        .cv-more-menu { min-width: 250px; }
         .cv-input { flex: 1; background: var(--surface2); border: 1.5px solid var(--border); border-radius: 12px; color: var(--text); padding: 11px 14px; font-size: 14px; line-height: 22px; height: 44px; min-height: 44px; max-height: 120px; outline: none; resize: none; overflow-y: auto; transition: border-color 0.15s; font-family: inherit; }
         .cv-input:focus { border-color: var(--primary); background: var(--surface); }
         .cv-input::placeholder { color: var(--muted); }
@@ -2043,24 +2069,29 @@ export default function ChatPage({ chatId }) {
         .cv-lightbox-img { max-width: 90vw; max-height: 90vh; border-radius: 8px; object-fit: contain; }
         .cv-lightbox-msg { display: flex; flex-direction: column; align-items: center; gap: 12px; color: rgba(255,255,255,0.85); font-size: 14px; padding: 40px; }
         .cv-input-bar .cv-dd .cv-menu { bottom: calc(100% + 8px); top: auto; left: 0; right: auto; max-height: 360px; overflow-y: auto; }
-        .cv-tpl-preview { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 230px; }
-        .cv-media-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 10px; }
-        .cv-media-grid-item { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; border-radius: 8px; overflow: hidden; background: var(--surface2); border: 1px solid var(--border); padding: 0 0 4px; }
-        .cv-media-grid-item:hover { border-color: var(--primary); }
-        .cv-media-grid-item img { width: 100%; height: 64px; object-fit: cover; }
-        .cv-media-grid-doc { width: 100%; height: 64px; display: flex; align-items: center; justify-content: center; color: var(--muted); background: var(--surface3); }
-        .cv-media-grid-label { font-size: 10px; color: var(--text2); padding: 0 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+        .cv-template-menu { width: 360px; }
+        .cv-template-menu .cv-mi { gap: 2px; }
+        .cv-template-menu .cv-mi-title-text { font-weight: 600; }
+        .cv-tpl-preview { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 12px; color: var(--muted); line-height: 1.4; }
+        .cv-media-menu { width: 360px; }
+        .cv-ai-menu { width: 380px; }
+        .cv-media-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 4px 6px 8px; }
+        .cv-media-grid-item { position: relative; display: flex; flex-direction: column; align-items: stretch; gap: 0; border-radius: 10px; overflow: hidden; background: var(--surface2); border: 1px solid var(--border); transition: border-color 0.15s, transform 0.15s; }
+        .cv-media-grid-item:hover { border-color: var(--primary); transform: translateY(-1px); }
+        .cv-media-grid-item img { width: 100%; height: 82px; object-fit: cover; }
+        .cv-media-grid-doc { width: 100%; height: 82px; display: flex; align-items: center; justify-content: center; color: var(--muted); background: var(--surface3); }
+        .cv-media-grid-label { font-size: 11px; font-weight: 500; color: var(--text2); padding: 5px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; }
         .cv-media-grid-sending { position: absolute; inset: 0; background: rgba(255,255,255,0.7); display: flex; align-items: center; justify-content: center; }
         .cv-sending-dot.dark { border-color: rgba(53,99,233,0.3); border-top-color: var(--primary); }
         .cv-ai-loading { flex-direction: row; align-items: center; gap: 8px; color: var(--muted); }
-        .cv-ai-suggestion-box { padding: 6px 14px 12px; display: flex; flex-direction: column; gap: 10px; }
+        .cv-ai-suggestion-box { padding: 4px 8px 8px; display: flex; flex-direction: column; gap: 10px; }
         .cv-ai-suggestion-text { font-size: 13px; color: var(--text); white-space: pre-wrap; line-height: 1.5; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; max-height: 180px; overflow-y: auto; }
         .cv-ai-suggestion-actions { display: flex; justify-content: flex-end; gap: 8px; }
         .cv-ai-use-btn { padding: 7px 14px; border-radius: 7px; font-size: 13px; font-weight: 600; background: var(--primary); color: var(--on-primary); transition: all 0.15s; }
         .cv-ai-use-btn:hover { background: var(--primary-hover); }
         .cv-ai-close-btn { padding: 7px 14px; border-radius: 7px; font-size: 13px; font-weight: 500; color: var(--text2); background: var(--surface3); }
         .cv-ai-close-btn:hover { background: var(--surface3); }
-        .cv-ai-error-box { display: flex; flex-direction: column; gap: 8px; padding: 6px 14px 14px; font-size: 13px; color: var(--danger); }
+        .cv-ai-error-box { display: flex; flex-direction: column; gap: 8px; padding: 4px 10px 10px; font-size: 13px; color: var(--danger); }
         .cv-ai-retry { align-self: flex-start; padding: 6px 12px; border-radius: 7px; font-size: 12px; font-weight: 600; background: rgba(229,62,62,0.08); color: var(--danger); }
         .cv-ai-retry:hover { background: rgba(229,62,62,0.14); }
         @media (max-width: 768px) {
@@ -2068,15 +2099,18 @@ export default function ChatPage({ chatId }) {
           .cv-messages { padding: 12px; }
           .cv-bubble { max-width: 78%; }
           .cv-btn-label { display: none; }
-          .cv-actions { gap: 2px; }
-          .cv-assign-btn { width: 34px; height: 34px; padding: 0; justify-content: center; gap: 0; }
-          .cv-del-conv-btn { width: 34px; height: 34px; }
+          .cv-actions { gap: 6px; }
+          .cv-hdr-btn { width: 38px; height: 38px; padding: 0; }
+          /* Badge header 1 baris (geser horizontal); detail lengkap di panel Detail */
+          .cv-sub { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; -webkit-mask-image: linear-gradient(90deg, #000 85%, transparent); mask-image: linear-gradient(90deg, #000 85%, transparent); }
+          .cv-sub::-webkit-scrollbar { display: none; }
+          .cv-sub > * { flex-shrink: 0; }
+          .cv-template-menu, .cv-media-menu, .cv-ai-menu { width: calc(100vw - 24px); }
           .cv-send-label { display: none; }
           .cv-send-btn { padding: 0; width: 44px; height: 44px; justify-content: center; border-radius: 12px; }
           .cv-input-bar { padding: 8px 10px; gap: 6px; padding-bottom: calc(8px + env(safe-area-inset-bottom)); }
           /* Saat keyboard terbuka, hilangkan gap safe-area (keyboard menutupi home indicator) */
           .cv-root.kb-open .cv-input-bar { padding-bottom: 8px; }
-          .cv-attach-group { display: none; }
           .cv-more-dd { display: block; }
           .cv-notes-sidebar { position: fixed !important; inset: 0 !important; width: 100% !important; height: 100% !important; z-index: 400; border-left: none; animation: slideInRight 0.22s ease-out; }
           .cv-header-menu { top: 58px !important; right: 8px !important; }
@@ -2111,8 +2145,8 @@ export default function ChatPage({ chatId }) {
         .cv-contact-edit-btn:hover { background: var(--surface3); }
         .cv-edit-contact { display: flex; flex-direction: column; padding: 18px 20px 20px; }
         .cv-edit-label { font-size: 12px; font-weight: 600; color: var(--text2); margin-bottom: 5px; }
-        .cv-edit-input { border: 1px solid var(--border); border-radius: 8px; padding: 9px 11px; font-size: 14px; color: var(--text); outline: none; margin-bottom: 12px; transition: border 0.12s; }
-        .cv-edit-input:focus { border-color: var(--primary); }
+        .cv-edit-input { height: 40px; border: 1px solid var(--border); border-radius: 9px; padding: 0 12px; font-size: 14px; color: var(--text); background: var(--surface2); outline: none; margin-bottom: 12px; transition: border 0.12s; }
+        .cv-edit-input:focus { border-color: var(--primary); background: var(--surface); }
         .cv-edit-hint { font-size: 11px; color: var(--muted); margin: -6px 0 12px; line-height: 1.4; }
         .cv-edit-error { font-size: 12px; color: var(--danger); margin-bottom: 10px; }
         .cv-edit-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
@@ -2142,7 +2176,7 @@ export default function ChatPage({ chatId }) {
         .cv-note-save { padding: 7px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; background: var(--primary); color: var(--on-primary); transition: all 0.15s; }
         .cv-note-save:hover { background: var(--primary-hover); }
         .cv-note-save:disabled { background: var(--surface3); color: var(--muted); cursor: not-allowed; }
-        .cv-ai-tag-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 8px; font-size: 13px; font-weight: 600; color: #7c5cd6; background: rgba(124,92,214,0.08); transition: all 0.15s; margin-bottom: 4px; }
+        .cv-ai-tag-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 9px 12px; border-radius: 8px; font-size: 13px; font-weight: 600; color: #7c5cd6; background: rgba(124,92,214,0.08); transition: all 0.15s; margin-bottom: 4px; }
         .cv-ai-tag-btn:hover { background: rgba(124,92,214,0.15); }
         .cv-ai-tag-btn:disabled { opacity: 0.6; cursor: not-allowed; }
         .cv-ai-tag-reason { font-size: 12px; color: var(--text2); background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; line-height: 1.4; margin-bottom: 4px; }
@@ -2159,15 +2193,20 @@ export default function ChatPage({ chatId }) {
         .cv-history-time { font-size: 11px; color: var(--muted); flex-shrink: 0; }
         .cv-history-preview { font-size: 12px; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .cv-modal-overlay { position: fixed; inset: 0; z-index: 500; background: var(--scrim); display: flex; align-items: center; justify-content: center; padding: 20px; }
-        .cv-modal { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; width: 100%; max-width: 360px; box-shadow: 0 20px 60px var(--shadow); overflow: hidden; max-height: 90vh; overflow-y: auto; }
-        .cv-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); background: var(--surface2); }
-        .cv-modal-header h3 { font-size: 15px; font-weight: 600; color: var(--text); }
+        .cv-modal { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; width: 100%; max-width: 400px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); overflow: hidden; max-height: 90vh; overflow-y: auto; animation: cvModalIn 0.16s ease-out; }
+        @keyframes cvModalIn { from { opacity: 0; transform: translateY(6px) scale(0.99); } to { opacity: 1; transform: none; } }
+        .cv-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px 12px 18px; border-bottom: 1px solid var(--border); }
+        .cv-modal-header h3 { font-size: 15px; font-weight: 700; color: var(--text); }
         .cv-modal-close { width: 30px; height: 30px; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: var(--muted); transition: all 0.15s; }
         .cv-modal-close:hover { background: var(--surface3); color: var(--text2); }
-        .cv-tag-modal-list { padding: 14px 20px; display: flex; flex-direction: column; gap: 6px; }
-        .cv-tag-option { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; border-radius: 8px; transition: background 0.1s; color: var(--success); }
-        .cv-tag-option:hover { background: var(--surface2); }
-        .cv-tag-option.checked { background: rgba(39,168,122,0.06); }
+        .cv-tag-modal-list { padding: 12px 12px 14px; display: flex; flex-direction: column; gap: 2px; }
+        .cv-tag-option { display: flex; align-items: center; gap: 12px; padding: 9px 10px; border-radius: 9px; transition: background 0.1s; text-align: left; }
+        .cv-tag-option:hover { background: var(--surface3); }
+        .cv-tag-option.checked { background: var(--primary-light); }
+        .cv-tag-option .tag-chip { font-size: 11.5px; padding: 3px 10px; }
+        .cv-tag-check { width: 18px; height: 18px; border-radius: 5px; border: 2px solid var(--border2); display: flex; align-items: center; justify-content: center; color: #fff; flex-shrink: 0; transition: all 0.12s; }
+        .cv-tag-check.on { background: var(--primary); border-color: var(--primary); }
+        .cv-tag-check .cv-sending-dot { width: 12px; height: 12px; border-width: 2px; }
         .cv-tag-option:disabled { opacity: 0.6; cursor: not-allowed; }
       `}</style>
     </div>

@@ -76,6 +76,8 @@ body {
 }
 
 button { border: none; background: none; cursor: pointer; font-family: inherit; color: inherit; }
+/* Fokus keyboard yang jelas (tidak muncul saat klik mouse) */
+button:focus-visible, a:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 a { text-decoration: none; color: inherit; }
 
 ::-webkit-scrollbar { width: 4px; }
