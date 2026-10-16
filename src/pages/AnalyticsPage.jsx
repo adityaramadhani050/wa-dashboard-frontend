@@ -237,7 +237,7 @@ export default function AnalyticsPage() {
     <div className="an-page">
       {/* Header */}
       <div className="an-header">
-        <h1>Analytics</h1>
+        <h1><BarChart2 size={21} />Analytics</h1>
         <div className="an-header-actions">
           <div className="an-dd" ref={exportRef}>
             <button className="an-btn" onClick={() => setShowExport(v => !v)} disabled={!!exporting}>
@@ -507,7 +507,7 @@ export default function AnalyticsPage() {
 
         /* Header */
         .an-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; min-height: 38px; }
-        .an-header h1 { font-size: 21px; font-weight: 700; color: var(--text); }
+        .an-header h1 { display: flex; align-items: center; gap: 9px; font-size: 21px; font-weight: 700; color: var(--text); }
         .an-header-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
         .an-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 38px; padding: 0 14px; border-radius: 10px; background: var(--surface); color: var(--text2); border: 1px solid var(--border); font-size: 13px; font-weight: 600; white-space: nowrap; transition: background 0.15s, border-color 0.15s; }
         .an-btn:hover:not(:disabled) { background: var(--surface2); border-color: var(--border2); }
