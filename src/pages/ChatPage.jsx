@@ -1692,103 +1692,124 @@ export default function ChatPage({ chatId }) {
       {showNotesPanel && (
         <div className="cv-notes-sidebar" onClick={e => e.stopPropagation()}>
           <div className="cv-notes-sidebar-header">
-            <span>Catatan & Riwayat</span>
-            <button className="cv-notes-sidebar-close" onClick={handleToggleNotesPanel}><X size={16} /></button>
-          </div>
-          <div className="cv-notes-contact">
-            <div className="cv-notes-contact-name-row">
-              <div className="cv-notes-contact-name">{name}</div>
-              {isAdmin && (
-                <button className="cv-contact-edit-btn" title="Edit kontak" onClick={openEditContact}>
-                  <Pencil size={13} />
-                </button>
-              )}
-            </div>
-            {phone && <div className="cv-notes-contact-phone">{phone}</div>}
-            <div className="cv-notes-contact-row">
-              <span className="cv-notes-contact-label">Agent</span>
-              {assignedAgent
-                ? <span className="cv-assigned"><UserCheck size={10} />{assignedAgent.name}</span>
-                : <span className="cv-unassigned">Unassigned</span>}
-            </div>
-            <div className="cv-notes-contact-row">
-              <span className="cv-notes-contact-label">Label</span>
-              <div className="cv-notes-contact-tags">
-                {conversationTags.length === 0
-                  ? <span className="cv-notes-empty-inline">Belum ada label</span>
-                  : conversationTags.map(t => (
-                    <span key={t.id} className="tag-chip" style={{ background: t.color }}>{t.name}</span>
-                  ))}
-                <button className="cv-tag-edit-btn" title="Atur tag" onClick={() => setShowTagModal(true)}>
-                  <TagIcon size={12} />
-                </button>
-              </div>
-            </div>
-          </div>
-          <FollowupPanel
-            data={fuData}
-            conversationId={id}
-            contactName={conversation?.contact?.name}
-            onInsertText={(t) => {
-              setText(t)
-              // Mobile: panel menutupi layar -> tutup agar draf terlihat di kolom ketik
-              if (window.matchMedia('(max-width: 768px)').matches) setShowNotesPanel(false)
-            }}
-            onChanged={loadFollowup}
-          />
-          <div className="cv-notes-list">
-            {loadingNotes ? (
-              <div className="cv-notes-loading">Memuat catatan...</div>
-            ) : notes.length === 0 ? (
-              <div className="cv-notes-empty">Belum ada catatan.</div>
-            ) : (
-              notes.map(n => (
-                <div key={n.id} className="cv-note-item">
-                  <p className="cv-note-body">{n.body}</p>
-                  <div className="cv-note-meta">
-                    <span>{n.agents?.name || 'Sistem'}</span>
-                    <span>{formatReminderTime(n.created_at)}</span>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-          <div className="cv-notes-form">
-            <textarea
-              value={noteText}
-              onChange={e => setNoteText(e.target.value)}
-              placeholder="Tulis catatan tentang kontak ini..."
-              rows={2}
-            />
-            <div className="cv-notes-form-actions">
-              <button className="cv-note-ai" onClick={handleAiSuggestNote} disabled={aiNoteLoading}>
-                <Sparkles size={13} />{aiNoteLoading ? 'Membuat...' : 'Buat dari AI'}
-              </button>
-              <button className="cv-note-save" onClick={handleSaveNote} disabled={!noteText.trim() || savingNote}>
-                {savingNote ? 'Menyimpan...' : 'Simpan'}
-              </button>
-            </div>
+            <span>Detail Chat</span>
+            <button className="cv-notes-sidebar-close" onClick={handleToggleNotesPanel} title="Tutup"><X size={16} /></button>
           </div>
 
-          <div className="cv-history-section">
-            <div className="cv-history-title">Riwayat Percakapan</div>
-            {loadingHistory ? (
-              <div className="cv-notes-loading">Memuat riwayat...</div>
-            ) : convHistory.length === 0 ? (
-              <div className="cv-notes-empty">Tidak ada percakapan lain dengan kontak ini.</div>
-            ) : (
-              <div className="cv-history-list">
-                {convHistory.map(h => (
-                  <button key={h.id} className="cv-history-item" onClick={() => handleOpenHistoryConversation(h.id)}>
-                    <div className="cv-history-item-top">
-                      <span className={`cv-history-badge st-${h.status || 'open'}`}>{statusLabel(h.status)}</span>
-                      <span className="cv-history-time">{formatReminderTime(h.lastMessageAt || h.updated_at)}</span>
-                    </div>
-                    <div className="cv-history-preview">{h.lastMessage || 'Belum ada pesan'}</div>
+          <div className="cv-notes-body">
+            {/* Kontak */}
+            <section className="cv-ns cv-ns-contact">
+              <div className="cv-nc-top">
+                <div className="cv-avatar cv-nc-avatar" style={avatarStyle(name)}>{name[0].toUpperCase()}</div>
+                <div className="cv-nc-id">
+                  <div className="cv-notes-contact-name">{name}</div>
+                  {phone && <div className="cv-notes-contact-phone">{phone}</div>}
+                </div>
+                {isAdmin && (
+                  <button className="cv-contact-edit-btn" title="Edit kontak" onClick={openEditContact}>
+                    <Pencil size={13} />
                   </button>
-                ))}
+                )}
               </div>
-            )}
+              <div className="cv-nc-meta">
+                <span className="cv-notes-contact-label">Agent</span>
+                <div>
+                  {assignedAgent
+                    ? <span className="cv-assigned"><UserCheck size={10} />{assignedAgent.name}</span>
+                    : <span className="cv-unassigned">Unassigned</span>}
+                </div>
+                <span className="cv-notes-contact-label">Label</span>
+                <div className="cv-notes-contact-tags">
+                  {conversationTags.length === 0
+                    ? <span className="cv-notes-empty-inline">Belum ada label</span>
+                    : conversationTags.map(t => (
+                      <span key={t.id} className="tag-chip" style={{ background: t.color }}>{t.name}</span>
+                    ))}
+                  <button className="cv-tag-edit-btn" title="Atur label" onClick={() => setShowTagModal(true)}>
+                    <TagIcon size={12} />
+                  </button>
+                </div>
+              </div>
+            </section>
+
+            {/* Follow-up */}
+            <FollowupPanel
+              data={fuData}
+              conversationId={id}
+              contactName={conversation?.contact?.name}
+              onInsertText={(t) => {
+                setText(t)
+                // Mobile: panel menutupi layar -> tutup agar draf terlihat di kolom ketik
+                if (window.matchMedia('(max-width: 768px)').matches) setShowNotesPanel(false)
+              }}
+              onChanged={loadFollowup}
+            />
+
+            {/* Catatan */}
+            <section className="cv-ns">
+              <div className="cv-ns-head">
+                <span className="cv-ns-title"><StickyNote size={13} />Catatan</span>
+                {notes.length > 0 && <span className="cv-ns-count">{notes.length}</span>}
+              </div>
+              <div className="cv-notes-list">
+                {loadingNotes ? (
+                  <div className="cv-notes-loading">Memuat catatan...</div>
+                ) : notes.length === 0 ? (
+                  <div className="cv-notes-empty">Belum ada catatan.</div>
+                ) : (
+                  notes.map(n => (
+                    <div key={n.id} className="cv-note-item">
+                      <p className="cv-note-body">{n.body}</p>
+                      <div className="cv-note-meta">
+                        <span>{n.agents?.name || 'Sistem'}</span>
+                        <span>{formatReminderTime(n.created_at)}</span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+              <div className="cv-notes-form">
+                <textarea
+                  value={noteText}
+                  onChange={e => setNoteText(e.target.value)}
+                  placeholder="Tulis catatan tentang kontak ini..."
+                  rows={2}
+                />
+                <div className="cv-notes-form-actions">
+                  <button className="cv-note-ai" onClick={handleAiSuggestNote} disabled={aiNoteLoading}>
+                    <Sparkles size={13} />{aiNoteLoading ? 'Membuat...' : 'Buat dari AI'}
+                  </button>
+                  <button className="cv-note-save" onClick={handleSaveNote} disabled={!noteText.trim() || savingNote}>
+                    {savingNote ? 'Menyimpan...' : 'Simpan'}
+                  </button>
+                </div>
+              </div>
+            </section>
+
+            {/* Riwayat percakapan */}
+            <section className="cv-ns">
+              <div className="cv-ns-head">
+                <span className="cv-ns-title"><Clock size={13} />Riwayat Percakapan</span>
+                {convHistory.length > 0 && <span className="cv-ns-count">{convHistory.length}</span>}
+              </div>
+              {loadingHistory ? (
+                <div className="cv-notes-loading">Memuat riwayat...</div>
+              ) : convHistory.length === 0 ? (
+                <div className="cv-notes-empty">Tidak ada percakapan lain dengan kontak ini.</div>
+              ) : (
+                <div className="cv-history-list">
+                  {convHistory.map(h => (
+                    <button key={h.id} className="cv-history-item" onClick={() => handleOpenHistoryConversation(h.id)}>
+                      <div className="cv-history-item-top">
+                        <span className={`cv-history-badge st-${h.status || 'open'}`}>{statusLabel(h.status)}</span>
+                        <span className="cv-history-time">{formatReminderTime(h.lastMessageAt || h.updated_at)}</span>
+                      </div>
+                      <div className="cv-history-preview">{h.lastMessage || 'Belum ada pesan'}</div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </section>
           </div>
         </div>
       )}
@@ -2070,14 +2091,23 @@ export default function ChatPage({ chatId }) {
         .cv-tag-edit-btn:hover { background: var(--surface3); color: var(--primary); }
         .cv-del-conv-btn.active { background: var(--primary-light); color: var(--primary); }
 
-        .cv-notes-sidebar { width: 320px; flex-shrink: 0; background: var(--surface); border-left: 1px solid var(--border); padding: 14px 18px; overflow-y: auto; display: flex; flex-direction: column; }
-        .cv-notes-sidebar-header { display: flex; align-items: center; justify-content: space-between; font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
+        .cv-notes-sidebar { width: 330px; flex-shrink: 0; background: var(--surface); border-left: 1px solid var(--border); overflow-y: auto; display: flex; flex-direction: column; }
+        .cv-notes-sidebar-header { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; min-height: 64px; padding: 0 14px 0 18px; background: var(--surface); border-bottom: 1px solid var(--border); font-size: 14px; font-weight: 700; color: var(--text); flex-shrink: 0; }
+        .cv-notes-body { padding: 0 18px 24px; display: flex; flex-direction: column; }
+        /* Bagian panel (dipakai juga oleh FollowupPanel) */
+        .cv-ns { padding: 16px 0; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; }
+        .cv-ns:last-child { border-bottom: none; }
+        .cv-ns-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 20px; }
+        .cv-ns-title { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; }
+        .cv-ns-count { font-size: 10.5px; font-weight: 700; color: var(--text2); background: var(--surface3); padding: 1px 7px; border-radius: 999px; }
+        .cv-nc-top { display: flex; align-items: center; gap: 12px; }
+        .cv-nc-avatar { width: 44px; height: 44px; font-size: 17px; }
+        .cv-nc-id { flex: 1; min-width: 0; }
+        .cv-nc-meta { display: grid; grid-template-columns: 52px 1fr; align-items: center; gap: 10px 10px; padding: 10px 12px; border-radius: 10px; background: var(--surface2); border: 1px solid var(--border); }
         .cv-notes-sidebar-close { width: 26px; height: 26px; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: var(--muted); transition: all 0.15s; flex-shrink: 0; }
         .cv-notes-sidebar-close:hover { background: var(--surface3); color: var(--text2); }
-        .cv-notes-contact { margin-bottom: 10px; display: flex; flex-direction: column; gap: 8px; }
-        .cv-notes-contact-name-row { display: flex; align-items: center; gap: 8px; }
-        .cv-notes-contact-name { font-size: 14px; font-weight: 700; color: var(--text); }
-        .cv-contact-edit-btn { width: 26px; height: 26px; border-radius: 7px; display: flex; align-items: center; justify-content: center; background: var(--surface3); color: var(--primary); flex-shrink: 0; transition: background 0.12s; }
+        .cv-notes-contact-name { font-size: 15px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .cv-contact-edit-btn { width: 30px; height: 30px; border-radius: 7px; display: flex; align-items: center; justify-content: center; background: var(--surface3); color: var(--primary); flex-shrink: 0; transition: background 0.12s; }
         .cv-contact-edit-btn:hover { background: var(--surface3); }
         .cv-edit-contact { display: flex; flex-direction: column; padding: 18px 20px 20px; }
         .cv-edit-label { font-size: 12px; font-weight: 600; color: var(--text2); margin-bottom: 5px; }
@@ -2090,35 +2120,35 @@ export default function ChatPage({ chatId }) {
         .cv-edit-cancel:disabled { opacity: 0.5; }
         .cv-edit-save { padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--on-primary); background: var(--primary); }
         .cv-edit-save:disabled { opacity: 0.5; }
-        .cv-notes-contact-phone { font-size: 12px; color: var(--muted); margin-top: -4px; }
-        .cv-notes-contact-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-        .cv-notes-contact-label { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; min-width: 48px; flex-shrink: 0; }
+        .cv-notes-contact-phone { font-size: 12.5px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .cv-notes-contact-label { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; }
         .cv-notes-contact-tags { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+        .cv-nc-meta .tag-chip { font-size: 11px; padding: 2px 9px; }
+        .cv-nc-meta .cv-tag-edit-btn { width: 22px; height: 22px; }
         .cv-notes-empty-inline { font-size: 12px; color: var(--muted); }
-        .cv-notes-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; max-height: 160px; overflow-y: auto; }
-        .cv-notes-loading, .cv-notes-empty { font-size: 12px; color: var(--muted); padding: 8px 0; }
+        .cv-notes-list { display: flex; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto; }
+        .cv-notes-list:empty { display: none; }
+        .cv-notes-loading, .cv-notes-empty { font-size: 12.5px; color: var(--muted); }
         .cv-note-item { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; }
         .cv-note-body { font-size: 13px; color: var(--text); white-space: pre-wrap; margin-bottom: 4px; }
         .cv-note-meta { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); }
-        .cv-notes-form { display: flex; flex-direction: column; gap: 6px; }
-        .cv-notes-form textarea { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); padding: 8px 10px; font-size: 13px; outline: none; resize: vertical; font-family: inherit; }
+        .cv-notes-form { display: flex; flex-direction: column; gap: 8px; }
+        .cv-notes-form textarea { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; color: var(--text); padding: 9px 11px; font-size: 13px; line-height: 1.45; outline: none; resize: vertical; min-height: 64px; font-family: inherit; }
         .cv-notes-form textarea:focus { border-color: var(--primary); }
         .cv-notes-form-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-        .cv-note-ai { display: inline-flex; align-items: center; gap: 5px; padding: 7px 12px; border-radius: 7px; font-size: 12px; font-weight: 600; color: #7c5cd6; background: rgba(124,92,214,0.08); transition: all 0.15s; }
+        .cv-note-ai { display: inline-flex; align-items: center; gap: 5px; padding: 7px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; color: #7c5cd6; background: rgba(124,92,214,0.08); transition: all 0.15s; }
         .cv-note-ai:hover { background: rgba(124,92,214,0.15); }
         .cv-note-ai:disabled { opacity: 0.6; cursor: not-allowed; }
-        .cv-note-save { padding: 7px 16px; border-radius: 7px; font-size: 13px; font-weight: 600; background: var(--primary); color: var(--on-primary); transition: all 0.15s; }
+        .cv-note-save { padding: 7px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; background: var(--primary); color: var(--on-primary); transition: all 0.15s; }
         .cv-note-save:hover { background: var(--primary-hover); }
-        .cv-note-save:disabled { opacity: 0.5; cursor: not-allowed; }
+        .cv-note-save:disabled { background: var(--surface3); color: var(--muted); cursor: not-allowed; }
         .cv-ai-tag-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 8px; font-size: 13px; font-weight: 600; color: #7c5cd6; background: rgba(124,92,214,0.08); transition: all 0.15s; margin-bottom: 4px; }
         .cv-ai-tag-btn:hover { background: rgba(124,92,214,0.15); }
         .cv-ai-tag-btn:disabled { opacity: 0.6; cursor: not-allowed; }
         .cv-ai-tag-reason { font-size: 12px; color: var(--text2); background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; line-height: 1.4; margin-bottom: 4px; }
         .cv-tag-option.suggested { background: rgba(124,92,214,0.06); box-shadow: inset 0 0 0 1px rgba(124,92,214,0.3); }
         .cv-ai-tag-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 10px; font-weight: 600; color: #7c5cd6; margin-left: auto; }
-        .cv-history-section { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
-        .cv-history-title { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
-        .cv-history-list { display: flex; flex-direction: column; gap: 6px; max-height: 180px; overflow-y: auto; }
+        .cv-history-list { display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow-y: auto; }
         .cv-history-item { display: flex; flex-direction: column; gap: 4px; width: 100%; text-align: left; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; transition: all 0.15s; }
         .cv-history-item:hover { background: var(--surface3); border-color: var(--border2); }
         .cv-history-item-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
