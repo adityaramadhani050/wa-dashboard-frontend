@@ -544,7 +544,6 @@ export default function ChatPage({ chatId }) {
   const [aiTagReason, setAiTagReason] = useState('')
 
   // Follow-up otomatis (menggantikan pengingat manual)
-  const [showFollowup, setShowFollowup] = useState(false)
   const [fuData, setFuData] = useState(null)
 
   const bottomRef = useRef(null)
@@ -768,7 +767,7 @@ export default function ChatPage({ chatId }) {
     return () => vv.removeEventListener('resize', onResize)
   }, [stickToBottom])
 
-  const closeMenus = () => { setShowAgentMenu(false); setShowTemplateMenu(false); setShowMediaGallery(false); setShowFollowup(false); setShowMoreMenu(false); setShowAiMenu(false) }
+  const closeMenus = () => { setShowAgentMenu(false); setShowTemplateMenu(false); setShowMediaGallery(false); setShowMoreMenu(false); setShowAiMenu(false) }
 
   const handleRequestAiSuggestion = async () => {
     setShowAiMenu(true)
@@ -1132,7 +1131,7 @@ export default function ChatPage({ chatId }) {
   const handleToggleNotesPanel = () => {
     const next = !showNotesPanel
     setShowNotesPanel(next)
-    if (next) { loadNotes(); loadHistory() }
+    if (next) { loadNotes(); loadHistory(); loadFollowup() }
   }
 
   const handleOpenHistoryConversation = (convId) => {
@@ -1239,7 +1238,7 @@ export default function ChatPage({ chatId }) {
         <div className="cv-actions" onClick={e => e.stopPropagation()}>
           {isAdmin && (
             <div className="cv-dd">
-              <button className="cv-assign-btn" onClick={() => { setShowAgentMenu(!showAgentMenu); setShowFollowup(false) }}>
+              <button className="cv-assign-btn" onClick={() => setShowAgentMenu(!showAgentMenu)}>
                 <UserCheck size={15} /><span className="cv-btn-label">Assign</span>
               </button>
               {showAgentMenu && (
@@ -1277,33 +1276,12 @@ export default function ChatPage({ chatId }) {
               )}
             </div>
           )}
-          <button className={`cv-del-conv-btn${showNotesPanel ? ' active' : ''}`} title="Catatan kontak" onClick={handleToggleNotesPanel}>
+          <button className={`cv-del-conv-btn cv-notes-btn${showNotesPanel ? ' active' : ''}`} title="Catatan, follow-up & riwayat" onClick={handleToggleNotesPanel}>
             <StickyNote size={15} />
-          </button>
-          <div className="cv-dd cv-followup-dd">
-            <button
-              className={`cv-del-conv-btn cv-fu-btn${showFollowup ? ' active' : ''}`}
-              title="Follow-up"
-              onClick={() => { const next = !showFollowup; setShowFollowup(next); setShowAgentMenu(false); if (next) loadFollowup() }}
-            >
-              <ListChecks size={15} />
-              {fuData?.current && ['today', 'late'].includes(dueTone(fuData.current)) && (
-                <span className={`cv-fu-dot ${dueTone(fuData.current)}`} />
-              )}
-            </button>
-            {showFollowup && (
-              <div className="cv-menu cv-header-menu cv-followup-menu">
-                <FollowupPanel
-                  data={fuData}
-                  conversationId={id}
-                  contactName={conversation?.contact?.name}
-                  onInsertText={(t) => setText(t)}
-                  onChanged={loadFollowup}
-                  onClose={() => setShowFollowup(false)}
-                />
-              </div>
+            {fuData?.current && ['today', 'late'].includes(dueTone(fuData.current)) && (
+              <span className={`cv-fu-dot ${dueTone(fuData.current)}`} title="Ada follow-up jatuh tempo" />
             )}
-          </div>
+          </button>
         </div>
       </div>
 
@@ -1747,6 +1725,17 @@ export default function ChatPage({ chatId }) {
               </div>
             </div>
           </div>
+          <FollowupPanel
+            data={fuData}
+            conversationId={id}
+            contactName={conversation?.contact?.name}
+            onInsertText={(t) => {
+              setText(t)
+              // Mobile: panel menutupi layar -> tutup agar draf terlihat di kolom ketik
+              if (window.matchMedia('(max-width: 768px)').matches) setShowNotesPanel(false)
+            }}
+            onChanged={loadFollowup}
+          />
           <div className="cv-notes-list">
             {loadingNotes ? (
               <div className="cv-notes-loading">Memuat catatan...</div>
@@ -1840,8 +1829,7 @@ export default function ChatPage({ chatId }) {
         .cv-del-conv-btn { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--muted); transition: all 0.15s; }
         .cv-del-conv-btn:hover { background: rgba(229,62,62,0.08); color: var(--danger); }
         .cv-menu { position: absolute; right: 0; top: calc(100% + 6px); max-width: calc(100vw - 24px); box-sizing: border-box; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; z-index: 200; box-shadow: 0 8px 24px var(--shadow); overflow: hidden; }
-        .cv-followup-menu { box-sizing: border-box; padding: 0; max-height: calc(100vh - 90px); overflow-y: auto; }
-        .cv-fu-btn { position: relative; }
+        .cv-notes-btn { position: relative; }
         .cv-fu-dot { position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; border-radius: 50%; }
         .cv-fu-dot.today { background: #d97706; } .cv-fu-dot.late { background: var(--danger, #e53e3e); }
         .cv-menu-lbl { padding: 8px 14px 4px; font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }

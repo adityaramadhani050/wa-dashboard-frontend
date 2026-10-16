@@ -75,7 +75,7 @@ export default function IconBar() {
 
   const navItems = [
     { path: '/inbox',    icon: MessageSquare, label: 'Chats',           adminOnly: false },
-    { path: '/followup', icon: ListChecks,    label: 'Follow-up',       adminOnly: false },
+    { path: '/followup', icon: ListChecks,    label: 'Follow-up',       adminOnly: true  },
     { path: '/analytics',icon: BarChart2,     label: 'Analytics',       adminOnly: true  },
     { path: '/agents',   icon: Users,         label: 'Manajemen Agent', adminOnly: true  },
     { path: '/contacts', icon: BookUser,      label: 'Kontak',          adminOnly: false },
@@ -142,7 +142,9 @@ export default function IconBar() {
                   })}
                 </div>
               )}
-              <button className="ib-reminder-all" onClick={() => { setShowReminders(false); navigate('/followup') }}>Lihat semua follow-up →</button>
+              {isAdmin && (
+                <button className="ib-reminder-all" onClick={() => { setShowReminders(false); navigate('/followup') }}>Lihat semua follow-up →</button>
+              )}
             </div>
           )}
         </div>

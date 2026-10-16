@@ -61,7 +61,7 @@ function ProtectedShell() {
 
   if (!user) return <Navigate to="/login" replace />
 
-  if (user.role !== 'admin' && (matchQR || matchAnalytics || matchAgents || matchTemplates || matchBroadcast)) {
+  if (user.role !== 'admin' && (matchQR || matchAnalytics || matchAgents || matchTemplates || matchBroadcast || matchFollowup)) {
     return <Navigate to="/inbox" replace />
   }
 
