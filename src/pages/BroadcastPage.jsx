@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   Megaphone, ArrowLeft, Search, Send, Clock, Users, Image as ImageIcon,
-  Play, Pause, X, CheckCircle2, AlertCircle, RefreshCw, Calendar, MessageSquareText, Trash2, MapPin,
+  Play, Pause, X, CheckCircle2, AlertCircle, RefreshCw, Calendar, MessageSquareText, Trash2, MapPin, Plus, ShieldCheck,
 } from 'lucide-react'
 import PdfThumb, { isPdf } from '../components/PdfThumb'
 import {
@@ -70,25 +70,27 @@ function CampaignList({ campaigns, loading, onNew, onOpen, onReload }) {
     <div className="bc-page">
       <div className="bc-header">
         <div className="bc-title-wrap">
-          <div>
-            <div className="bc-title"><Megaphone size={20} /> Broadcast Promo</div>
-          </div>
+          <h1 className="bc-title"><Megaphone size={21} /> Broadcast Promo{!loading && <span className="bc-count">{campaigns.length}</span>}</h1>
         </div>
         <div className="bc-header-actions">
-          <button className="bc-btn ghost" onClick={onReload} title="Muat ulang"><RefreshCw size={16} /></button>
-          <button className="bc-btn primary" onClick={onNew}><Megaphone size={16} /> Buat Broadcast</button>
+          <button className="bc-btn ghost icon" onClick={onReload} title="Muat ulang" aria-label="Muat ulang"><RefreshCw size={16} /></button>
+          <button className="bc-btn primary bc-new-btn" onClick={onNew}><Plus size={16} /><span className="bc-hide-xs">Buat Broadcast</span></button>
         </div>
       </div>
 
       <div className="bc-notice">
-        <AlertCircle size={16} />
+        <ShieldCheck size={16} />
         <span>Demi keamanan akun WhatsApp: pengiriman bertahap dengan jeda acak, dibatasi per hari, hanya di jam kerja, dan setiap nomor punya masa jeda (cooldown) agar tidak spam.</span>
       </div>
 
       {loading ? (
-        <div className="bc-empty">Memuat…</div>
+        <div className="bc-list">{[...Array(3)].map((_, i) => <div key={i} className="bc-skel" style={{ animationDelay: `${i * 0.08}s` }} />)}</div>
       ) : campaigns.length === 0 ? (
-        <div className="bc-empty">Belum ada campaign. Klik "Buat Broadcast" untuk memulai.</div>
+        <div className="bc-empty-box">
+          <Megaphone size={34} strokeWidth={1.4} />
+          <p>Belum ada campaign broadcast.</p>
+          <button className="bc-btn primary" onClick={onNew}><Plus size={16} /> Buat Broadcast</button>
+        </div>
       ) : (
         <div className="bc-list">
           {campaigns.map(c => {
@@ -101,16 +103,18 @@ function CampaignList({ campaigns, loading, onNew, onOpen, onReload }) {
                   <span className={`bc-status ${c.status}`}>{STATUS_LABEL[c.status] || c.status}</span>
                 </div>
                 <div className="bc-card-meta">
-                  {c.message_type === 'quick_media' ? <><ImageIcon size={13} /> Media</> : 'Teks'}
-                  <span>•</span>
-                  <Users size={13} /> {c.total_targets} target
-                  {c.status === 'scheduled' && c.start_at && <><span>•</span><Calendar size={13} /> {fmtDate(c.start_at)}</>}
+                  <span>{c.media_url || c.message_type === 'quick_media' ? <><ImageIcon size={13} /> Media</> : <><MessageSquareText size={13} /> Teks</>}</span>
+                  <span><Users size={13} /> {c.total_targets} target</span>
+                  {c.status === 'scheduled' && c.start_at && <span><Calendar size={13} /> {fmtDate(c.start_at)}</span>}
                 </div>
-                <div className="bc-progress"><div className="bc-progress-bar" style={{ width: `${pct}%` }} /></div>
+                <div className="bc-progress-row">
+                  <div className="bc-progress"><div className="bc-progress-bar" style={{ width: `${pct}%` }} /></div>
+                  <span className="bc-pct">{pct}%</span>
+                </div>
                 <div className="bc-card-stats">
-                  <span className="ok">{c.sent_count || 0} terkirim</span>
-                  <span className="skip">{c.skipped_count || 0} dilewati</span>
-                  <span className="fail">{c.failed_count || 0} gagal</span>
+                  <span className="ok"><b>{c.sent_count || 0}</b> terkirim</span>
+                  <span className="skip"><b>{c.skipped_count || 0}</b> dilewati</span>
+                  <span className="fail"><b>{c.failed_count || 0}</b> gagal</span>
                 </div>
               </button>
             )
@@ -154,11 +158,12 @@ function CampaignDetail({ id, onBack, onChanged }) {
       <div className="bc-header">
         <div className="bc-title-wrap">
           <button className="bc-back" onClick={onBack}><ArrowLeft size={18} /></button>
-          <div>
-            <div className="bc-title">{c.name}</div>
+          <div className="bc-title-col">
+            <h1 className="bc-title">{c.name}</h1>
+            <span className={`bc-status ${c.status}`}>{STATUS_LABEL[c.status]}</span>
           </div>
         </div>
-        <div className="bc-header-actions">
+        <div className="bc-header-actions wrap">
           {(c.status === 'draft' || c.status === 'paused' || c.status === 'scheduled') && (
             <button className="bc-btn primary" disabled={busy} onClick={() => act(startBroadcastCampaign)}><Play size={15} /> Mulai Sekarang</button>
           )}
@@ -166,7 +171,7 @@ function CampaignDetail({ id, onBack, onChanged }) {
             <button className="bc-btn warn" disabled={busy} onClick={() => act(pauseBroadcastCampaign)}><Pause size={15} /> Jeda</button>
           )}
           {['draft', 'scheduled', 'running', 'paused'].includes(c.status) && (
-            <button className="bc-btn danger" disabled={busy} onClick={() => { if (confirm('Batalkan campaign ini?')) act(cancelBroadcastCampaign) }}><X size={15} /> Batalkan</button>
+            <button className="bc-btn outline" disabled={busy} onClick={() => { if (confirm('Batalkan campaign ini?')) act(cancelBroadcastCampaign) }}><X size={15} /> Batalkan</button>
           )}
           {c.status !== 'running' && (
             <button className="bc-btn danger" disabled={busy} onClick={async () => {
@@ -193,7 +198,7 @@ function CampaignDetail({ id, onBack, onChanged }) {
         <span><Users size={13} /> Batas {c.daily_limit}/hari</span>
         <span><Clock size={13} /> Cooldown {c.cooldown_days} hari</span>
         {c.start_at && <span><Calendar size={13} /> Jadwal {fmtDate(c.start_at)}</span>}
-        <span className={`bc-status ${c.status}`} style={{ marginLeft: 'auto' }}>{STATUS_LABEL[c.status]}</span>
+        <span className="bc-info-pct">{pct}% selesai</span>
       </div>
 
       <div className="bc-recip-head">Penerima ({data.recipients.length})</div>
@@ -317,13 +322,15 @@ function CreateWizard({ onBack, onCreated }) {
       <div className="bc-header">
         <div className="bc-title-wrap">
           <button className="bc-back" onClick={onBack}><ArrowLeft size={18} /></button>
-          <div className="bc-title">Buat Broadcast</div>
+          <h1 className="bc-title">Buat Broadcast</h1>
         </div>
       </div>
 
       <div className="bc-layout">
        <div className="bc-main">
         <div className="bc-form">
+          <section className="bc-section">
+          <div className="bc-section-title"><span className="bc-step-num">1</span> Pesan</div>
           <div className="bc-field">
             <label>Nama Campaign</label>
             <input value={name} onChange={e => setName(e.target.value)} placeholder="mis. Promo Panel Surya Agustus" />
@@ -342,6 +349,10 @@ function CreateWizard({ onBack, onCreated }) {
             )}
           </div>
 
+          </section>
+
+          <section className="bc-section">
+          <div className="bc-section-title"><span className="bc-step-num">2</span> Pengaturan kirim</div>
           <div className="bc-review-grid">
             <div className="bc-field">
               <label>Batas per hari</label>
@@ -360,12 +371,15 @@ function CreateWizard({ onBack, onCreated }) {
             <input type="datetime-local" value={startAt} onChange={e => setStartAt(e.target.value)} />
             <span className="bc-hint">Kosongkan untuk mulai hari ini.</span>
           </div>
+          </section>
 
+          <section className="bc-section">
+          <div className="bc-section-title"><span className="bc-step-num">3</span> Penerima <span className="bc-chosen">{chosen.length} dipilih</span></div>
           <div className="bc-field">
-            <label>Penerima <span className="bc-hint">chat <b>Resolved</b> (bukan Non-Client) · dalam cooldown tak bisa dipilih · dipilih <b>{chosen.length}</b></span></label>
-            <div className="bc-region-chips">
+            <span className="bc-hint">Chat <b>Resolved</b> (bukan Non-Client). Nomor yang masih dalam masa cooldown tidak bisa dipilih.</span>
+            <div className="bc-seg">
               {[['all', 'Semua'], ['barat', 'Barat'], ['timur', 'Timur'], ['none', 'Belum diatur']].map(([k, l]) => (
-                <button key={k} type="button" className={`bc-region-chip ${k}${regionFilter === k ? ' active' : ''}`} onClick={() => setRegionFilter(k)}>
+                <button key={k} type="button" className={`${k}${regionFilter === k ? ' active' : ''}`} onClick={() => setRegionFilter(k)}>
                   {k !== 'all' && k !== 'none' && <MapPin size={11} />}{l}<span className="bc-region-count">{regionCount(k)}</span>
                 </button>
               ))}
@@ -375,8 +389,8 @@ function CreateWizard({ onBack, onCreated }) {
                 <Search size={15} />
                 <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Cari nama / nomor / kota…" />
               </div>
-              <button type="button" className="bc-btn ghost sm" onClick={selectableAll}>Pilih semua yang boleh</button>
-              <button type="button" className="bc-btn ghost sm" onClick={clearAll}>Kosongkan</button>
+              <button type="button" className="bc-btn ghost sm" onClick={selectableAll}>Pilih semua</button>
+              <button type="button" className="bc-btn ghost sm" onClick={clearAll} disabled={!selected.size}>Kosongkan</button>
             </div>
             {loadingCand ? (
               <div className="bc-empty">Memuat kandidat…</div>
@@ -401,6 +415,7 @@ function CreateWizard({ onBack, onCreated }) {
               </div>
             )}
           </div>
+          </section>
 
           <div className="bc-summary">
             <div><span>Template</span><b>{template?.name || '-'}</b></div>
@@ -492,122 +507,128 @@ const BC_CSS = `
   .bc-side { flex: none; width: 100%; max-width: 100%; position: static; height: 70vh; justify-content: center; }
   .bc-main { flex: none; width: 100%; }
 }
-.bc-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+.bc-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; min-height: 38px; }
 .bc-title-wrap { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.bc-title { display: flex; align-items: center; gap: 8px; font-size: 19px; font-weight: 700; color: var(--text); }
-.bc-sub { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+.bc-title-col { display: flex; align-items: center; gap: 10px; min-width: 0; flex-wrap: wrap; }
+.bc-title { display: flex; align-items: center; gap: 9px; font-size: 21px; font-weight: 700; color: var(--text); min-width: 0; overflow-wrap: anywhere; }
+.bc-count { font-size: 11.5px; font-weight: 700; color: var(--text2); background: var(--surface); border: 1px solid var(--border); padding: 1px 8px; border-radius: 999px; }
 .bc-header-actions { display: flex; gap: 8px; flex-shrink: 0; }
-.bc-back { width: 34px; height: 34px; border-radius: 9px; display: flex; align-items: center; justify-content: center; background: var(--surface3); color: var(--text2); flex-shrink: 0; }
-.bc-btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 14px; border-radius: 9px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .15s; }
-.bc-btn.sm { padding: 6px 10px; font-size: 12px; }
+.bc-header-actions.wrap { flex-wrap: wrap; justify-content: flex-end; }
+.bc-back { width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: var(--surface); border: 1px solid var(--border); color: var(--text2); flex-shrink: 0; }
+.bc-back:hover { background: var(--surface2); }
+.bc-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 38px; padding: 0 14px; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .15s; white-space: nowrap; }
+.bc-btn.icon { width: 38px; padding: 0; }
+.bc-btn.sm { height: 34px; padding: 0 12px; font-size: 12.5px; }
 .bc-btn.primary { background: var(--primary); color: var(--on-primary); }
-.bc-btn.primary:disabled { opacity: .5; cursor: not-allowed; }
-.bc-btn.ghost { background: var(--surface3); color: var(--text2); }
-.bc-btn.warn { background: #d08b28; color: #fff; }
-.bc-btn.danger { background: var(--danger, #e53e3e); color: #fff; }
-.bc-notice { display: flex; gap: 8px; align-items: flex-start; background: var(--primary-light); color: var(--text2); padding: 11px 13px; border-radius: 10px; font-size: 12.5px; line-height: 1.5; margin-bottom: 16px; }
+.bc-btn.primary:hover:not(:disabled) { background: var(--primary-hover); }
+.bc-btn:disabled { opacity: .5; cursor: not-allowed; }
+.bc-btn.ghost { background: var(--surface); color: var(--text2); border: 1px solid var(--border); }
+.bc-btn.ghost:hover:not(:disabled) { background: var(--surface2); border-color: var(--border2); }
+.bc-btn.warn { background: rgba(208,139,40,0.14); color: #d08b28; border: 1px solid rgba(208,139,40,0.35); }
+.bc-btn.outline { background: var(--surface); color: var(--text2); border: 1px solid var(--border2); }
+.bc-btn.danger { background: rgba(229,62,62,0.1); color: var(--danger, #e53e3e); border: 1px solid rgba(229,62,62,0.3); }
+.bc-btn.danger:hover:not(:disabled) { background: rgba(229,62,62,0.16); }
+.bc-notice { display: flex; gap: 9px; align-items: flex-start; background: var(--primary-light); color: var(--text2); padding: 11px 14px; border-radius: 12px; font-size: 12.5px; line-height: 1.5; margin-bottom: 16px; }
 .bc-notice svg { flex-shrink: 0; margin-top: 1px; color: var(--primary); }
-.bc-empty { text-align: center; color: var(--muted); padding: 40px 0; font-size: 13.5px; }
-.bc-list { display: flex; flex-direction: column; gap: 10px; }
-.bc-card { text-align: left; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px; cursor: pointer; transition: all .15s; }
+.bc-empty { text-align: center; color: var(--muted); padding: 32px 0; font-size: 13.5px; }
+.bc-empty-box { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 56px 20px; color: var(--muted); font-size: 13.5px; background: var(--surface); border: 1px dashed var(--border2); border-radius: 12px; }
+.bc-skel { height: 132px; border-radius: 12px; background: var(--skeleton); animation: bcPulse 1.4s ease infinite; }
+@keyframes bcPulse { 0%,100% { opacity: 1 } 50% { opacity: .4 } }
+.bc-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; }
+.bc-card { display: flex; flex-direction: column; gap: 10px; text-align: left; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; cursor: pointer; transition: border-color .15s, box-shadow .15s; box-shadow: 0 1px 3px var(--shadow); }
 .bc-card:hover { border-color: var(--primary); }
-.bc-card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.bc-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
 .bc-card-name { font-size: 14.5px; font-weight: 700; color: var(--text); }
-.bc-card-meta { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); margin: 6px 0 10px; flex-wrap: wrap; }
-.bc-status { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 999px; }
-.bc-status.draft { background: var(--surface3); color: var(--text2); }
-.bc-status.scheduled { background: #e8f0fe; color: #1a56db; }
-.bc-status.running { background: #e6f7ef; color: #128a5a; }
-.bc-status.paused { background: #fdf0dc; color: #b57414; }
-.bc-status.completed { background: var(--surface3); color: var(--text2); }
-.bc-status.canceled { background: #fde8e8; color: #c53030; }
-.bc-progress { height: 6px; border-radius: 999px; background: var(--surface3); overflow: hidden; }
+.bc-card-meta { display: flex; align-items: center; gap: 12px; font-size: 12px; color: var(--muted); flex-wrap: wrap; }
+.bc-card-meta span { display: inline-flex; align-items: center; gap: 5px; }
+.bc-status { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 999px; white-space: nowrap; flex-shrink: 0; }
+.bc-status.draft, .bc-status.completed { background: var(--surface3); color: var(--text2); }
+.bc-status.scheduled { background: rgba(37,99,235,0.14); color: #3b82f6; }
+.bc-status.running { background: rgba(16,185,129,0.14); color: #10b981; }
+.bc-status.paused { background: rgba(208,139,40,0.15); color: #d08b28; }
+.bc-status.canceled { background: rgba(229,62,62,0.12); color: var(--danger, #e53e3e); }
+.bc-progress-row { display: flex; align-items: center; gap: 10px; }
+.bc-progress { flex: 1; height: 7px; border-radius: 999px; background: var(--surface3); overflow: hidden; }
 .bc-progress.lg { height: 9px; margin: 4px 0 14px; }
-.bc-progress-bar { height: 100%; background: var(--primary); transition: width .4s; }
-.bc-card-stats { display: flex; gap: 12px; font-size: 11.5px; margin-top: 8px; }
-.bc-card-stats .ok { color: #128a5a; } .bc-card-stats .skip { color: var(--muted); } .bc-card-stats .fail { color: #c53030; }
+.bc-progress-bar { height: 100%; background: var(--primary); border-radius: 999px; transition: width .4s; }
+.bc-pct { font-size: 12px; font-weight: 700; color: var(--text2); min-width: 34px; text-align: right; }
+.bc-card-stats { display: flex; gap: 14px; font-size: 12px; color: var(--muted); }
+.bc-card-stats b { font-weight: 700; }
+.bc-card-stats .ok b { color: #10b981; } .bc-card-stats .fail b { color: var(--danger, #e53e3e); } .bc-card-stats .skip b { color: var(--text2); }
 .bc-detail-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px; }
-.bc-stat { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px; text-align: center; }
-.bc-stat-num { display: block; font-size: 22px; font-weight: 800; color: var(--text); }
-.bc-stat-lbl { font-size: 11px; color: var(--muted); }
-.bc-stat.ok .bc-stat-num { color: #128a5a; } .bc-stat.skip .bc-stat-num { color: var(--text2); } .bc-stat.fail .bc-stat-num { color: #c53030; }
-.bc-info-row { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-bottom: 16px; }
+.bc-stat { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 2px; box-shadow: 0 1px 3px var(--shadow); }
+.bc-stat-num { display: block; font-size: 24px; font-weight: 800; color: var(--text); line-height: 1.15; }
+.bc-stat-lbl { font-size: 11.5px; font-weight: 600; color: var(--muted); }
+.bc-stat.ok .bc-stat-num { color: #10b981; } .bc-stat.skip .bc-stat-num { color: var(--text2); } .bc-stat.fail .bc-stat-num { color: var(--danger, #e53e3e); }
+.bc-info-row { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; font-size: 12.5px; color: var(--muted); margin-bottom: 16px; }
 .bc-info-row span { display: inline-flex; align-items: center; gap: 5px; }
-.bc-msg-preview { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 18px; }
-.bc-msg-preview-lbl { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; margin-bottom: 8px; }
-.bc-msg-bubble { background: var(--primary-light); border-radius: 10px; padding: 11px 13px; font-size: 13.5px; color: var(--text); white-space: pre-wrap; line-height: 1.5; }
-.bc-recip-head { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+.bc-info-pct { margin-left: auto; font-weight: 700; color: var(--text2); }
+.bc-recip-head { font-size: 13.5px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
 .bc-recip-list { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
-.bc-recip { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 13px; border-bottom: 1px solid var(--border); background: var(--surface); }
+.bc-recip { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--border); background: var(--surface); }
 .bc-recip:last-child { border-bottom: none; }
 .bc-recip-info { display: flex; flex-direction: column; min-width: 0; }
 .bc-recip-name { font-size: 13px; font-weight: 600; color: var(--text); }
 .bc-recip-phone { font-size: 11.5px; color: var(--muted); }
-.bc-recip-status { font-size: 11.5px; display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; }
-.bc-recip-status.sent { color: #128a5a; } .bc-recip-status.pending { color: var(--muted); }
-.bc-recip-status.skipped { color: #b57414; } .bc-recip-status.failed { color: #c53030; }
-.bc-steps { display: flex; gap: 8px; margin-bottom: 18px; }
-.bc-step { display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; color: var(--muted); flex: 1; }
-.bc-step-num { width: 22px; height: 22px; border-radius: 999px; background: var(--surface3); color: var(--text2); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; }
-.bc-step.active { color: var(--text); } .bc-step.active .bc-step-num { background: var(--primary); color: var(--on-primary); }
-.bc-step.done .bc-step-num { background: #128a5a; color: #fff; }
-.bc-form { display: flex; flex-direction: column; gap: 16px; }
+.bc-recip-status { font-size: 11.5px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; padding: 2px 8px; border-radius: 999px; }
+.bc-recip-status.sent { color: #10b981; background: rgba(16,185,129,0.12); } .bc-recip-status.pending { color: var(--muted); background: var(--surface3); }
+.bc-recip-status.skipped { color: #d08b28; background: rgba(208,139,40,0.12); } .bc-recip-status.failed { color: var(--danger, #e53e3e); background: rgba(229,62,62,0.1); }
+.bc-form { display: flex; flex-direction: column; gap: 14px; }
+.bc-section { display: flex; flex-direction: column; gap: 14px; padding: 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 1px 3px var(--shadow); }
+.bc-section-title { display: flex; align-items: center; gap: 9px; font-size: 14px; font-weight: 700; color: var(--text); }
+.bc-step-num { width: 22px; height: 22px; border-radius: 999px; background: var(--primary); color: var(--on-primary); display: inline-flex; align-items: center; justify-content: center; font-size: 11.5px; font-weight: 700; }
+.bc-chosen { margin-left: auto; font-size: 12px; font-weight: 700; color: var(--primary); background: var(--primary-light); padding: 2px 9px; border-radius: 999px; }
 .bc-field { display: flex; flex-direction: column; gap: 6px; }
 .bc-field > label { font-size: 12.5px; font-weight: 600; color: var(--text2); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.bc-hint { font-size: 11.5px; color: var(--muted); font-weight: 400; }
+.bc-hint { font-size: 11.5px; color: var(--muted); font-weight: 400; line-height: 1.45; }
+.bc-hint b { color: var(--text2); }
 .bc-hint code { background: var(--surface3); padding: 1px 5px; border-radius: 4px; font-size: 11px; }
-.bc-field input, .bc-field textarea, .bc-field select { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 9px; font-size: 13.5px; background: var(--surface); color: var(--text); font-family: inherit; }
-.bc-field textarea { resize: vertical; }
-.bc-tpl-list { display: flex; flex-direction: column; gap: 8px; }
-.bc-tpl-item { display: flex; align-items: center; gap: 12px; text-align: left; padding: 11px 13px; border: 1.5px solid var(--border); border-radius: 10px; background: var(--surface); cursor: pointer; transition: all .15s; }
-.bc-tpl-item.sel { border-color: var(--primary); background: var(--primary-light); }
-.bc-tpl-thumb { width: 42px; height: 42px; border-radius: 8px; background: var(--surface3); display: flex; align-items: center; justify-content: center; color: var(--muted); flex-shrink: 0; overflow: hidden; }
-.bc-tpl-thumb img { width: 100%; height: 100%; object-fit: cover; }
-.bc-tpl-info { display: flex; flex-direction: column; min-width: 0; flex: 1; }
-.bc-tpl-name { font-size: 13.5px; font-weight: 600; color: var(--text); }
-.bc-tpl-body { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.bc-tpl-check { color: var(--primary); flex-shrink: 0; }
-.bc-mode-tabs { display: flex; gap: 8px; }
-.bc-mode-tabs button { display: inline-flex; align-items: center; gap: 6px; padding: 9px 14px; border-radius: 9px; font-size: 13px; font-weight: 600; background: var(--surface3); color: var(--text2); }
-.bc-mode-tabs button.active { background: var(--primary); color: var(--on-primary); }
-.bc-media-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; }
-.bc-media-item { border: 2px solid var(--border); border-radius: 10px; overflow: hidden; cursor: pointer; background: var(--surface); display: flex; flex-direction: column; }
-.bc-media-item.sel { border-color: var(--primary); }
-.bc-media-item img { width: 100%; height: 80px; object-fit: cover; }
-.bc-media-doc { height: 80px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: var(--muted); font-size: 11px; }
-.bc-media-label { font-size: 11px; padding: 6px; color: var(--text2); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bc-field input, .bc-field textarea, .bc-field select { width: 100%; height: 40px; padding: 0 12px; border: 1px solid var(--border); border-radius: 9px; font-size: 13.5px; background: var(--surface2); color: var(--text); font-family: inherit; outline: none; transition: border-color .15s; }
+.bc-field textarea { height: auto; padding: 10px 12px; resize: vertical; }
+.bc-field input:focus, .bc-field select:focus, .bc-field textarea:focus { border-color: var(--primary); background: var(--surface); }
 .bc-form-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 4px; }
 .bc-form-actions.between { justify-content: space-between; }
+.bc-seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 2px; padding: 3px; border-radius: 10px; background: var(--surface2); border: 1px solid var(--border); margin-bottom: 8px; }
+.bc-seg button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; height: 32px; padding: 0 8px; border-radius: 7px; font-size: 12.5px; font-weight: 600; color: var(--text2); white-space: nowrap; }
+.bc-seg button:hover:not(.active) { background: var(--surface3); }
+.bc-seg button.active { background: var(--primary); color: var(--on-primary); }
+.bc-seg button.barat.active { background: #2563eb; } .bc-seg button.timur.active { background: #d97706; }
+.bc-region-count { font-size: 10.5px; font-weight: 700; padding: 0 6px; border-radius: 999px; background: var(--surface3); color: var(--text2); }
+.bc-seg button.active .bc-region-count { background: rgba(255,255,255,0.25); color: #fff; }
 .bc-recip-toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.bc-search { display: flex; align-items: center; gap: 7px; flex: 1 1 auto; min-width: 140px; height: 38px; padding: 0 11px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface); color: var(--muted); box-sizing: border-box; }
-.bc-search input { border: none; outline: none; background: transparent; font-size: 13px; color: var(--text); width: 100%; }
+.bc-search { display: flex; align-items: center; gap: 7px; flex: 1 1 200px; min-width: 140px; height: 38px; padding: 0 11px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface2); color: var(--muted); box-sizing: border-box; }
+.bc-search:focus-within { border-color: var(--primary); }
+.bc-search input { border: none; outline: none; background: transparent; font-size: 13px; color: var(--text); width: 100%; height: auto; padding: 0; }
 .bc-cand-list { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; max-height: 46vh; overflow-y: auto; }
-.bc-cand { display: flex; align-items: center; gap: 10px; padding: 10px 13px; border-bottom: 1px solid var(--border); background: var(--surface); cursor: pointer; }
+.bc-cand { display: flex; align-items: center; gap: 10px; padding: 10px 13px; border-bottom: 1px solid var(--border); background: var(--surface); cursor: pointer; transition: background .1s; }
+.bc-cand:hover:not(.disabled) { background: var(--surface2); }
 .bc-cand:last-child { border-bottom: none; }
 .bc-cand.disabled { opacity: .6; cursor: not-allowed; }
-.bc-cand input { width: 17px; height: 17px; flex-shrink: 0; accent-color: var(--primary); }
+.bc-cand input { width: 17px !important; height: 17px !important; flex-shrink: 0; accent-color: var(--primary); }
 .bc-cand-info { display: flex; flex-direction: column; min-width: 0; flex: 1; }
 .bc-cand-name { font-size: 13px; font-weight: 600; color: var(--text); }
 .bc-cand-phone { font-size: 11.5px; color: var(--muted); }
-.bc-region-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
-.bc-region-chip { display: inline-flex; align-items: center; gap: 5px; padding: 5px 11px; border-radius: 999px; font-size: 12px; font-weight: 600; color: var(--text2); background: var(--surface); border: 1px solid var(--border); }
-.bc-region-chip.active { background: var(--primary); color: var(--on-primary); border-color: var(--primary); }
-.bc-region-chip.barat.active { background: #2563eb; border-color: #2563eb; }
-.bc-region-chip.timur.active { background: #d97706; border-color: #d97706; }
-.bc-region-count { font-size: 10.5px; font-weight: 700; padding: 0 6px; border-radius: 999px; background: var(--surface3); color: var(--text2); }
-.bc-region-chip.active .bc-region-count { background: rgba(255,255,255,0.25); color: #fff; }
 .bc-cand-region { font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px; flex-shrink: 0; }
-.bc-cand-region.barat { color: #2563eb; background: rgba(37,99,235,0.12); }
-.bc-cand-region.timur { color: #d97706; background: rgba(217,119,6,0.12); }
-.bc-cand-cd { font-size: 11px; color: #b57414; display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; }
-.bc-cand-ok { font-size: 11px; color: #128a5a; flex-shrink: 0; }
+.bc-cand-region.barat { color: #3b82f6; background: rgba(37,99,235,0.13); }
+.bc-cand-region.timur { color: #d97706; background: rgba(217,119,6,0.13); }
+.bc-cand-cd { font-size: 11px; color: #d08b28; display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.bc-cand-ok { font-size: 11px; font-weight: 600; color: #10b981; flex-shrink: 0; }
 .bc-review-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-.bc-summary { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 9px; }
-.bc-summary > div { display: flex; justify-content: space-between; font-size: 13px; }
-.bc-summary span { color: var(--muted); } .bc-summary b { color: var(--text); }
+.bc-summary { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 9px; box-shadow: 0 1px 3px var(--shadow); }
+.bc-summary > div { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; }
+.bc-summary span { color: var(--muted); } .bc-summary b { color: var(--text); text-align: right; }
+.bc-hide-xs { display: inline; }
+@media (max-width: 760px) {
+  .bc-page { padding: 16px 14px 32px; }
+  .bc-list { grid-template-columns: 1fr; }
+  .bc-header { flex-wrap: wrap; }
+  .bc-header-actions.wrap { width: 100%; justify-content: flex-start; }
+  .bc-side { height: auto !important; max-height: 560px; }
+  .bc-phone { height: 520px; }
+}
 @media (max-width: 600px) {
   .bc-detail-grid { grid-template-columns: repeat(2, 1fr); }
   .bc-review-grid { grid-template-columns: 1fr; }
-  .bc-header { flex-direction: column; }
 }
+@media (max-width: 420px) { .bc-hide-xs { display: none; } .bc-new-btn { width: 38px; padding: 0; } }
 `
