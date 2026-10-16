@@ -6,12 +6,34 @@ import {
   getProducts, createProduct, updateProduct, deleteProduct,
   getBroadcastTemplates, createBroadcastTemplate, updateBroadcastTemplate, deleteBroadcastTemplate,
 } from '../hooks/useApi'
-import { Plus, Pencil, Trash2, X, MessageSquareText, Image as ImageIcon, FileText, Tag as TagIcon, Package, Megaphone } from 'lucide-react'
+import { Plus, Pencil, Trash2, X, MessageSquareText, Image as ImageIcon, FileText, Tag as TagIcon, Package, Megaphone, Zap, Search, Film } from 'lucide-react'
 import PdfThumb, { isPdf } from '../components/PdfThumb'
 
 const EMPTY_TEMPLATE = { title: '', body: '', shortcut: '', category: '' }
-const EMPTY_TAG = { name: '', color: 'var(--primary)' }
+const EMPTY_TAG = { name: '', color: '#3563e9' }
+const TAG_COLORS = ['#3563e9', '#0891b2', '#16a34a', '#d97706', '#dc2626', '#c026d3', '#7c3aed', '#64748b']
 const EMPTY_PRODUCT = { name: '', category: '', capacity: '', price: '', specs: '', active: true }
+
+// Sorot variabel {{nama}} dsb. di pratinjau isi pesan
+function WithVars({ text }) {
+  const parts = String(text || '').split(/(\{\{\s*\w+\s*\}\})/g)
+  return parts.map((p, i) => /^\{\{\s*\w+\s*\}\}$/.test(p) ? <span key={i} className="tp-var">{p}</span> : p)
+}
+
+function CardActions({ onEdit, onDelete }) {
+  return (
+    <div className="am-actions">
+      {onEdit && <button className="am-icon-btn edit" onClick={onEdit} title="Edit" aria-label="Edit"><Pencil size={15} /></button>}
+      <button className="am-icon-btn del" onClick={onDelete} title="Hapus" aria-label="Hapus"><Trash2 size={15} /></button>
+    </div>
+  )
+}
+
+function MediaThumb({ type, url, mimetype, label }) {
+  if (type === 'image') return <img src={url} alt={label || ''} />
+  if (isPdf(mimetype, url)) return <PdfThumb url={url} />
+  return <div className="tp-media-doc-icon">{type === 'video' ? <Film size={28} /> : <FileText size={28} />}</div>
+}
 
 function Modal({ title, onClose, children }) {
   return (
@@ -186,12 +208,18 @@ function TagForm({ initial, onSave, onClose, loading, error }) {
   return (
     <form onSubmit={handleSubmit} className="am-form">
       <div className="am-field">
-        <label>Nama Tag <span className="req">*</span></label>
+        <label>Nama Label <span className="req">*</span></label>
         <input value={form.name} onChange={e => set('name', e.target.value)} placeholder="contoh: VIP" required />
       </div>
       <div className="am-field">
         <label>Warna</label>
-        <input type="color" value={form.color || 'var(--primary)'} onChange={e => set('color', e.target.value)} style={{ width: 60, height: 36, padding: 2 }} />
+        <div className="tp-swatches">
+          {TAG_COLORS.map(c => (
+            <button key={c} type="button" className={`tp-swatch${(form.color || '').toLowerCase() === c ? ' on' : ''}`} style={{ background: c }} onClick={() => set('color', c)} aria-label={c} />
+          ))}
+          <input type="color" value={/^#[0-9a-f]{6}$/i.test(form.color || '') ? form.color : '#3563e9'} onChange={e => set('color', e.target.value)} className="tp-color-input" title="Warna lain" />
+        </div>
+        <div className="tp-tag-preview">Pratinjau: <span className="tag-chip" style={{ background: form.color }}>{form.name || 'Label'}</span></div>
       </div>
       {error && <div className="am-form-err">{error}</div>}
       <div className="am-form-actions">
@@ -255,7 +283,9 @@ function ProductForm({ initial, onSave, onClose, loading, error }) {
 }
 
 export default function TemplatesPage() {
-  const [tab, setTab] = useState('templates') // 'templates' | 'broadcast' | 'media' | 'tags' | 'products'
+  const [tab, setTabState] = useState(() => { try { return sessionStorage.getItem('tp_tab') || 'templates' } catch { return 'templates' } }) // 'templates' | 'broadcast' | 'media' | 'tags' | 'products'
+  const [q, setQ] = useState('')
+  const setTab = (t) => { setTabState(t); setQ(''); try { sessionStorage.setItem('tp_tab', t) } catch {} }
 
   // Broadcast templates state
   const [bcTemplates, setBcTemplates] = useState([])
@@ -469,297 +499,159 @@ export default function TemplatesPage() {
     finally { setProdDeleting(false) }
   }
 
+  const match = (...fields) => !q.trim() || fields.some(f => String(f || '').toLowerCase().includes(q.trim().toLowerCase()))
+  const fTemplates = templates.filter(t => match(t.title, t.body, t.shortcut, t.category))
+  const fBc = bcTemplates.filter(t => match(t.name, t.body))
+  const fMedia = media.filter(m => match(m.label, m.category))
+  const fTags = tags.filter(t => match(t.name))
+  const fProducts = products.filter(p => match(p.name, p.category, p.capacity, p.specs))
+
+  const TABS = [
+    { key: 'templates', label: 'Template Pesan', short: 'Template', icon: MessageSquareText, count: templates.length, add: 'Tambah Template', onAdd: () => { setTplError(''); setTplModal('create') } },
+    { key: 'broadcast', label: 'Template Broadcast', short: 'Broadcast', icon: Megaphone, count: bcTemplates.length, add: 'Tambah Template', onAdd: () => { setBcError(''); setBcModal('create') } },
+    { key: 'media', label: 'Galeri Produk', short: 'Galeri', icon: ImageIcon, count: media.length, add: 'Tambah Media', onAdd: () => { setMediaError(''); setMediaModal(true) } },
+    { key: 'tags', label: 'Label Percakapan', short: 'Label', icon: TagIcon, count: tags.length, add: 'Tambah Label', onAdd: () => { setTagError(''); setTagModal('create') } },
+    { key: 'products', label: 'Katalog Produk', short: 'Katalog', icon: Package, count: products.length, add: 'Tambah Produk', onAdd: () => { setProdError(''); setProdModal('create') } },
+  ]
+  const cur = TABS.find(t => t.key === tab) || TABS[0]
+
+  const loadingView = (
+    <div className="tp-grid">{[...Array(4)].map((_, i) => <div key={i} className="am-skel tp-skel" style={{ animationDelay: `${i * 0.08}s` }} />)}</div>
+  )
+  const emptyView = (Icon, text) => (
+    <div className="am-empty">
+      <Icon size={36} strokeWidth={1.4} />
+      <p>{q ? 'Tidak ada yang cocok dengan pencarian.' : text}</p>
+      {!q && <button className="am-btn primary" onClick={cur.onAdd}><Plus size={15} />{cur.add}</button>}
+    </div>
+  )
+
   return (
     <div className="am-page">
       <div className="am-header">
-        <div>
-          <h1>Template & Galeri Produk</h1>
-        </div>
-        {tab === 'templates' && (
-          <button className="am-btn primary" onClick={() => { setTplError(''); setTplModal('create') }}>
-            <Plus size={16} /> Tambah Template
-          </button>
-        )}
-        {tab === 'broadcast' && (
-          <button className="am-btn primary" onClick={() => { setBcError(''); setBcModal('create') }}>
-            <Plus size={16} /> Tambah Template Broadcast
-          </button>
-        )}
-        {tab === 'media' && (
-          <button className="am-btn primary" onClick={() => { setMediaError(''); setMediaModal(true) }}>
-            <Plus size={16} /> Tambah Media
-          </button>
-        )}
-        {tab === 'tags' && (
-          <button className="am-btn primary" onClick={() => { setTagError(''); setTagModal('create') }}>
-            <Plus size={16} /> Tambah Tag
-          </button>
-        )}
-        {tab === 'products' && (
-          <button className="am-btn primary" onClick={() => { setProdError(''); setProdModal('create') }}>
-            <Plus size={16} /> Tambah Produk
-          </button>
-        )}
+        <h1><Zap size={21} />Template & Galeri</h1>
+        <button className="am-btn primary" onClick={cur.onAdd}>
+          <Plus size={16} /><span className="tp-hide-xs">{cur.add}</span>
+        </button>
       </div>
 
-      <div className="tp-tabs">
-        <button className={`tp-tab${tab === 'templates' ? ' active' : ''}`} onClick={() => setTab('templates')}>
-          <MessageSquareText size={15} /> Template Pesan
-        </button>
-        <button className={`tp-tab${tab === 'broadcast' ? ' active' : ''}`} onClick={() => setTab('broadcast')}>
-          <Megaphone size={15} /> Template Broadcast
-        </button>
-        <button className={`tp-tab${tab === 'media' ? ' active' : ''}`} onClick={() => setTab('media')}>
-          <ImageIcon size={15} /> Galeri Produk
-        </button>
-        <button className={`tp-tab${tab === 'tags' ? ' active' : ''}`} onClick={() => setTab('tags')}>
-          <TagIcon size={15} /> Tag Percakapan
-        </button>
-        <button className={`tp-tab${tab === 'products' ? ' active' : ''}`} onClick={() => setTab('products')}>
-          <Package size={15} /> Katalog Produk
-        </button>
+      <div className="am-tabs" role="tablist">
+        {TABS.map(t => (
+          <button key={t.key} role="tab" aria-selected={tab === t.key} className={`am-tab${tab === t.key ? ' active' : ''}`} onClick={() => setTab(t.key)}>
+            <t.icon size={15} /><span className="tp-tab-full">{t.label}</span><span className="tp-tab-short">{t.short}</span>
+            <span className="am-tab-count">{t.count}</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="tp-toolbar">
+        <div className="tp-search">
+          <Search size={15} />
+          <input value={q} onChange={e => setQ(e.target.value)} placeholder={`Cari di ${cur.label.toLowerCase()}…`} />
+          {q && <button onClick={() => setQ('')} aria-label="Hapus pencarian"><X size={14} /></button>}
+        </div>
+        {tab === 'templates' && <span className="tp-tip">Ketik <b>/shortcut</b> di kolom chat untuk memakai template.</span>}
+        {tab === 'products' && <span className="tp-tip">Produk aktif dipakai AI sebagai acuan harga & spesifikasi.</span>}
       </div>
 
       {tab === 'templates' && (
-        <div className="am-table-box">
-          {loadingTemplates ? (
-            <div className="am-loading">
-              {[...Array(3)].map((_, i) => <div key={i} className="am-skel" style={{ animationDelay: `${i * 0.08}s` }} />)}
-            </div>
-          ) : templates.length === 0 ? (
-            <div className="am-empty">
-              <MessageSquareText size={40} style={{ opacity: 0.2, marginBottom: 12 }} />
-              <p>Belum ada template. Klik "Tambah Template" untuk membuat.</p>
-            </div>
-          ) : (
-            <div className="am-table-wrap">
-              <table className="am-table">
-                <thead>
-                  <tr>
-                    <th>Judul</th>
-                    <th>Isi</th>
-                    <th>Shortcut</th>
-                    <th>Kategori</th>
-                    <th>Aksi</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {templates.map(t => (
-                    <tr key={t.id}>
-                      <td>{t.title}</td>
-                      <td className="tp-body-cell">{t.body}</td>
-                      <td>{t.shortcut ? <span className="am-username">/{t.shortcut}</span> : <span style={{color:'var(--muted)'}}>-</span>}</td>
-                      <td>{t.category || <span style={{color:'var(--muted)'}}>-</span>}</td>
-                      <td>
-                        <div className="am-actions">
-                          <button className="am-icon-btn edit" onClick={() => { setTplError(''); setTplModal({ template: t }) }} title="Edit">
-                            <Pencil size={15} />
-                          </button>
-                          <button className="am-icon-btn del" onClick={() => setTplDeleteTarget(t)} title="Hapus">
-                            <Trash2 size={15} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+        loadingTemplates ? loadingView : fTemplates.length === 0 ? emptyView(MessageSquareText, "Belum ada template pesan.") : (
+          <div className="tp-grid">
+            {fTemplates.map(t => (
+              <div key={t.id} className="tp-card">
+                <div className="tp-card-head">
+                  <div className="tp-card-titles">
+                    <span className="tp-card-title">{t.title}</span>
+                    <span className="tp-card-meta">
+                      {t.shortcut && <span className="tp-pill shortcut">/{t.shortcut}</span>}
+                      {t.category && <span className="tp-pill">{t.category}</span>}
+                    </span>
+                  </div>
+                  <CardActions onEdit={() => { setTplError(''); setTplModal({ template: t }) }} onDelete={() => setTplDeleteTarget(t)} />
+                </div>
+                <div className="tp-card-body"><WithVars text={t.body} /></div>
+              </div>
+            ))}
+          </div>
+        )
       )}
 
       {tab === 'broadcast' && (
-        <div className="am-table-box">
-          {loadingBc ? (
-            <div className="am-loading">
-              {[...Array(3)].map((_, i) => <div key={i} className="am-skel" style={{ animationDelay: `${i * 0.08}s` }} />)}
-            </div>
-          ) : bcTemplates.length === 0 ? (
-            <div className="am-empty">
-              <Megaphone size={40} style={{ opacity: 0.2, marginBottom: 12 }} />
-              <p>Belum ada template broadcast. Klik "Tambah Template Broadcast" untuk membuat pesan promo siap-pakai.</p>
-            </div>
-          ) : (
-            <div className="am-table-wrap">
-              <table className="am-table">
-                <thead>
-                  <tr>
-                    <th>Nama</th>
-                    <th>Isi Pesan</th>
-                    <th>Media</th>
-                    <th>Aksi</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {bcTemplates.map(t => (
-                    <tr key={t.id}>
-                      <td>{t.name}</td>
-                      <td className="tp-body-cell">{t.body || <span style={{color:'var(--muted)'}}>-</span>}</td>
-                      <td>
-                        {t.media_url
-                          ? (t.media_type === 'image'
-                              ? <img src={t.media_url} alt="" style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 6 }} />
-                              : isPdf(t.media_mimetype, t.media_url)
-                                ? <div style={{ width: 40, height: 40, borderRadius: 6, overflow: 'hidden' }}><PdfThumb url={t.media_url} width={80} /></div>
-                                : <span className="am-username">{t.media_type || 'file'}</span>)
-                          : <span style={{color:'var(--muted)'}}>-</span>}
-                      </td>
-                      <td>
-                        <div className="am-actions">
-                          <button className="am-icon-btn edit" onClick={() => { setBcError(''); setBcModal({ template: t }) }} title="Edit">
-                            <Pencil size={15} />
-                          </button>
-                          <button className="am-icon-btn del" onClick={() => setBcDeleteTarget(t)} title="Hapus">
-                            <Trash2 size={15} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+        loadingBc ? loadingView : fBc.length === 0 ? emptyView(Megaphone, "Belum ada template broadcast. Buat pesan promo siap-pakai di sini.") : (
+          <div className="tp-grid">
+            {fBc.map(t => (
+              <div key={t.id} className="tp-card">
+                {t.media_url && (
+                  <div className="tp-card-media"><MediaThumb type={t.media_type} url={t.media_url} mimetype={t.media_mimetype} label={t.name} /></div>
+                )}
+                <div className="tp-card-head">
+                  <div className="tp-card-titles">
+                    <span className="tp-card-title">{t.name}</span>
+                    {t.media_url && <span className="tp-card-meta"><span className="tp-pill">{t.media_type === 'image' ? 'Gambar' : t.media_type === 'video' ? 'Video' : 'Dokumen'}</span></span>}
+                  </div>
+                  <CardActions onEdit={() => { setBcError(''); setBcModal({ template: t }) }} onDelete={() => setBcDeleteTarget(t)} />
+                </div>
+                {t.body ? <div className="tp-card-body"><WithVars text={t.body} /></div> : <div className="tp-card-body muted">Tanpa teks (hanya media)</div>}
+              </div>
+            ))}
+          </div>
+        )
       )}
 
       {tab === 'media' && (
-        <div className="am-table-box">
-          {loadingMedia ? (
-            <div className="am-loading">
-              {[...Array(3)].map((_, i) => <div key={i} className="am-skel" style={{ animationDelay: `${i * 0.08}s` }} />)}
-            </div>
-          ) : media.length === 0 ? (
-            <div className="am-empty">
-              <ImageIcon size={40} style={{ opacity: 0.2, marginBottom: 12 }} />
-              <p>Belum ada media. Klik "Tambah Media" untuk mengunggah.</p>
-            </div>
-          ) : (
-            <div className="tp-media-grid">
-              {media.map(m => (
-                <div key={m.id} className="tp-media-card">
-                  <div className="tp-media-thumb">
-                    {m.media_type === 'image'
-                      ? <img src={m.media_url} alt={m.label} />
-                      : isPdf(m.mimetype, m.media_url)
-                        ? <PdfThumb url={m.media_url} />
-                        : <div className="tp-media-doc-icon"><FileText size={28} /></div>}
-                  </div>
-                  <div className="tp-media-info">
-                    <span className="tp-media-label">{m.label}</span>
-                    {m.category && <span className="tp-media-cat">{m.category}</span>}
-                  </div>
-                  <button className="am-icon-btn del tp-media-del" onClick={() => setMediaDeleteTarget(m)} title="Hapus">
-                    <Trash2 size={14} />
-                  </button>
+        loadingMedia ? loadingView : fMedia.length === 0 ? emptyView(ImageIcon, "Belum ada media di galeri. Media di sini bisa dikirim cepat dari menu Produk / katalog di chat.") : (
+          <div className="tp-media-grid">
+            {fMedia.map(m => (
+              <div key={m.id} className="tp-media-card">
+                <div className="tp-media-thumb"><MediaThumb type={m.media_type} url={m.media_url} mimetype={m.mimetype} label={m.label} /></div>
+                <div className="tp-media-info">
+                  <span className="tp-media-label" title={m.label}>{m.label}</span>
+                  {m.category && <span className="tp-media-cat">{m.category}</span>}
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
+                <button className="tp-media-del" onClick={() => setMediaDeleteTarget(m)} title="Hapus" aria-label="Hapus"><Trash2 size={14} /></button>
+              </div>
+            ))}
+          </div>
+        )
       )}
 
       {tab === 'tags' && (
-        <div className="am-table-box">
-          {loadingTags ? (
-            <div className="am-loading">
-              {[...Array(3)].map((_, i) => <div key={i} className="am-skel" style={{ animationDelay: `${i * 0.08}s` }} />)}
-            </div>
-          ) : tags.length === 0 ? (
-            <div className="am-empty">
-              <TagIcon size={40} style={{ opacity: 0.2, marginBottom: 12 }} />
-              <p>Belum ada tag. Klik "Tambah Tag" untuk membuat.</p>
-            </div>
-          ) : (
-            <div className="am-table-wrap">
-              <table className="am-table">
-                <thead>
-                  <tr>
-                    <th>Tag</th>
-                    <th>Warna</th>
-                    <th>Aksi</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {tags.map(t => (
-                    <tr key={t.id}>
-                      <td><span className="tag-chip" style={{ background: t.color }}>{t.name}</span></td>
-                      <td><span style={{color:'var(--text2)'}}>{t.color}</span></td>
-                      <td>
-                        <div className="am-actions">
-                          <button className="am-icon-btn edit" onClick={() => { setTagError(''); setTagModal({ tag: t }) }} title="Edit">
-                            <Pencil size={15} />
-                          </button>
-                          <button className="am-icon-btn del" onClick={() => setTagDeleteTarget(t)} title="Hapus">
-                            <Trash2 size={15} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+        loadingTags ? loadingView : fTags.length === 0 ? emptyView(TagIcon, "Belum ada label percakapan.") : (
+          <div className="tp-tag-grid">
+            {fTags.map(t => (
+              <div key={t.id} className="tp-tag-item">
+                <span className="tp-tag-dot" style={{ background: t.color }} />
+                <span className="tag-chip" style={{ background: t.color }}>{t.name}</span>
+                <span className="tp-tag-hex">{t.color}</span>
+                <CardActions onEdit={() => { setTagError(''); setTagModal({ tag: t }) }} onDelete={() => setTagDeleteTarget(t)} />
+              </div>
+            ))}
+          </div>
+        )
       )}
 
       {tab === 'products' && (
-        <div className="am-table-box">
-          {loadingProducts ? (
-            <div className="am-loading">
-              {[...Array(3)].map((_, i) => <div key={i} className="am-skel" style={{ animationDelay: `${i * 0.08}s` }} />)}
-            </div>
-          ) : products.length === 0 ? (
-            <div className="am-empty">
-              <Package size={40} style={{ opacity: 0.2, marginBottom: 12 }} />
-              <p>Belum ada produk. Klik "Tambah Produk" untuk mengisi katalog yang dipakai AI.</p>
-            </div>
-          ) : (
-            <div className="am-table-wrap">
-              <table className="am-table">
-                <thead>
-                  <tr>
-                    <th>Nama</th>
-                    <th>Kategori</th>
-                    <th>Kapasitas</th>
-                    <th>Harga</th>
-                    <th>Spesifikasi</th>
-                    <th>Status</th>
-                    <th>Aksi</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {products.map(p => (
-                    <tr key={p.id}>
-                      <td>{p.name}</td>
-                      <td>{p.category || <span style={{color:'var(--muted)'}}>-</span>}</td>
-                      <td>{p.capacity || <span style={{color:'var(--muted)'}}>-</span>}</td>
-                      <td>{p.price || <span style={{color:'var(--muted)'}}>-</span>}</td>
-                      <td className="tp-body-cell">{p.specs || <span style={{color:'var(--muted)'}}>-</span>}</td>
-                      <td>
-                        {p.active !== false
-                          ? <span className="tag-chip" style={{ background: 'var(--success)' }}>Aktif</span>
-                          : <span className="tag-chip" style={{ background: 'var(--muted)' }}>Nonaktif</span>}
-                      </td>
-                      <td>
-                        <div className="am-actions">
-                          <button className="am-icon-btn edit" onClick={() => { setProdError(''); setProdModal({ product: p }) }} title="Edit">
-                            <Pencil size={15} />
-                          </button>
-                          <button className="am-icon-btn del" onClick={() => setProdDeleteTarget(p)} title="Hapus">
-                            <Trash2 size={15} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+        loadingProducts ? loadingView : fProducts.length === 0 ? emptyView(Package, "Belum ada produk. Isi katalog agar AI bisa menjawab harga & spesifikasi.") : (
+          <div className="tp-grid">
+            {fProducts.map(p => (
+              <div key={p.id} className={`tp-card${p.active === false ? ' inactive' : ''}`}>
+                <div className="tp-card-head">
+                  <div className="tp-card-titles">
+                    <span className="tp-card-title">{p.name}</span>
+                    <span className="tp-card-meta">
+                      <span className={`tp-pill ${p.active !== false ? 'ok' : ''}`}>{p.active !== false ? 'Aktif' : 'Nonaktif'}</span>
+                      {p.category && <span className="tp-pill">{p.category}</span>}
+                      {p.capacity && <span className="tp-pill">{p.capacity}</span>}
+                    </span>
+                  </div>
+                  <CardActions onEdit={() => { setProdError(''); setProdModal({ product: p }) }} onDelete={() => setProdDeleteTarget(p)} />
+                </div>
+                {p.price && <div className="tp-price">{p.price}</div>}
+                {p.specs && <div className="tp-card-body">{p.specs}</div>}
+              </div>
+            ))}
+          </div>
+        )
       )}
 
       {prodModal === 'create' && (
@@ -865,21 +757,21 @@ export default function TemplatesPage() {
       )}
 
       {tagModal === 'create' && (
-        <Modal title="Tambah Tag Baru" onClose={() => setTagModal(null)}>
+        <Modal title="Tambah Label Baru" onClose={() => setTagModal(null)}>
           <TagForm onSave={handleCreateTag} onClose={() => setTagModal(null)} loading={tagSaving} error={tagError} />
         </Modal>
       )}
 
       {tagModal?.tag && (
-        <Modal title="Edit Tag" onClose={() => setTagModal(null)}>
+        <Modal title="Edit Label" onClose={() => setTagModal(null)}>
           <TagForm initial={tagModal.tag} onSave={handleUpdateTag} onClose={() => setTagModal(null)} loading={tagSaving} error={tagError} />
         </Modal>
       )}
 
       {tagDeleteTarget && (
-        <Modal title="Hapus Tag" onClose={() => setTagDeleteTarget(null)}>
+        <Modal title="Hapus Label" onClose={() => setTagDeleteTarget(null)}>
           <div className="am-confirm">
-            <p>Yakin ingin menghapus tag <strong>{tagDeleteTarget.name}</strong>?</p>
+            <p>Yakin ingin menghapus label <strong>{tagDeleteTarget.name}</strong>?</p>
             <p className="am-confirm-sub">Tindakan ini tidak dapat dibatalkan.</p>
             <div className="am-form-actions">
               <button className="am-btn secondary" onClick={() => setTagDeleteTarget(null)}>Batal</button>
@@ -893,79 +785,121 @@ export default function TemplatesPage() {
 
       <style>{`
         .am-page { padding: 24px 24px 40px; width: 100%; color: var(--text); }
-        .am-header {
-          display: flex; align-items: flex-start;
-          justify-content: space-between; gap: 12px; margin-bottom: 16px;
-        }
-        .am-header h1 { font-size: 20px; font-weight: 700; margin-bottom: 3px; color: var(--text); }
-        .am-header p { font-size: 13px; color: var(--text2); }
-        .am-btn {
-          display: inline-flex; align-items: center; gap: 6px;
-          padding: 8px 16px; border-radius: 8px;
-          font-size: 13px; font-weight: 600; transition: all 0.15s;
-          white-space: nowrap;
-        }
-        .am-btn.primary { background: var(--primary); color: white; }
-        .am-btn.primary:hover { background: var(--primary-hover); }
+        .am-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; min-height: 38px; }
+        .am-header h1 { display: flex; align-items: center; gap: 9px; font-size: 21px; font-weight: 700; color: var(--text); }
+        .am-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 38px; padding: 0 16px; border-radius: 10px; font-size: 13px; font-weight: 600; transition: all 0.15s; white-space: nowrap; }
+        .am-btn.primary { background: var(--primary); color: var(--on-primary); }
+        .am-btn.primary:hover:not(:disabled) { background: var(--primary-hover); }
         .am-btn.secondary { background: var(--surface2); color: var(--text2); border: 1px solid var(--border); }
         .am-btn.secondary:hover { background: var(--surface3); }
-        .am-btn.danger { background: #fef2f2; color: var(--danger); border: 1px solid #fecaca; }
-        .am-btn.danger:hover { background: #fee2e2; }
+        .am-btn.danger { background: rgba(229,62,62,0.1); color: var(--danger); border: 1px solid rgba(229,62,62,0.3); }
+        .am-btn.danger:hover:not(:disabled) { background: rgba(229,62,62,0.16); }
         .am-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-        .tp-tabs { display: flex; gap: 6px; margin-bottom: 16px; border-bottom: 1px solid var(--border); }
-        .tp-tab { display: inline-flex; align-items: center; gap: 6px; padding: 10px 16px; font-size: 13px; font-weight: 600; color: var(--text2); border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all 0.15s; }
-        .tp-tab:hover { color: var(--primary); }
-        .tp-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
-        .am-table-box { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        .am-table-wrap { overflow-x: auto; }
-        .am-table { width: 100%; border-collapse: collapse; }
-        .am-table th { text-align: left; padding: 12px 16px; font-size: 11px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); background: var(--surface2); }
-        .am-table td { padding: 14px 16px; font-size: 13px; border-bottom: 1px solid var(--surface3); color: var(--text); vertical-align: top; }
-        .am-table tr:last-child td { border-bottom: none; }
-        .am-table tr:hover td { background: var(--surface2); }
-        .tp-body-cell { max-width: 360px; color: var(--text2); white-space: pre-wrap; }
-        .am-username { font-size: 13px; color: var(--primary); font-weight: 500; font-family: monospace; }
-        .am-actions { display: flex; gap: 6px; }
-        .am-icon-btn { width: 32px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
-        .am-icon-btn.edit { color: var(--muted); }
-        .am-icon-btn.edit:hover { background: #eff6ff; color: var(--primary); }
-        .am-icon-btn.del { color: var(--muted); }
-        .am-icon-btn.del:hover { background: #fef2f2; color: var(--danger); }
-        .am-loading { padding: 16px; display: flex; flex-direction: column; gap: 8px; }
-        .am-skel { height: 56px; background: var(--surface3); border-radius: 8px; animation: pulse 1.4s ease infinite; }
-        .am-empty { padding: 60px 20px; text-align: center; color: var(--muted); font-size: 14px; display: flex; flex-direction: column; align-items: center; }
-        .tp-media-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 14px; padding: 16px; }
-        .tp-media-card { position: relative; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--surface2); }
-        .tp-media-thumb { width: 100%; height: 110px; background: #eef2f7; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+        /* Tab */
+        .am-tabs { display: flex; gap: 4px; padding: 4px; margin-bottom: 14px; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); overflow-x: auto; scrollbar-width: none; }
+        .am-tabs::-webkit-scrollbar { display: none; }
+        .am-tab { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 36px; padding: 0 12px; border-radius: 9px; font-size: 13px; font-weight: 600; color: var(--text2); white-space: nowrap; transition: background 0.15s, color 0.15s; }
+        .am-tab:hover:not(.active) { background: var(--surface3); }
+        .am-tab.active { background: var(--primary); color: var(--on-primary); box-shadow: 0 1px 3px var(--shadow); }
+        .am-tab-count { font-size: 11px; font-weight: 700; padding: 0 6px; border-radius: 999px; background: var(--surface3); color: var(--text2); }
+        .am-tab.active .am-tab-count { background: rgba(255,255,255,0.25); color: var(--on-primary); }
+        .tp-tab-short { display: none; }
+        /* Toolbar */
+        .tp-toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+        .tp-search { display: flex; align-items: center; gap: 8px; flex: 1 1 260px; max-width: 420px; height: 40px; padding: 0 10px 0 12px; border-radius: 10px; background: var(--surface); border: 1px solid var(--border); color: var(--muted); transition: border-color 0.15s; }
+        .tp-search:focus-within { border-color: var(--primary); }
+        .tp-search input { flex: 1; min-width: 0; border: none; outline: none; background: transparent; color: var(--text); font-size: 13.5px; font-family: inherit; }
+        .tp-search button { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--muted); }
+        .tp-search button:hover { background: var(--surface3); color: var(--text); }
+        .tp-tip { font-size: 12.5px; color: var(--muted); }
+        .tp-tip b { color: var(--text2); font-family: ui-monospace, monospace; font-weight: 600; }
+        /* Kartu */
+        .tp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 12px; align-items: start; }
+        .tp-skel { height: 130px; }
+        .tp-card { display: flex; flex-direction: column; gap: 10px; min-width: 0; padding: 14px 12px 14px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 1px 3px var(--shadow); transition: border-color 0.15s; }
+        .tp-card:hover { border-color: var(--border2); }
+        .tp-card.inactive { opacity: 0.7; }
+        .tp-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+        .tp-card-titles { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+        .tp-card-title { font-size: 14px; font-weight: 700; color: var(--text); line-height: 1.35; }
+        .tp-card-meta { display: flex; gap: 5px; flex-wrap: wrap; }
+        .tp-pill { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--surface3); color: var(--text2); white-space: nowrap; }
+        .tp-pill.shortcut { background: var(--primary-light); color: var(--primary); font-family: ui-monospace, monospace; }
+        .tp-pill.ok { background: rgba(39,168,122,0.14); color: var(--success); }
+        .tp-card-body { font-size: 13px; color: var(--text2); line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+        .tp-card-body.muted { color: var(--muted); font-style: italic; }
+        .tp-var { color: var(--primary); background: var(--primary-light); border-radius: 4px; padding: 0 3px; font-weight: 600; }
+        .tp-card-media { margin: -14px -12px 0 -16px; height: 130px; border-radius: 12px 12px 0 0; overflow: hidden; background: var(--surface3); display: flex; align-items: center; justify-content: center; }
+        .tp-card-media img { width: 100%; height: 100%; object-fit: cover; }
+        .tp-price { font-size: 15px; font-weight: 800; color: var(--primary); }
+        .am-actions { display: flex; gap: 2px; flex-shrink: 0; }
+        .am-icon-btn { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--muted); transition: all 0.15s; }
+        .am-icon-btn.edit:hover { background: var(--primary-light); color: var(--primary); }
+        .am-icon-btn.del:hover { background: rgba(229,62,62,0.1); color: var(--danger); }
+        .am-skel { background: var(--skeleton); border-radius: 12px; animation: pulse 1.4s ease infinite; }
+        .am-empty { padding: 56px 20px; text-align: center; color: var(--muted); font-size: 13.5px; display: flex; flex-direction: column; align-items: center; gap: 12px; background: var(--surface); border: 1px dashed var(--border2); border-radius: 12px; }
+        .am-empty p { max-width: 420px; line-height: 1.5; }
+        /* Galeri */
+        .tp-media-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
+        .tp-media-card { position: relative; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--surface); box-shadow: 0 1px 3px var(--shadow); }
+        .tp-media-thumb { width: 100%; height: 130px; background: var(--surface3); display: flex; align-items: center; justify-content: center; overflow: hidden; }
         .tp-media-thumb img { width: 100%; height: 100%; object-fit: cover; }
         .tp-media-doc-icon { color: var(--muted); }
-        .tp-media-info { padding: 8px 10px; display: flex; flex-direction: column; gap: 2px; }
-        .tp-media-label { font-size: 12px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .tp-media-info { padding: 9px 11px; display: flex; flex-direction: column; gap: 2px; }
+        .tp-media-label { font-size: 12.5px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .tp-media-cat { font-size: 11px; color: var(--muted); }
-        .tp-media-del { position: absolute; top: 6px; right: 6px; background: rgba(255,255,255,0.9); }
-        .am-overlay { position: fixed; inset: 0; z-index: 500; background: rgba(15,23,42,0.5); display: flex; align-items: center; justify-content: center; padding: 20px; }
-        .am-modal { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; width: 100%; max-width: 440px; box-shadow: 0 20px 60px rgba(0,0,0,0.15); overflow: hidden; max-height: 90vh; overflow-y: auto; }
-        .am-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); background: var(--surface2); }
-        .am-modal-header h3 { font-size: 15px; font-weight: 600; color: var(--text); }
-        .am-close { width: 30px; height: 30px; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: var(--muted); transition: all 0.15s; }
-        .am-close:hover { background: var(--border); color: var(--text2); }
-        .am-form { padding: 20px; display: flex; flex-direction: column; gap: 14px; }
-        .am-field { display: flex; flex-direction: column; gap: 5px; }
+        .tp-media-del { position: absolute; top: 8px; right: 8px; width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; background: rgba(15,23,42,0.6); color: #fff; opacity: 0.85; transition: opacity 0.15s, background 0.15s; }
+        .tp-media-del:hover { opacity: 1; background: var(--danger); }
+        /* Label */
+        .tp-tag-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+        .tp-tag-item { display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; min-width: 0; }
+        .tp-tag-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; display: none; }
+        .tp-tag-hex { flex: 1; font-size: 11.5px; color: var(--muted); font-family: ui-monospace, monospace; }
+        .tp-swatches { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .tp-swatch { width: 28px; height: 28px; border-radius: 50%; border: 2px solid transparent; box-shadow: inset 0 0 0 2px rgba(255,255,255,0.35); }
+        .tp-swatch.on { border-color: var(--text); }
+        .tp-color-input { width: 36px !important; height: 30px !important; padding: 2px !important; border-radius: 8px !important; cursor: pointer; }
+        .tp-tag-preview { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+        .tag-chip { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px; font-size: 11.5px; font-weight: 600; color: var(--on-primary); white-space: nowrap; }
+        /* Modal */
+        .am-overlay { position: fixed; inset: 0; z-index: 500; background: var(--scrim); display: flex; align-items: center; justify-content: center; padding: 16px; }
+        .am-modal { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; width: 100%; max-width: 460px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); overflow: hidden; max-height: calc(100vh - 32px); overflow-y: auto; }
+        .am-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px 12px 18px; border-bottom: 1px solid var(--border); }
+        .am-modal-header h3 { font-size: 15px; font-weight: 700; color: var(--text); }
+        .am-close { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--muted); transition: all 0.15s; }
+        .am-close:hover { background: var(--surface3); color: var(--text2); }
+        .am-form { padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 14px; }
+        .am-field { display: flex; flex-direction: column; gap: 6px; }
         .am-field label { font-size: 12px; color: var(--text2); font-weight: 600; }
-        .am-field input, .am-field select, .am-field textarea { background: var(--surface2); border: 1px solid var(--border); border-radius: 7px; color: var(--text); padding: 10px 14px; font-size: 14px; outline: none; transition: border-color 0.15s; font-family: inherit; resize: vertical; }
-        .am-field input:focus, .am-field select:focus, .am-field textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
-        .am-field input::placeholder, .am-field textarea::placeholder { color: var(--border2); }
+        .am-field input:not([type=checkbox]):not([type=file]):not([type=color]), .am-field select { height: 40px; }
+        .am-field input, .am-field select, .am-field textarea { background: var(--surface2); border: 1px solid var(--border); border-radius: 9px; color: var(--text); padding: 0 12px; font-size: 14px; outline: none; transition: border-color 0.15s; font-family: inherit; }
+        .am-field textarea { padding: 10px 12px; resize: vertical; line-height: 1.5; }
+        .am-field input[type=file] { padding: 8px; font-size: 13px; }
+        .am-field input:focus, .am-field select:focus, .am-field textarea:focus { border-color: var(--primary); background: var(--surface); }
+        .am-field input::placeholder, .am-field textarea::placeholder { color: var(--muted); }
+        .am-field code { font-size: 11.5px; color: var(--primary); }
         .req { color: var(--danger); }
-        .am-hint { font-size: 11px; color: var(--muted); margin-top: 2px; }
+        .am-hint { font-size: 11.5px; color: var(--muted); line-height: 1.4; }
         .am-hint.err { color: var(--danger); }
-        .am-form-err { padding: 10px 14px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 7px; color: var(--danger); font-size: 13px; }
-        .am-form-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
-        .am-confirm { padding: 20px; }
+        .am-form-err { padding: 10px 14px; background: rgba(229,62,62,0.08); border: 1px solid rgba(229,62,62,0.3); border-radius: 9px; color: var(--danger); font-size: 13px; }
+        .am-form-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 2px; }
+        .am-confirm { padding: 18px; }
         .am-confirm p { font-size: 14px; color: var(--text); margin-bottom: 6px; }
         .am-confirm-sub { font-size: 13px; color: var(--text2); }
-        .am-confirm .am-form-actions { margin-top: 20px; }
+        .am-confirm .am-form-actions { margin-top: 18px; }
+        @media (max-width: 768px) {
+          .am-page { padding: 16px 14px 28px; }
+          .am-tab { flex: 0 0 auto; }
+          .tp-tab-full { display: none; } .tp-tab-short { display: inline; }
+          .tp-search { max-width: none; }
+          .tp-tip { display: none; }
+          .tp-grid { grid-template-columns: 1fr; }
+          .tp-media-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+          .tp-media-thumb { height: 110px; }
+          .tp-tag-grid { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 420px) { .tp-hide-xs { display: none; } .am-header .am-btn { width: 38px; padding: 0; } }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
-        .tag-chip { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; color: var(--on-primary); white-space: nowrap; }
       `}</style>
     </div>
   )
