@@ -15,7 +15,7 @@ function MiniStat({ label, value, sub, color }) {
 }
 
 // Laporan follow-up di Analytics. data = respons GET /followup/report
-export default function FollowupReport({ data, loading, from, to }) {
+export default function FollowupReport({ data, loading, rangeLabel }) {
   const t = data?.totals
   const lateDays = data?.alert_days ?? 2
   const steps = data?.steps || []
@@ -25,8 +25,10 @@ export default function FollowupReport({ data, loading, from, to }) {
 
   return (
     <div className="an-table-box fr">
-      <h3><ListChecks size={14} style={{ verticalAlign: -2, marginRight: 4 }} />Laporan Follow-up</h3>
-      <p className="an-chart-sub">Chat bertag Penawaran / Follow-Up · {from} – {to}</p>
+      <div className="an-sec-head">
+        <h3><ListChecks size={15} />Laporan Follow-up</h3>
+        <span className="an-sec-right">Chat Penawaran / Follow-Up{rangeLabel ? ` · ${rangeLabel}` : ''}</span>
+      </div>
 
       {loading ? <div className="an-skel" style={{ height: 160 }} /> : !t ? (
         <div className="an-chart-empty" style={{ height: 120 }}>Belum ada data follow-up</div>
@@ -148,12 +150,12 @@ export default function FollowupReport({ data, loading, from, to }) {
 
       <style>{`
         .fr-stats { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-bottom: 16px; }
-        .fr-stat { display: flex; flex-direction: column; gap: 3px; padding: 12px 14px; border-radius: 10px; background: var(--surface2); border: 1px solid var(--border); min-width: 0; }
+        .fr-stat { display: flex; flex-direction: column; gap: 3px; padding: 12px 14px; border-radius: 12px; background: var(--surface2); border: 1px solid var(--border); min-width: 0; }
         .fr-stat-label { font-size: 11.5px; color: var(--text2); font-weight: 600; }
         .fr-stat-value { font-size: 22px; font-weight: 800; color: var(--text); line-height: 1.2; }
         .fr-stat-sub { font-size: 11px; color: var(--muted); }
         .fr-grid { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 14px; margin-bottom: 14px; }
-        .fr-box { border: 1px solid var(--border); border-radius: 10px; padding: 14px; min-width: 0; }
+        .fr-box { border: 1px solid var(--border); border-radius: 12px; padding: 14px; min-width: 0; }
         .fr-box h4 { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 10px; }
         .fr-table th, .fr-table td { padding: 8px 10px; white-space: nowrap; }
         .fr-name { font-weight: 600; }

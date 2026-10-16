@@ -5,17 +5,39 @@ import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer
 } from 'recharts'
-import { RefreshCw, TrendingUp, Users, MessageSquare, UserCheck, Clock, UserPlus, Calendar, Download, Zap, MapPin } from 'lucide-react'
+import { RefreshCw, TrendingUp, Users, MessageSquare, UserCheck, Clock, UserPlus, Calendar, Download, Zap, MapPin, ChevronDown, Activity, BarChart2, ArrowDownLeft, ArrowUpRight, Inbox, CheckCircle2 } from 'lucide-react'
 
 const REGION_OPTIONS = [
-  { key: '', label: 'Semua Regional' },
+  { key: '', label: 'Semua' },
   { key: 'barat', label: 'Barat' },
   { key: 'timur', label: 'Timur' },
 ]
 
+// Tanggal lokal (WIB di perangkat user) dalam format YYYY-MM-DD.
+// Jangan pakai toISOString(): itu UTC, sehingga 00.00–07.00 WIB jadi "kemarin".
 function fmtDate(d) {
-  return d.toISOString().split('T')[0]
+  const p = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
 }
+
+// "16 Okt 2026" atau "3 – 16 Okt 2026"
+function fmtRange(from, to) {
+  if (!from || !to) return ''
+  const f = new Date(`${from}T00:00:00`), t = new Date(`${to}T00:00:00`)
+  const full = { day: 'numeric', month: 'short', year: 'numeric' }
+  if (from === to) return t.toLocaleDateString('id-ID', full)
+  const sameYear = f.getFullYear() === t.getFullYear()
+  const sameMonth = sameYear && f.getMonth() === t.getMonth()
+  const left = f.toLocaleDateString('id-ID', sameMonth ? { day: 'numeric' } : sameYear ? { day: 'numeric', month: 'short' } : full)
+  return `${left} – ${t.toLocaleDateString('id-ID', full)}`
+}
+
+const PRESETS = [
+  { days: 1, label: 'Hari ini' },
+  { days: 7, label: '7 hari' },
+  { days: 14, label: '14 hari' },
+  { days: 30, label: '30 hari' },
+]
 
 function downloadCsv(filename, rows) {
   if (!rows.length) return
@@ -36,17 +58,25 @@ function downloadCsv(filename, rows) {
   URL.revokeObjectURL(url)
 }
 
-function StatCard({ icon: Icon, label, value, sub, color }) {
+function StatCard({ icon: Icon, label, value, sub, color, loading }) {
   return (
     <div className="an-stat">
-      <div className="an-stat-icon" style={{ background: `${color}18`, color }}>
-        <Icon size={18} />
+      <div className="an-stat-top">
+        <span className="an-stat-lbl">{label}</span>
+        <span className="an-stat-icon" style={{ background: `${color}1f`, color }}><Icon size={16} /></span>
       </div>
-      <div className="an-stat-body">
-        <div className="an-stat-val">{value ?? '—'}</div>
-        <div className="an-stat-lbl">{label}</div>
-        {sub != null && <div className="an-stat-sub">{sub}</div>}
-      </div>
+      {loading ? <div className="an-stat-skel" /> : <div className="an-stat-val">{value ?? '—'}</div>}
+      {sub != null && !loading && <div className="an-stat-sub">{sub}</div>}
+    </div>
+  )
+}
+
+// Judul bagian yang seragam (ikon + judul + keterangan kanan)
+function SectionHead({ icon: Icon, title, right }) {
+  return (
+    <div className="an-sec-head">
+      <h3>{Icon && <Icon size={15} />}{title}</h3>
+      {right && <span className="an-sec-right">{right}</span>}
     </div>
   )
 }
@@ -84,6 +114,15 @@ export default function AnalyticsPage() {
   // Filter regional ('' = semua). Disimpan juga di ref agar semua pemanggilan load() ikut.
   const [region, setRegion] = useState('')
   const regionRef = useRef('')
+  const [preset, setPreset] = useState(1) // 1/7/14/30 hari; null = rentang manual
+  const [showExport, setShowExport] = useState(false)
+  const exportRef = useRef(null)
+  useEffect(() => {
+    if (!showExport) return
+    const onDown = (e) => { if (exportRef.current && !exportRef.current.contains(e.target)) setShowExport(false) }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [showExport])
 
   const load = useCallback(async (f, t) => {
     setLoading(true)
@@ -154,13 +193,14 @@ export default function AnalyticsPage() {
 
   useEffect(() => { load(from, to) }, []) // eslint-disable-line
 
-  const handleApply = () => { if (from && to) load(from, to) }
+  const handleApply = () => { if (from && to) { setPreset(null); load(from, to) } }
   const handlePreset = (days) => {
     const t = fmtDate(new Date())
     const f = fmtDate(new Date(Date.now() - (days - 1) * 86400000))
-    setFrom(f); setTo(t)
+    setFrom(f); setTo(t); setPreset(days)
     load(f, t)
   }
+  const rangeLabel = fmtRange(from, to)
 
   const totalMessages = daily.reduce((s, d) => s + (d.messages || 0), 0)
   const totalIncoming = daily.reduce((s, d) => s + (d.incoming || 0), 0)
@@ -197,91 +237,92 @@ export default function AnalyticsPage() {
     <div className="an-page">
       {/* Header */}
       <div className="an-header">
-        <div>
-          <h1>Analytics</h1>
-        </div>
+        <h1>Analytics</h1>
         <div className="an-header-actions">
-          <button className="an-refresh" onClick={handleExportContacts} disabled={!!exporting}>
-            <Download size={15} />
-            {exporting === 'contacts' ? 'Mengekspor...' : 'Export Kontak'}
-          </button>
-          <button className="an-refresh" onClick={handleExportConversations} disabled={!!exporting}>
-            <Download size={15} />
-            {exporting === 'conversations' ? 'Mengekspor...' : 'Export Percakapan'}
-          </button>
-          <button className="an-refresh" onClick={() => load(from, to)} disabled={loading}>
+          <div className="an-dd" ref={exportRef}>
+            <button className="an-btn" onClick={() => setShowExport(v => !v)} disabled={!!exporting}>
+              <Download size={15} />
+              <span>{exporting ? 'Mengekspor…' : 'Export'}</span>
+              <ChevronDown size={14} />
+            </button>
+            {showExport && (
+              <div className="an-menu">
+                <button onClick={() => { setShowExport(false); handleExportContacts() }}><UserPlus size={14} /> Kontak (CSV)</button>
+                <button onClick={() => { setShowExport(false); handleExportConversations() }}><MessageSquare size={14} /> Percakapan (CSV)</button>
+              </div>
+            )}
+          </div>
+          <button className="an-btn icon" onClick={() => load(from, to)} disabled={loading} title="Muat ulang" aria-label="Muat ulang">
             <RefreshCw size={15} style={loading ? { animation: 'spin 1s linear infinite' } : {}} />
-            Refresh
           </button>
         </div>
       </div>
 
-      {/* Date filter */}
+      {/* Filter: periode, rentang tanggal, regional */}
       <div className="an-filter">
-        <Calendar size={15} className="an-filter-icon" />
-        <div className="an-presets">
-          <button onClick={() => handlePreset(1)}>Hari ini</button>
-          <button onClick={() => handlePreset(7)}>7 Hari</button>
-          <button onClick={() => handlePreset(14)}>14 Hari</button>
-          <button onClick={() => handlePreset(30)}>30 Hari</button>
+        <div className="an-filter-group">
+          <Calendar size={15} className="an-filter-icon" />
+          <div className="an-seg">
+            {PRESETS.map(p => (
+              <button key={p.days} className={preset === p.days ? 'active' : ''} disabled={loading} onClick={() => handlePreset(p.days)}>{p.label}</button>
+            ))}
+          </div>
+        </div>
+        <div className="an-filter-group">
+          <MapPin size={15} className="an-filter-icon" />
+          <div className="an-seg">
+            {REGION_OPTIONS.map(o => (
+              <button
+                key={o.key || 'all'}
+                className={`${region === o.key ? 'active' : ''}${o.key ? ` ${o.key}` : ''}`}
+                disabled={loading}
+                onClick={() => { regionRef.current = o.key; setRegion(o.key); load(from, to) }}
+              >{o.label}</button>
+            ))}
+          </div>
         </div>
         <div className="an-date-range">
-          <input type="date" value={from} max={to} onChange={e => setFrom(e.target.value)} />
-          <span>s/d</span>
-          <input type="date" value={to} min={from} max={fmtDate(new Date())} onChange={e => setTo(e.target.value)} />
-          <button className="an-apply" onClick={handleApply} disabled={loading || !from || !to}>
-            Terapkan
-          </button>
+          <input type="date" value={from} max={to} onChange={e => setFrom(e.target.value)} aria-label="Dari tanggal" />
+          <span>–</span>
+          <input type="date" value={to} min={from} max={fmtDate(new Date())} onChange={e => setTo(e.target.value)} aria-label="Sampai tanggal" />
+          <button className="an-apply" onClick={handleApply} disabled={loading || !from || !to}>Terapkan</button>
         </div>
       </div>
-
-      {/* Filter regional */}
-      <div className="an-region-bar">
-        <MapPin size={15} className="an-filter-icon" />
-        <div className="an-region-seg">
-          {REGION_OPTIONS.map(o => (
-            <button
-              key={o.key || 'all'}
-              className={`${region === o.key ? 'active' : ''}${o.key ? ` ${o.key}` : ''}`}
-              disabled={loading}
-              onClick={() => { regionRef.current = o.key; setRegion(o.key); load(from, to) }}
-            >{o.label}</button>
-          ))}
-        </div>
-        {region && (
-          <span className="an-region-note">
-            Data dihitung dari chat & kontak Regional {region === 'barat' ? 'Barat' : 'Timur'}; tabel agent hanya menampilkan agent regional tsb.
-          </span>
-        )}
+      <div className="an-range-note">
+        Menampilkan data <b>{rangeLabel}</b>{region && <> · Regional <b>{region === 'barat' ? 'Barat' : 'Timur'}</b> (tabel agent hanya agent regional tsb.)</>}
       </div>
 
       {error && <div className="an-error">{error}</div>}
 
       {/* Summary cards */}
       <div className="an-cards">
-        <StatCard icon={MessageSquare} label="Total Pesan" value={totalMessages} color="#2563eb" />
-        <StatCard icon={TrendingUp} label="Pesan Masuk" value={totalIncoming} color="#2563eb" />
-        <StatCard icon={TrendingUp} label="Pesan Keluar" value={totalOutgoing} color="#f59e0b" />
+        <StatCard loading={loading} icon={MessageSquare} label="Total Pesan" value={totalMessages.toLocaleString('id-ID')} color="#2563eb" />
+        <StatCard loading={loading} icon={ArrowDownLeft} label="Pesan Masuk" value={totalIncoming.toLocaleString('id-ID')} color="#0ea5e9" />
+        <StatCard loading={loading} icon={ArrowUpRight} label="Pesan Keluar" value={totalOutgoing.toLocaleString('id-ID')} color="#f59e0b" />
         <StatCard
+          loading={loading}
           icon={Clock}
-          label="Avg Respons"
+          label="Waktu Respons"
           value={globalAvgResponse != null ? `${globalAvgResponse} mnt` : '—'}
+          sub="rata-rata agent"
           color="#f59e0b"
         />
         <StatCard
-          icon={MessageSquare}
+          loading={loading}
+          icon={Inbox}
           label="Sedang Dihandle"
           value={totalActive}
-          sub={`${totalOpen} open`}
-          color="#0ea5e9"
+          sub={`${totalOpen} belum dibalas agent`}
+          color="#8b5cf6"
         />
-        <StatCard icon={UserCheck} label="Resolved" value={totalResolved} color="#10b981" />
-        <StatCard icon={Users} label="Di-assign" value={totalHandled} color="#6366f1" />
+        <StatCard loading={loading} icon={CheckCircle2} label="Resolved" value={totalResolved} color="#10b981" />
+        <StatCard loading={loading} icon={UserCheck} label="Di-assign" value={totalHandled} color="#6366f1" />
         <StatCard
+          loading={loading}
           icon={UserPlus}
           label="Kontak Baru"
           value={totalNewContacts}
-          sub={contacts?.total != null ? `${contacts.total} total` : null}
+          sub={contacts?.total != null ? `${contacts.total.toLocaleString('id-ID')} kontak total` : null}
           color="#2563eb"
         />
       </div>
@@ -289,7 +330,7 @@ export default function AnalyticsPage() {
       {/* Detail per Agent (dipindah ke atas KPI & Funnel) */}
       {!loading && agents.length > 0 && (
         <div className="an-table-box">
-          <h3>Detail per Agent</h3>
+          <SectionHead icon={Users} title="Detail per Agent" right={`${agents.length} agent`} />
           <div className="an-table-wrap">
             <table className="an-table">
               <thead>
@@ -341,7 +382,7 @@ export default function AnalyticsPage() {
       {/* KPI Response Time & Funnel */}
       <div className="an-kpi-row">
         <div className="an-kpi-box">
-          <h3><Clock size={14} style={{ verticalAlign: -2, marginRight: 4 }} />KPI Response &lt;{kpi?.kpiMinutes ?? 5} menit</h3>
+          <SectionHead icon={Clock} title={`KPI Respons < ${kpi?.kpiMinutes ?? 5} menit`} />
           {loading ? <div className="an-skel" style={{ height: 120 }} /> : !kpi || kpi.total === 0 ? (
             <div className="an-chart-empty">Belum ada data balasan pada rentang ini</div>
           ) : (
@@ -366,7 +407,7 @@ export default function AnalyticsPage() {
         </div>
 
         <div className="an-kpi-box">
-          <h3><TrendingUp size={14} style={{ verticalAlign: -2, marginRight: 4 }} />Funnel Konversi</h3>
+          <SectionHead icon={TrendingUp} title="Funnel Konversi" />
           {loading ? <div className="an-skel" style={{ height: 120 }} /> : !funnel || !funnel.stages?.length ? (
             <div className="an-chart-empty">Belum ada data funnel</div>
           ) : (
@@ -396,13 +437,12 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Laporan follow-up */}
-      <FollowupReport data={fuReport} loading={loading} from={from} to={to} />
+      <FollowupReport data={fuReport} loading={loading} rangeLabel={rangeLabel} />
 
       {/* Charts */}
       <div className="an-charts">
         <div className="an-chart-box">
-          <h3>Aktivitas Pesan</h3>
-          <p className="an-chart-sub">{from} – {to}</p>
+          <SectionHead icon={Activity} title="Aktivitas Pesan" right={rangeLabel} />
           {loading ? <div className="an-skel" /> : chartData.every(d => d.Masuk === 0 && d.Keluar === 0) ? (
             <div className="an-chart-empty">Belum ada data pesan</div>
           ) : (
@@ -422,8 +462,7 @@ export default function AnalyticsPage() {
         </div>
 
         <div className="an-chart-box">
-          <h3>Performa Agent</h3>
-          <p className="an-chart-sub">Funnel per agent (Lead → Penawaran → Survey → Deal)</p>
+          <SectionHead icon={BarChart2} title="Performa Agent" right="Lead → Penawaran → Survey → Deal" />
           {loading ? <div className="an-skel" /> : agents.length === 0 ? (
             <div className="an-chart-empty">Belum ada percakapan yang di-assign</div>
           ) : (
@@ -447,7 +486,7 @@ export default function AnalyticsPage() {
       {/* Template Terpopuler */}
       {!loading && topTemplates.length > 0 && (
         <div className="an-table-box">
-          <h3><Zap size={14} style={{ verticalAlign: -2, marginRight: 4 }} />Template Terpopuler</h3>
+          <SectionHead icon={Zap} title="Template Terpopuler" />
           <div className="an-tpl-list">
             {topTemplates.map((t, i) => (
               <div key={t.id} className="an-tpl-item">
@@ -467,130 +506,78 @@ export default function AnalyticsPage() {
         .an-page { padding: 24px 24px 40px; width: 100%; color: var(--text); }
 
         /* Header */
-        .an-header {
-          display: flex; align-items: flex-start;
-          justify-content: space-between; gap: 12px; margin-bottom: 16px;
-        }
-        .an-header h1 { font-size: 20px; font-weight: 700; margin-bottom: 3px; color: var(--text); }
-        .an-header p { font-size: 13px; color: var(--text2); }
-        .an-refresh {
-          display: flex; align-items: center; gap: 6px;
-          padding: 8px 14px; border-radius: 8px;
-          background: var(--surface); color: var(--text2);
-          border: 1px solid var(--border);
-          font-size: 13px; font-weight: 500;
-          white-space: nowrap; flex-shrink: 0;
-          box-shadow: 0 1px 2px var(--shadow);
-        }
-        .an-refresh:hover { background: var(--surface2); border-color: var(--muted); }
-        .an-refresh:disabled { opacity: 0.6; }
-        .an-header-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; flex-shrink: 0; }
+        .an-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; min-height: 38px; }
+        .an-header h1 { font-size: 21px; font-weight: 700; color: var(--text); }
+        .an-header-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+        .an-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 38px; padding: 0 14px; border-radius: 10px; background: var(--surface); color: var(--text2); border: 1px solid var(--border); font-size: 13px; font-weight: 600; white-space: nowrap; transition: background 0.15s, border-color 0.15s; }
+        .an-btn:hover:not(:disabled) { background: var(--surface2); border-color: var(--border2); }
+        .an-btn:disabled { opacity: 0.6; }
+        .an-btn.icon { width: 38px; padding: 0; }
+        .an-dd { position: relative; }
+        .an-menu { position: absolute; right: 0; top: calc(100% + 6px); min-width: 200px; padding: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 12px 32px var(--shadow); z-index: 50; }
+        .an-menu button { width: 100%; display: flex; align-items: center; gap: 9px; padding: 9px 10px; border-radius: 8px; font-size: 13px; color: var(--text); text-align: left; }
+        .an-menu button svg { color: var(--muted); }
+        .an-menu button:hover { background: var(--surface3); }
+
+        /* Filter */
+        .an-filter { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 16px; padding: 10px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 1px 3px var(--shadow); }
+        .an-filter-group { display: flex; align-items: center; gap: 8px; }
+        .an-filter-icon { color: var(--muted); flex-shrink: 0; }
+        .an-seg { display: inline-flex; gap: 2px; padding: 3px; border-radius: 10px; background: var(--surface2); border: 1px solid var(--border); }
+        .an-seg button { height: 30px; padding: 0 12px; border-radius: 7px; font-size: 12.5px; font-weight: 600; color: var(--text2); white-space: nowrap; transition: background 0.15s, color 0.15s; }
+        .an-seg button:hover:not(.active) { background: var(--surface3); }
+        .an-seg button.active { background: var(--primary); color: var(--on-primary); box-shadow: 0 1px 3px var(--shadow); }
+        .an-seg button.barat.active { background: #2563eb; }
+        .an-seg button.timur.active { background: #d97706; }
+        .an-seg button:disabled { cursor: progress; }
+        .an-date-range { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+        .an-date-range span { font-size: 12px; color: var(--muted); }
+        .an-date-range input[type="date"] { height: 36px; background: var(--surface2); border: 1px solid var(--border); border-radius: 9px; color: var(--text); padding: 0 10px; font-size: 13px; outline: none; cursor: pointer; font-family: inherit; }
+        .an-date-range input[type="date"]:focus { border-color: var(--primary); }
+        .an-apply { height: 36px; padding: 0 14px; border-radius: 9px; background: var(--primary); color: var(--on-primary); font-size: 13px; font-weight: 600; transition: background 0.15s; }
+        .an-apply:hover:not(:disabled) { background: var(--primary-hover); }
+        .an-apply:disabled { opacity: 0.5; }
+        .an-range-note { margin: 10px 2px 16px; font-size: 12.5px; color: var(--muted); }
+        .an-range-note b { color: var(--text2); font-weight: 600; }
+
+        .an-error { background: rgba(229,62,62,0.08); border: 1px solid rgba(229,62,62,0.35); border-radius: 10px; padding: 12px 16px; color: var(--danger); font-size: 13px; margin-bottom: 16px; }
+
+        /* Judul bagian */
+        .an-sec-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+        .an-sec-head h3 { display: flex; align-items: center; gap: 8px; font-size: 14.5px; font-weight: 700; color: var(--text); }
+        .an-sec-head h3 svg { color: var(--primary); }
+        .an-sec-right { font-size: 12px; color: var(--muted); }
 
         .an-tpl-list { display: flex; flex-direction: column; gap: 8px; }
-        .an-tpl-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 8px; background: var(--surface2); border: 1px solid var(--border); }
+        .an-tpl-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px; background: var(--surface2); border: 1px solid var(--border); }
         .an-tpl-rank { font-size: 13px; font-weight: 700; color: var(--primary); width: 24px; flex-shrink: 0; }
         .an-tpl-body { flex: 1; min-width: 0; }
         .an-tpl-title { font-size: 13px; font-weight: 600; color: var(--text); }
         .an-tpl-preview { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .an-tpl-count { font-size: 12px; font-weight: 600; color: var(--success); white-space: nowrap; flex-shrink: 0; }
+        .an-tpl-count { font-size: 12px; font-weight: 700; color: var(--success); white-space: nowrap; flex-shrink: 0; }
 
-        /* Date filter */
-        .an-filter {
-          display: flex; align-items: center; flex-wrap: wrap; gap: 10px;
-          padding: 12px 16px; background: var(--surface);
-          border: 1px solid var(--border); border-radius: 10px;
-          margin-bottom: 20px;
-          box-shadow: 0 1px 3px var(--shadow);
-        }
-        .an-filter-icon { color: var(--muted); flex-shrink: 0; }
-        .an-presets { display: flex; gap: 6px; flex-wrap: wrap; }
-        .an-presets button {
-          padding: 4px 12px; border-radius: 16px;
-          background: var(--surface3); color: var(--text2);
-          font-size: 12px; font-weight: 500;
-          border: 1px solid var(--border); transition: all 0.15s;
-        }
-        .an-presets button:hover { background: var(--surface3); color: var(--primary); border-color: var(--primary); }
-        .an-region-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: -6px 0 18px; }
-        .an-region-seg { display: inline-flex; gap: 4px; padding: 3px; border-radius: 10px; background: var(--surface); border: 1px solid var(--border); }
-        .an-region-seg button { padding: 6px 14px; border-radius: 7px; font-size: 12.5px; font-weight: 600; color: var(--text2); transition: all 0.15s; }
-        .an-region-seg button:hover { background: var(--surface3); }
-        .an-region-seg button.active { background: var(--primary); color: var(--on-primary); }
-        .an-region-seg button.barat.active { background: #2563eb; }
-        .an-region-seg button.timur.active { background: #d97706; }
-        .an-region-seg button:disabled { cursor: progress; }
-        .an-region-note { font-size: 12px; color: var(--muted); }
-        .an-date-range {
-          display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-left: auto;
-        }
-        .an-date-range span { font-size: 12px; color: var(--muted); }
-        .an-date-range input[type="date"] {
-          background: var(--surface2); border: 1px solid var(--border); border-radius: 6px;
-          color: var(--text); padding: 5px 10px; font-size: 13px;
-          outline: none; cursor: pointer;
-        }
-        .an-date-range input[type="date"]:focus { border-color: var(--primary); }
-        .an-apply {
-          padding: 6px 14px; border-radius: 6px;
-          background: var(--primary); color: var(--on-primary);
-          font-size: 13px; font-weight: 600; transition: opacity 0.15s;
-        }
-        .an-apply:hover { background: var(--primary-hover); }
-        .an-apply:disabled { opacity: 0.5; }
-
-        .an-error {
-          background: var(--primary-light); border: 1px solid var(--danger);
-          border-radius: 8px; padding: 12px 16px;
-          color: var(--danger); font-size: 13px; margin-bottom: 20px;
-        }
-
-        /* Stat cards */
-        .an-cards {
-          display: grid;
-          gap: 10px; margin-bottom: 20px;
-        }
-        @media (min-width: 1200px) { .an-cards { grid-template-columns: repeat(4, 1fr); } }
-        @media (max-width: 1199px) and (min-width: 800px) { .an-cards { grid-template-columns: repeat(4, 1fr); } }
-        @media (max-width: 799px) { .an-cards { grid-template-columns: repeat(2, 1fr); } }
-
-        .an-stat {
-          display: flex; align-items: center; gap: 10px;
-          padding: 14px 12px; background: var(--surface);
-          border: 1px solid var(--border); border-radius: 10px;
-          min-width: 0;
-          box-shadow: 0 1px 3px var(--shadow);
-        }
-        .an-stat-icon {
-          width: 36px; height: 36px; border-radius: 8px; flex-shrink: 0;
-          display: flex; align-items: center; justify-content: center;
-        }
-        .an-stat-body { min-width: 0; }
-        .an-stat-val { font-size: 18px; font-weight: 700; line-height: 1; color: var(--text); }
-        .an-stat-lbl { font-size: 11px; color: var(--text2); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .an-stat-sub { font-size: 11px; color: var(--success); margin-top: 2px; }
+        /* Kartu statistik */
+        .an-cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+        .an-stat { display: flex; flex-direction: column; gap: 6px; padding: 14px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; min-width: 0; box-shadow: 0 1px 3px var(--shadow); }
+        .an-stat-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+        .an-stat-icon { width: 32px; height: 32px; border-radius: 9px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+        .an-stat-val { font-size: 26px; font-weight: 800; line-height: 1.1; color: var(--text); letter-spacing: -0.3px; }
+        .an-stat-skel { height: 28px; width: 60%; border-radius: 8px; background: var(--skeleton); animation: pulse 1.4s ease infinite; }
+        .an-stat-lbl { font-size: 12.5px; font-weight: 600; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .an-stat-sub { font-size: 11.5px; color: var(--muted); }
 
         /* Charts */
-        .an-charts {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-          gap: 14px; margin-bottom: 20px;
-        }
-        .an-chart-box {
-          background: var(--surface); border: 1px solid var(--border);
-          border-radius: 10px; padding: 18px; min-width: 0;
-          box-shadow: 0 1px 3px var(--shadow);
-        }
-        .an-chart-box h3 { font-size: 14px; font-weight: 600; margin-bottom: 3px; color: var(--text); }
+        .an-charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; margin-bottom: 16px; }
+        .an-chart-box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px; min-width: 0; box-shadow: 0 1px 3px var(--shadow); }
         .an-chart-sub { font-size: 12px; color: var(--muted); margin-bottom: 14px; }
         .an-skel { height: 220px; background: var(--skeleton); border-radius: 8px; animation: pulse 1.4s ease infinite; }
         .an-chart-empty { height: 220px; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 13px; }
-        .an-tip { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; font-size: 12px; box-shadow: 0 4px 16px var(--shadow); }
+        .an-tip { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; font-size: 12px; box-shadow: 0 4px 16px var(--shadow); }
         .an-tip-lbl { font-weight: 600; margin-bottom: 6px; color: var(--text); }
 
         /* KPI & Funnel */
-        .an-kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; margin-bottom: 20px; }
-        .an-kpi-box { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px; min-width: 0; box-shadow: 0 1px 3px var(--shadow); }
-        .an-kpi-box h3 { font-size: 14px; font-weight: 600; margin-bottom: 12px; color: var(--text); }
+        .an-kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; margin-bottom: 16px; }
+        .an-kpi-box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px; min-width: 0; box-shadow: 0 1px 3px var(--shadow); }
         .an-kpi-big { font-size: 44px; font-weight: 800; line-height: 1; }
         .an-kpi-sub { font-size: 12px; color: var(--text2); margin-top: 6px; margin-bottom: 12px; }
         .an-kpi-agents { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; border-top: 1px solid var(--border); padding-top: 12px; }
@@ -609,8 +596,7 @@ export default function AnalyticsPage() {
         .an-funnel-fail { font-size: 12px; color: var(--danger); margin-top: 6px; padding-top: 10px; border-top: 1px solid var(--border); }
 
         /* Table */
-        .an-table-box { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px; margin-bottom: 28px; box-shadow: 0 1px 3px var(--shadow); }
-        .an-table-box h3 { font-size: 14px; font-weight: 600; margin-bottom: 14px; color: var(--text); }
+        .an-table-box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px; margin-bottom: 16px; box-shadow: 0 1px 3px var(--shadow); }
         .an-table-wrap { overflow-x: auto; }
         .an-table { width: 100%; border-collapse: collapse; }
         .an-table th { text-align: left; padding: 8px 12px; font-size: 11px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
@@ -618,24 +604,42 @@ export default function AnalyticsPage() {
         .an-table tr:last-child td { border-bottom: none; }
         .an-table tr:hover td { background: var(--surface2); }
         .an-agent-cell { display: flex; align-items: center; gap: 8px; }
-        .an-avatar { width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg,#2563eb,#7c3aed); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: var(--on-primary); }
+        .an-avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--primary-light); color: var(--primary); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; }
         .an-agent-name { font-size: 13px; font-weight: 500; color: var(--text); }
         .an-agent-email { font-size: 11px; color: var(--muted); }
-        .an-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; }
-        .an-badge.active { background: #e0f2fe; color: #0284c7; }
-        .an-badge.open { background: #eff6ff; color: #2563eb; }
-        .an-badge.progress { background: #fffbeb; color: #d97706; }
-        .an-badge.resolved { background: #f0fdf4; color: #10b981; }
-        .an-badge.lead { background: #eff6ff; color: #2563eb; }
-        .an-badge.penawaran { background: var(--surface3); color: #6366f1; }
-        .an-badge.survey { background: #fffbeb; color: #d97706; }
-        .an-badge.deal { background: #f0fdf4; color: #10b981; }
+        .an-badge { display: inline-block; min-width: 28px; text-align: center; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+        /* Warna transparan agar nyaman di mode gelap & terang */
+        .an-badge.active { background: rgba(14,165,233,0.14); color: #0ea5e9; }
+        .an-badge.open { background: rgba(37,99,235,0.14); color: #3b82f6; }
+        .an-badge.progress { background: rgba(217,119,6,0.14); color: #d97706; }
+        .an-badge.resolved { background: rgba(16,185,129,0.14); color: #10b981; }
+        .an-badge.lead { background: rgba(37,99,235,0.14); color: #3b82f6; }
+        .an-badge.penawaran { background: rgba(99,102,241,0.15); color: #6366f1; }
+        .an-badge.survey { background: rgba(217,119,6,0.14); color: #d97706; }
+        .an-badge.deal { background: rgba(16,185,129,0.14); color: #10b981; }
+        @media (prefers-color-scheme: dark) { .an-badge.penawaran { color: #a5b4fc; } .an-badge.lead, .an-badge.open { color: #7aa7ff; } }
         .an-resp { font-size: 13px; color: var(--warning); font-weight: 500; }
         .an-rate { display: flex; align-items: center; gap: 6px; }
-        .an-rate-bar { width: 60px; height: 5px; background: var(--surface3); border-radius: 3px; overflow: hidden; }
+        .an-rate-bar { width: 64px; height: 6px; background: var(--surface3); border-radius: 3px; overflow: hidden; }
         .an-rate-fill { height: 100%; background: var(--primary); border-radius: 3px; }
         .an-rate span { font-size: 12px; color: var(--text2); min-width: 28px; }
 
+        @media (max-width: 1100px) { .an-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+        @media (max-width: 760px) {
+          .an-page { padding: 16px 14px 32px; }
+          .an-filter { flex-direction: column; align-items: stretch; gap: 10px; }
+          .an-filter-group .an-seg { flex: 1; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; }
+          .an-seg button { padding: 0 6px; }
+          .an-date-range { margin-left: 0; display: grid; grid-template-columns: 1fr auto 1fr; }
+          .an-date-range input[type="date"] { min-width: 0; width: 100%; }
+          .an-apply { grid-column: 1 / -1; }
+          .an-cards { gap: 10px; }
+          .an-stat { padding: 12px 14px; }
+          .an-stat-val { font-size: 22px; }
+          .an-charts, .an-kpi-row { grid-template-columns: 1fr; }
+          .an-table-box, .an-chart-box, .an-kpi-box { padding: 14px; }
+          .an-sec-right { width: 100%; }
+        }
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
       `}</style>
