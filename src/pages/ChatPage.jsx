@@ -7,12 +7,14 @@ import {
   forwardMessage, deleteMessage, editMessage, sendLocation, sendContact, setConversationRegion,
   getTemplates, getQuickMedia, sendQuickMedia, useTemplate,
   getTags, addTagToConversation, removeTagFromConversation,
-  getContactNotes, createContactNote, createReminder, getContactConversations,
+  getContactNotes, createContactNote, getContactConversations, getConversationFollowup,
   generateAiSuggestion, suggestAiTags, suggestAiNote, updateContact,
 } from '../hooks/useApi'
 import { supabase } from '../lib/supabase'
 import PdfThumb, { isPdf } from '../components/PdfThumb'
-import { Send, ArrowLeft, ArrowDown, UserCheck, Paperclip, X, FileText, Play, Download, Check, Image, Film, Clock, Zap, Package, Tag as TagIcon, StickyNote, BellPlus, MoreVertical, Sparkles, Reply, Pencil, Forward, Search as SearchIcon, Trash2, Copy, MapPin, User, Bot } from 'lucide-react'
+import FollowupPanel from '../components/FollowupPanel'
+import { dueTone } from '../components/followupUi'
+import { Send, ArrowLeft, ArrowDown, UserCheck, Paperclip, X, FileText, Play, Download, Check, Image, Film, Clock, Zap, Package, Tag as TagIcon, StickyNote, ListChecks, MoreVertical, Sparkles, Reply, Pencil, Forward, Search as SearchIcon, Trash2, Copy, MapPin, User, Bot } from 'lucide-react'
 
 
 const MSG_PAGE = 60 // jumlah pesan per halaman (muat bertahap saat scroll ke atas)
@@ -541,12 +543,9 @@ export default function ChatPage({ chatId }) {
   const [aiTagSuggested, setAiTagSuggested] = useState([]) // tag_ids yang disarankan AI
   const [aiTagReason, setAiTagReason] = useState('')
 
-  // Reminder
-  const [showReminderMenu, setShowReminderMenu] = useState(false)
-  const [reminderAt, setReminderAt] = useState('')
-  const [reminderNote, setReminderNote] = useState('')
-  const [savingReminder, setSavingReminder] = useState(false)
-  const [reminderError, setReminderError] = useState('')
+  // Follow-up otomatis (menggantikan pengingat manual)
+  const [showFollowup, setShowFollowup] = useState(false)
+  const [fuData, setFuData] = useState(null)
 
   const bottomRef = useRef(null)
   const messagesRef = useRef(null)
@@ -769,7 +768,7 @@ export default function ChatPage({ chatId }) {
     return () => vv.removeEventListener('resize', onResize)
   }, [stickToBottom])
 
-  const closeMenus = () => { setShowAgentMenu(false); setShowTemplateMenu(false); setShowMediaGallery(false); setShowReminderMenu(false); setShowMoreMenu(false); setShowAiMenu(false) }
+  const closeMenus = () => { setShowAgentMenu(false); setShowTemplateMenu(false); setShowMediaGallery(false); setShowFollowup(false); setShowMoreMenu(false); setShowAiMenu(false) }
 
   const handleRequestAiSuggestion = async () => {
     setShowAiMenu(true)
@@ -1176,19 +1175,10 @@ export default function ChatPage({ chatId }) {
     } finally { setAiTagLoading(false) }
   }
 
-  const handleSaveReminder = async () => {
-    if (!reminderAt || savingReminder) return
-    setSavingReminder(true); setReminderError('')
-    try {
-      const payload = { conversation_id: id, remind_at: new Date(reminderAt).toISOString() }
-      if (user?.id) payload.agent_id = user.id
-      if (reminderNote.trim()) payload.note = reminderNote.trim()
-      await createReminder(payload)
-      setReminderAt(''); setReminderNote('')
-      setShowReminderMenu(false)
-    } catch (e) { setReminderError(e?.response?.data?.error || 'Gagal menyimpan pengingat.') }
-    finally { setSavingReminder(false) }
-  }
+  const loadFollowup = useCallback(() => {
+    getConversationFollowup(id).then(setFuData).catch(() => {})
+  }, [id])
+  useEffect(() => { loadFollowup() }, [loadFollowup])
 
   const name = conversation?.contact?.name || conversation?.contact?.phone || 'Unknown'
   const phone = conversation?.contact?.manual_wa_number || cleanPhone(conversation?.contact?.phone)
@@ -1249,7 +1239,7 @@ export default function ChatPage({ chatId }) {
         <div className="cv-actions" onClick={e => e.stopPropagation()}>
           {isAdmin && (
             <div className="cv-dd">
-              <button className="cv-assign-btn" onClick={() => { setShowAgentMenu(!showAgentMenu); setShowReminderMenu(false) }}>
+              <button className="cv-assign-btn" onClick={() => { setShowAgentMenu(!showAgentMenu); setShowFollowup(false) }}>
                 <UserCheck size={15} /><span className="cv-btn-label">Assign</span>
               </button>
               {showAgentMenu && (
@@ -1290,32 +1280,27 @@ export default function ChatPage({ chatId }) {
           <button className={`cv-del-conv-btn${showNotesPanel ? ' active' : ''}`} title="Catatan kontak" onClick={handleToggleNotesPanel}>
             <StickyNote size={15} />
           </button>
-          <div className="cv-dd cv-reminder-dd">
-            <button className="cv-del-conv-btn" title="Ingatkan follow-up" onClick={() => { setShowReminderMenu(!showReminderMenu); setShowAgentMenu(false) }}>
-              <BellPlus size={15} />
+          <div className="cv-dd cv-followup-dd">
+            <button
+              className={`cv-del-conv-btn cv-fu-btn${showFollowup ? ' active' : ''}`}
+              title="Follow-up"
+              onClick={() => { const next = !showFollowup; setShowFollowup(next); setShowAgentMenu(false); if (next) loadFollowup() }}
+            >
+              <ListChecks size={15} />
+              {fuData?.current && ['today', 'late'].includes(dueTone(fuData.current)) && (
+                <span className={`cv-fu-dot ${dueTone(fuData.current)}`} />
+              )}
             </button>
-            {showReminderMenu && (
-              <div className="cv-menu cv-header-menu cv-reminder-menu" style={{ width: 'min(240px, calc(100vw - 32px))' }}>
-                <div className="cv-menu-lbl">Ingatkan Follow-up</div>
-                <div className="cv-reminder-form">
-                  <input
-                    type="datetime-local"
-                    value={reminderAt}
-                    onChange={e => setReminderAt(e.target.value)}
-                    className="cv-reminder-input"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Catatan singkat (opsional)"
-                    value={reminderNote}
-                    onChange={e => setReminderNote(e.target.value)}
-                    className="cv-reminder-input"
-                  />
-                  {reminderError && <div className="cv-reminder-err">{reminderError}</div>}
-                  <button className="cv-reminder-save" onClick={handleSaveReminder} disabled={!reminderAt || savingReminder}>
-                    {savingReminder ? 'Menyimpan...' : 'Simpan'}
-                  </button>
-                </div>
+            {showFollowup && (
+              <div className="cv-menu cv-header-menu cv-followup-menu">
+                <FollowupPanel
+                  data={fuData}
+                  conversationId={id}
+                  contactName={conversation?.contact?.name}
+                  onInsertText={(t) => setText(t)}
+                  onChanged={loadFollowup}
+                  onClose={() => setShowFollowup(false)}
+                />
               </div>
             )}
           </div>
@@ -1855,7 +1840,10 @@ export default function ChatPage({ chatId }) {
         .cv-del-conv-btn { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--muted); transition: all 0.15s; }
         .cv-del-conv-btn:hover { background: rgba(229,62,62,0.08); color: var(--danger); }
         .cv-menu { position: absolute; right: 0; top: calc(100% + 6px); max-width: calc(100vw - 24px); box-sizing: border-box; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; z-index: 200; box-shadow: 0 8px 24px var(--shadow); overflow: hidden; }
-        .cv-reminder-menu { box-sizing: border-box; }
+        .cv-followup-menu { box-sizing: border-box; padding: 0; max-height: calc(100vh - 90px); overflow-y: auto; }
+        .cv-fu-btn { position: relative; }
+        .cv-fu-dot { position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; border-radius: 50%; }
+        .cv-fu-dot.today { background: #d97706; } .cv-fu-dot.late { background: var(--danger, #e53e3e); }
         .cv-menu-lbl { padding: 8px 14px 4px; font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
         .cv-mi { display: flex; flex-direction: column; align-items: flex-start; width: 100%; text-align: left; padding: 9px 14px; font-size: 13px; color: var(--text); transition: background 0.1s; }
         .cv-mi:hover { background: var(--surface2); }
@@ -2093,14 +2081,7 @@ export default function ChatPage({ chatId }) {
         .cv-tag-edit-btn { width: 18px; height: 18px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; color: var(--muted); background: var(--surface3); flex-shrink: 0; }
         .cv-tag-edit-btn:hover { background: var(--surface3); color: var(--primary); }
         .cv-del-conv-btn.active { background: var(--primary-light); color: var(--primary); }
-        .cv-reminder-menu { padding: 0; }
-        .cv-reminder-form { display: flex; flex-direction: column; gap: 8px; padding: 4px 14px 14px; }
-        .cv-reminder-input { background: var(--surface2); border: 1px solid var(--border); border-radius: 7px; color: var(--text); padding: 8px 10px; font-size: 13px; outline: none; font-family: inherit; }
-        .cv-reminder-input:focus { border-color: var(--primary); }
-        .cv-reminder-err { font-size: 12px; color: var(--danger); }
-        .cv-reminder-save { padding: 8px 14px; border-radius: 7px; font-size: 13px; font-weight: 600; background: var(--primary); color: var(--on-primary); transition: all 0.15s; }
-        .cv-reminder-save:hover { background: var(--primary-hover); }
-        .cv-reminder-save:disabled { opacity: 0.5; cursor: not-allowed; }
+
         .cv-notes-sidebar { width: 320px; flex-shrink: 0; background: var(--surface); border-left: 1px solid var(--border); padding: 14px 18px; overflow-y: auto; display: flex; flex-direction: column; }
         .cv-notes-sidebar-header { display: flex; align-items: center; justify-content: space-between; font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
         .cv-notes-sidebar-close { width: 26px; height: 26px; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: var(--muted); transition: all 0.15s; flex-shrink: 0; }

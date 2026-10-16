@@ -129,9 +129,17 @@ export const addTagToConversation = (conversationId, tagId) => api.post(`/conver
 export const removeTagFromConversation = (conversationId, tagId) => api.delete(`/conversations/${conversationId}/tags/${tagId}`).then(r => r.data)
 
 // Pengingat Follow-up (Reminders)
-export const createReminder = (payload) => api.post('/reminders', payload).then(r => r.data)
-export const getDueReminders = () => api.get('/reminders/due').then(r => r.data)
-export const markReminderDone = (id) => api.patch(`/reminders/${id}`, { done: true }).then(r => r.data)
+// Follow-up otomatis (menggantikan pengingat manual)
+export const getFollowupTasks = (view, filters = {}) =>
+  api.get('/followup/tasks', { params: { view, ...filters } }).then(r => r.data)
+export const getFollowupDue = () => api.get('/followup/due').then(r => r.data)
+export const getFollowupSummary = (filters = {}) => api.get('/followup/summary', { params: filters }).then(r => r.data)
+export const getConversationFollowup = (conversationId) => api.get(`/followup/conversation/${conversationId}`).then(r => r.data)
+export const completeFollowupTask = (taskId, payload) => api.post(`/followup/tasks/${taskId}/complete`, payload).then(r => r.data)
+export const getFollowupSettings = () => api.get('/followup/settings').then(r => r.data)
+export const saveFollowupSettings = (templates) => api.put('/followup/settings', { templates }).then(r => r.data)
+export const generateFollowupDraft = (conversationId, step) =>
+  api.post('/ai/followup-draft', { conversation_id: conversationId, step }, { timeout: 30000 }).then(r => r.data)
 
 // Saran Balasan AI
 export const generateAiSuggestion = (conversationId) =>

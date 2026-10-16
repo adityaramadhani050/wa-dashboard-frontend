@@ -2,14 +2,10 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useSocket } from '../context/SocketContext'
-import { getDueReminders, markReminderDone } from '../hooks/useApi'
+import { getFollowupDue } from '../hooks/useApi'
+import { STEP_INFO, dueLabel, dueTone } from './followupUi'
 import { enableWebPush, getNotificationStatus } from '../native/webpush'
-import { MessageSquare, BarChart2, QrCode, LogOut, Users, BookUser, Zap, Bell, BellRing, Megaphone } from 'lucide-react'
-
-function formatReminderTime(dateStr) {
-  if (!dateStr) return ''
-  return new Date(dateStr).toLocaleString('id', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
-}
+import { MessageSquare, BarChart2, QrCode, LogOut, Users, BookUser, Zap, Bell, BellRing, Megaphone, ListChecks } from 'lucide-react'
 
 export default function IconBar() {
   const { user, logout } = useAuth()
@@ -17,9 +13,10 @@ export default function IconBar() {
   const navigate = useNavigate()
   const location = useLocation()
   const isAdmin = user?.role === 'admin'
-  const [dueReminders, setDueReminders] = useState([])
+  // Lonceng = tugas follow-up jatuh tempo (hari ini & terlambat) milik user
+  const [dueTasks, setDueTasks] = useState([])
+  const [dueCount, setDueCount] = useState(0)
   const [showReminders, setShowReminders] = useState(false)
-  const [completing, setCompleting] = useState(null)
   const panelRef = useRef(null)
   const [notifStatus, setNotifStatus] = useState('granted') // sembunyikan tombol default
   const [enabling, setEnabling] = useState(false)
@@ -46,15 +43,21 @@ export default function IconBar() {
     } finally { setEnabling(false) }
   }
 
-  const loadDueReminders = useCallback(async () => {
-    try { setDueReminders(await getDueReminders()) } catch {}
+  const loadDue = useCallback(async () => {
+    try {
+      const d = await getFollowupDue()
+      setDueTasks(Array.isArray(d?.tasks) ? d.tasks : [])
+      setDueCount(d?.count || 0)
+    } catch {}
   }, [])
 
   useEffect(() => {
-    loadDueReminders()
-    const interval = setInterval(loadDueReminders, 60000)
-    return () => clearInterval(interval)
-  }, [loadDueReminders])
+    loadDue()
+    const interval = setInterval(loadDue, 60000)
+    // Segarkan saat follow-up diselesaikan dari halaman lain
+    window.addEventListener('fu:changed', loadDue)
+    return () => { clearInterval(interval); window.removeEventListener('fu:changed', loadDue) }
+  }, [loadDue])
 
   useEffect(() => {
     if (!showReminders) return
@@ -63,16 +66,16 @@ export default function IconBar() {
     return () => document.removeEventListener('mousedown', onClick)
   }, [showReminders])
 
-  const handleMarkDone = async (id) => {
-    setCompleting(id)
-    try { await markReminderDone(id); await loadDueReminders() } catch {}
-    finally { setCompleting(null) }
+  const openTask = (t) => {
+    setShowReminders(false)
+    navigate(`/chat/${t.conversation.id}`)
   }
 
   const handleLogout = () => { logout(); navigate('/login') }
 
   const navItems = [
     { path: '/inbox',    icon: MessageSquare, label: 'Chats',           adminOnly: false },
+    { path: '/followup', icon: ListChecks,    label: 'Follow-up',       adminOnly: false },
     { path: '/analytics',icon: BarChart2,     label: 'Analytics',       adminOnly: true  },
     { path: '/agents',   icon: Users,         label: 'Manajemen Agent', adminOnly: true  },
     { path: '/contacts', icon: BookUser,      label: 'Kontak',          adminOnly: false },
@@ -110,31 +113,36 @@ export default function IconBar() {
           </button>
         )}
         <div className="ib-reminder-wrap" ref={panelRef}>
-          <button className="ib-btn ib-bell-btn" onClick={() => setShowReminders(s => !s)} title="Pengingat Follow-up">
+          <button className="ib-btn ib-bell-btn" onClick={() => { setShowReminders(s => !s); if (!showReminders) loadDue() }} title="Follow-up jatuh tempo">
             <Bell size={18} />
-            {dueReminders.length > 0 && <span className="ib-badge">{dueReminders.length > 9 ? '9+' : dueReminders.length}</span>}
+            {dueCount > 0 && <span className="ib-badge">{dueCount > 9 ? '9+' : dueCount}</span>}
           </button>
           {showReminders && (
             <div className="ib-reminder-panel">
-              <div className="ib-reminder-panel-title">Pengingat Follow-up</div>
-              {dueReminders.length === 0 ? (
-                <div className="ib-reminder-empty">Tidak ada pengingat jatuh tempo.</div>
+              <div className="ib-reminder-panel-title">Follow-up jatuh tempo{dueCount ? ` (${dueCount})` : ''}</div>
+              {dueTasks.length === 0 ? (
+                <div className="ib-reminder-empty">Tidak ada follow-up yang jatuh tempo. 👍</div>
               ) : (
                 <div className="ib-reminder-list">
-                  {dueReminders.map(r => (
-                    <div key={r.id} className="ib-reminder-item">
-                      <div className="ib-reminder-info">
-                        <span className="ib-reminder-name">{r.conversations?.contact?.name || r.conversations?.contact?.manual_wa_number || r.conversations?.contact?.phone || 'Unknown'}</span>
-                        {r.note && <span className="ib-reminder-note">{r.note}</span>}
-                        <span className="ib-reminder-time">{formatReminderTime(r.remind_at)}</span>
-                      </div>
-                      <button className="ib-reminder-done" disabled={completing === r.id} onClick={() => handleMarkDone(r.id)}>
-                        {completing === r.id ? '...' : 'Selesai'}
+                  {dueTasks.map(t => {
+                    const st = STEP_INFO[t.step] || { label: t.step_label }
+                    return (
+                      <button key={t.id} className="ib-reminder-item" onClick={() => openTask(t)}>
+                        <div className="ib-reminder-info">
+                          <span className="ib-reminder-name">{t.conversation.contact_name}</span>
+                          <span className="ib-reminder-note">
+                            <span className="ib-fu-step" style={{ background: st.color || 'var(--primary)' }}>{st.day ? `${st.day} · ` : ''}{st.label}</span>
+                            {isAdmin && t.conversation.agent?.name ? ` ${t.conversation.agent.name}` : ''}
+                          </span>
+                          {t.step === 'manual' && t.note && <span className="ib-reminder-time">{t.note}</span>}
+                        </div>
+                        <span className={`ib-fu-due ${dueTone(t)}`}>{dueLabel(t)}</span>
                       </button>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               )}
+              <button className="ib-reminder-all" onClick={() => { setShowReminders(false); navigate('/followup') }}>Lihat semua follow-up →</button>
             </div>
           )}
         </div>
@@ -168,9 +176,13 @@ export default function IconBar() {
         .ib-reminder-name { font-size: 13px; font-weight: 600; color: var(--text); }
         .ib-reminder-note { font-size: 11px; color: var(--text2); }
         .ib-reminder-time { font-size: 10px; color: var(--muted); }
-        .ib-reminder-done { flex-shrink: 0; padding: 5px 10px; border-radius: 7px; font-size: 11px; font-weight: 600; background: var(--surface3); color: var(--success); transition: all 0.15s; }
-        .ib-reminder-done:hover { background: rgba(39,168,122,0.12); }
-        .ib-reminder-done:disabled { opacity: 0.6; cursor: not-allowed; }
+        button.ib-reminder-item { width: 100%; text-align: left; cursor: pointer; }
+        button.ib-reminder-item:hover { background: var(--surface3); }
+        .ib-fu-step { display: inline-block; color: #fff; font-size: 9.5px; font-weight: 800; letter-spacing: .3px; padding: 1px 6px; border-radius: 999px; margin-top: 2px; }
+        .ib-fu-due { flex-shrink: 0; font-size: 10.5px; font-weight: 700; }
+        .ib-fu-due.today { color: #d97706; } .ib-fu-due.late { color: var(--danger, #e53e3e); }
+        .ib-reminder-all { width: 100%; padding: 10px 14px; font-size: 12px; font-weight: 700; color: var(--primary); border-top: 1px solid var(--border); text-align: center; }
+        .ib-reminder-all:hover { background: var(--surface3); }
         @media (max-width: 768px) {
           .ib-reminder-panel { bottom: calc(100% + 8px); top: auto; left: auto; right: 0; }
         }
