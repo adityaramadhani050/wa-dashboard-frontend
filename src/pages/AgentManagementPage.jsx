@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getAgents, createAgent, updateAgent, deleteAgent, getAutoAssign, setAutoAssign, generateBotToken, getWorkHours, setWorkHours, setAgentAvailability, cleanupMedia, getRegionalRouting, setRegionalRouting, setAgentRegion, backfillRegional } from '../hooks/useApi'
-import { Plus, Pencil, Trash2, X, Eye, EyeOff, Users, Shuffle, KeyRound, Copy, Check, Clock, HardDrive, MapPin, AlertTriangle } from 'lucide-react'
+import { Plus, Pencil, Trash2, X, Eye, EyeOff, Users, Shuffle, KeyRound, Copy, Check, Clock, HardDrive, MapPin, AlertTriangle, Settings2 } from 'lucide-react'
 
 const REGION_OPTIONS = [
   { value: '', label: '— Belum diatur' },
@@ -20,6 +20,13 @@ const BOT_MESSAGES = [
 const WEEKDAYS = [
   { d: 1, label: 'Sen' }, { d: 2, label: 'Sel' }, { d: 3, label: 'Rab' },
   { d: 4, label: 'Kam' }, { d: 5, label: 'Jum' }, { d: 6, label: 'Sab' }, { d: 0, label: 'Min' },
+]
+
+const TABS = [
+  { key: 'agents', label: 'Daftar Agent', icon: Users },
+  { key: 'chat', label: 'Pembagian Chat', icon: Shuffle },
+  { key: 'regional', label: 'Routing Regional', icon: MapPin },
+  { key: 'system', label: 'Sistem', icon: Settings2 },
 ]
 
 const EMPTY_FORM = { name: '', username: '', email: '', role: 'agent', password: '', confirmPassword: '' }
@@ -130,6 +137,9 @@ function AgentForm({ initial, onSave, onClose, loading, error, isEdit }) {
 
 export default function AgentManagementPage() {
   const [agents, setAgents] = useState([])
+  // Tab aktif diingat selama sesi browser
+  const [tab, setTabState] = useState(() => { try { return sessionStorage.getItem('am_tab') || 'agents' } catch { return 'agents' } })
+  const setTab = (t) => { setTabState(t); try { sessionStorage.setItem('am_tab', t) } catch {} }
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(null)
   const [saving, setSaving] = useState(false)
@@ -344,212 +354,24 @@ export default function AgentManagementPage() {
   return (
     <div className="am-page">
       <div className="am-header">
-        <div>
-          <h1>Manajemen Agent</h1>
-        </div>
-        <button className="am-btn primary" onClick={() => { setFormError(''); setModal('create') }}>
-          <Plus size={16} /> Tambah Agent
+        <h1><Users size={21} />Manajemen Agent{!loading && <span className="am-count">{agents.length}</span>}</h1>
+        <button className="am-btn primary" onClick={() => { setFormError(''); setTab('agents'); setModal('create') }}>
+          <Plus size={16} /><span className="am-hide-xs">Tambah Agent</span>
         </button>
       </div>
 
-      <div className="aa-grid">
-      <div className="aa-card">
-        <div className="aa-info">
-          <div className="aa-icon"><Shuffle size={18} /></div>
-          <div>
-            <div className="aa-title">Auto-assign Chat (Round-robin)</div>
-            <div className="aa-desc">Bagi chat masuk ke agent secara seimbang berdasarkan jumlah chat aktif yang sedang ditangani. Saat diaktifkan, chat yang belum ter-assign langsung dibagikan.</div>
-          </div>
-        </div>
-        <button
-          className={`aa-switch${autoAssign ? ' on' : ''}`}
-          onClick={handleToggleAutoAssign}
-          disabled={autoAssignBusy}
-          role="switch"
-          aria-checked={autoAssign}
-          title={autoAssign ? 'Nonaktifkan' : 'Aktifkan'}
-        >
-          <span className="aa-knob" />
-        </button>
+      <div className="am-tabs" role="tablist">
+        {TABS.map(t => (
+          <button key={t.key} role="tab" aria-selected={tab === t.key} className={`am-tab${tab === t.key ? ' active' : ''}`} onClick={() => setTab(t.key)}>
+            <t.icon size={15} /><span>{t.label}</span>
+            {t.key === 'regional' && rr?.status?.agents_without_region?.length > 0 && <span className="am-tab-dot" title="Ada agent tanpa regional" />}
+          </button>
+        ))}
       </div>
 
-      <div className="aa-card bt-card">
-        <div className="aa-info">
-          <div className="aa-icon"><KeyRound size={18} /></div>
-          <div>
-            <div className="aa-title">Token Bot WA (Integrasi RenusPro)</div>
-            <div className="aa-desc">Buat token JWT statis (tanpa kedaluwarsa) untuk sistem eksternal seperti WA Bot Notifikasi RenusPro. Tempel token ke Pengaturan RenusPro. Perlakukan seperti password.</div>
-          </div>
-        </div>
-        <button className="am-btn primary" onClick={handleGenerateBotToken} disabled={botTokenBusy}>
-          <KeyRound size={15} /> {botTokenBusy ? 'Membuat...' : 'Generate Token'}
-        </button>
-      </div>
-
-      {(botToken || botTokenError) && (
-        <div className="bt-result">
-          {botTokenError && <div className="bt-error">{botTokenError}</div>}
-          {botToken && (
-            <>
-              <div className="bt-warn">⚠️ Salin sekarang & simpan aman. Token tidak ditampilkan lagi setelah halaman ditutup.</div>
-              <div className="bt-token-row">
-                <textarea className="bt-token" readOnly value={botToken} rows={3} onFocus={e => e.target.select()} />
-                <button className="am-btn" onClick={handleCopyBotToken} title="Salin token">
-                  {botTokenCopied ? <Check size={15} /> : <Copy size={15} />}
-                  {botTokenCopied ? 'Tersalin' : 'Salin'}
-                </button>
-              </div>
-            </>
-          )}
-        </div>
-      )}
-
-      <div className="aa-card wh-card">
-        <div className="aa-info">
-          <div className="aa-icon"><Clock size={18} /></div>
-          <div style={{ flex: 1 }}>
-            <div className="aa-title">Jam & Hari Kerja (Overdue)</div>
-            <div className="aa-desc">Bila aktif, indikator overdue tidak dihitung di luar jam/hari kerja. Zona waktu WIB.</div>
-            {wh && (
-              <div className="wh-body">
-                <label className="wh-enable">
-                  <input type="checkbox" checked={!!wh.enabled} onChange={e => setWh({ ...wh, enabled: e.target.checked })} />
-                  <span>Aktifkan batasan jam kerja</span>
-                </label>
-                <div className={`wh-controls${wh.enabled ? '' : ' disabled'}`}>
-                  <div className="wh-days">
-                    {WEEKDAYS.map(w => (
-                      <button
-                        key={w.d}
-                        type="button"
-                        className={`wh-day${(wh.days || []).includes(w.d) ? ' on' : ''}`}
-                        onClick={() => wh.enabled && toggleWhDay(w.d)}
-                        disabled={!wh.enabled}
-                      >{w.label}</button>
-                    ))}
-                  </div>
-                  <div className="wh-times">
-                    <label>Dari <input type="time" value={wh.start || '08:00'} disabled={!wh.enabled} onChange={e => setWh({ ...wh, start: e.target.value })} /></label>
-                    <label>Sampai <input type="time" value={wh.end || '17:00'} disabled={!wh.enabled} onChange={e => setWh({ ...wh, end: e.target.value })} /></label>
-                  </div>
-                </div>
-                <button className="am-btn primary wh-save" onClick={handleSaveWorkHours} disabled={whBusy}>
-                  {whSaved ? <><Check size={15} /> Tersimpan</> : whBusy ? 'Menyimpan...' : 'Simpan Jam Kerja'}
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <div className="aa-card">
-        <div className="aa-info">
-          <div className="aa-icon"><HardDrive size={18} /></div>
-          <div style={{ flex: 1 }}>
-            <div className="aa-title">Bersihkan Media Lama (Hemat Storage)</div>
-            <div className="aa-desc">Hapus file media (foto/video/dokumen) lebih lama dari sekian hari untuk membebaskan penyimpanan. Pesannya tetap ada, hanya media-nya ditandai kadaluarsa.</div>
-            <div className="cm-row">
-              <label className="cm-label">Lebih lama dari
-                <input type="number" min="1" value={cleanDays} onChange={e => setCleanDays(e.target.value)} disabled={cleanBusy} /> hari
-              </label>
-              <button className="am-btn danger" onClick={handleCleanupMedia} disabled={cleanBusy}>
-                <Trash2 size={15} /> {cleanBusy ? 'Membersihkan...' : 'Bersihkan Sekarang'}
-              </button>
-              {cleanResult != null && !cleanBusy && (
-                <span className="cm-result"><Check size={14} /> {cleanResult} media dihapus</span>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="aa-card rr-card">
-        <div className="aa-info">
-          <div className="aa-icon"><MapPin size={18} /></div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div className="rr-head">
-              <div>
-                <div className="aa-title">Routing Regional (Barat / Timur)</div>
-                <div className="aa-desc">Bot menanyakan kota customer baru, lalu chat diarahkan ke agent regional yang sesuai. Customer lama kembali ke agent terakhirnya.</div>
-              </div>
-              {rr && (
-                <button
-                  className={`aa-switch${rr.enabled ? ' on' : ''}`}
-                  onClick={() => saveRegional({ enabled: !rr.enabled })}
-                  disabled={rrBusy || rr.status?.migrated === false}
-                  role="switch"
-                  aria-checked={!!rr.enabled}
-                  title={rr.enabled ? 'Nonaktifkan routing regional' : 'Aktifkan routing regional'}
-                ><span className="aa-knob" /></button>
-              )}
-            </div>
-
-            {rr && (
-              <div className="rr-body">
-                <div className="rr-status">
-                  <span className="rr-chip barat">Barat: {rr.status?.per_region?.barat ?? 0} agent tersedia</span>
-                  <span className="rr-chip timur">Timur: {rr.status?.per_region?.timur ?? 0} agent tersedia</span>
-                </div>
-                {rr.status?.migrated === false && (
-                  <div className="rr-warn"><AlertTriangle size={14} /> Kolom database regional belum ada. Jalankan SQL migrasi regional di Supabase terlebih dahulu.</div>
-                )}
-                {rr.status?.agents_without_region?.length > 0 && (
-                  <div className="rr-warn"><AlertTriangle size={14} /> Agent belum diberi regional (tidak akan menerima lead baru): {rr.status.agents_without_region.join(', ')}</div>
-                )}
-                {rr.enabled && !autoAssign && (
-                  <div className="rr-warn"><AlertTriangle size={14} /> Auto-assign sedang mati: bot tetap bertanya & menyimpan regional, tetapi chat tidak dibagikan otomatis.</div>
-                )}
-
-                <div className="rr-grid">
-                  <label className="rr-field">
-                    <span>Batas waktu menunggu jawaban (menit)</span>
-                    <input type="number" min="0" max="1440" value={rr.timeout_minutes}
-                      onChange={e => setRr({ ...rr, timeout_minutes: e.target.value })} />
-                    <small>Tidak dijawab dalam waktu ini → masuk antrian admin tanpa pesan ke customer. Isi 0 untuk menonaktifkan.</small>
-                  </label>
-                  <label className="rr-field">
-                    <span>Nomor internal (tidak ditanya bot)</span>
-                    <textarea rows={3} value={rr.internal_numbers}
-                      placeholder={'Satu nomor per baris, mis.\n081234567890'}
-                      onChange={e => setRr({ ...rr, internal_numbers: e.target.value })} />
-                    <small>Staf, teknisi, penerima notifikasi RenusPro. Grup WA otomatis dikecualikan.</small>
-                  </label>
-                </div>
-
-                <div className="rr-msgs">
-                  {BOT_MESSAGES.map(m => (
-                    <label key={m.key} className="rr-field">
-                      <span>{m.label}</span>
-                      <textarea rows={3} value={rr[m.key] || ''} onChange={e => setRr({ ...rr, [m.key]: e.target.value })} />
-                      <small>{m.hint}</small>
-                    </label>
-                  ))}
-                </div>
-
-                {rrError && <div className="am-form-err">{rrError}</div>}
-                <div className="rr-actions">
-                  <button className="am-btn primary" onClick={() => saveRegional()} disabled={rrBusy}>
-                    {rrSaved ? <><Check size={15} /> Tersimpan</> : rrBusy ? 'Menyimpan...' : 'Simpan Pengaturan Regional'}
-                  </button>
-                  <button className="am-btn secondary" onClick={handleBackfill} disabled={backfillBusy || rr.status?.migrated === false}
-                    title="Isi regional kontak lama dari regional agent yang menanganinya (sekali jalan)">
-                    <MapPin size={15} /> {backfillBusy ? 'Mengisi...' : 'Isi Regional Kontak Lama'}
-                  </button>
-                  {backfillResult && (
-                    <span className="cm-result">
-                      <Check size={14} /> {backfillResult.contacts_updated} kontak & {backfillResult.conversations_updated} chat terisi
-                      {backfillResult.without_source > 0 ? ` · ${backfillResult.without_source} chat belum bisa ditentukan (atur di menu Kontak)` : ''}
-                    </span>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-      </div>
-
-      <div className="am-table-box">
+      {tab === 'agents' && (
+        <>
+          <div className="am-table-box">
         {loading ? (
           <div className="am-loading">
             {[...Array(4)].map((_, i) => <div key={i} className="am-skel" style={{ animationDelay: `${i * 0.08}s` }} />)}
@@ -644,6 +466,256 @@ export default function AgentManagementPage() {
         )}
       </div>
 
+
+      {!loading && agents.length > 0 && (
+        <div className="am-card-list">
+          {agents.map(a => (
+            <div key={a.id} className="am-card">
+              <div className="am-card-top">
+                <div className="am-avatar" style={avatarStyle(a.name)}>{(a.name || 'A')[0].toUpperCase()}</div>
+                <div className="am-card-id">
+                  <span className="am-card-name">{a.name}</span>
+                  <span className="am-card-sub">@{a.username || '—'} · {roleBadge(a.role)}</span>
+                </div>
+                <div className="am-actions">
+                  <button className="am-icon-btn edit" onClick={() => { setFormError(''); setModal({ agent: a }) }} aria-label="Edit"><Pencil size={15} /></button>
+                  <button className="am-icon-btn del" onClick={() => { setDeleteError(''); setDeleteTarget(a) }} aria-label="Hapus"><Trash2 size={15} /></button>
+                </div>
+              </div>
+              {a.role === 'agent' && (
+                <div className="am-card-ctrl">
+                  <select
+                    className={`am-region-select${a.region ? ` ${a.region}` : ' none'}`}
+                    value={a.region || ''}
+                    disabled={regionBusy === a.id}
+                    onChange={e => handleChangeAgentRegion(a, e.target.value)}
+                  >
+                    {REGION_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                  <div className="am-avail">
+                    <button className={`aa-switch sm${a.available !== false ? ' on' : ''}`} onClick={() => handleToggleAvailability(a)} disabled={availBusy === a.id} role="switch" aria-checked={a.available !== false}><span className="aa-knob" /></button>
+                    <span className={`am-avail-label${a.available !== false ? ' on' : ''}`}>{a.available !== false ? 'Aktif' : 'Non-aktif'}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+        </>
+      )}
+
+      {tab === 'chat' && (
+        <div className="aa-grid">
+      <div className="aa-card">
+        <div className="aa-info">
+          <div className="aa-icon"><Shuffle size={18} /></div>
+          <div>
+            <div className="aa-title">Auto-assign Chat (Round-robin)</div>
+            <div className="aa-desc">Bagi chat masuk ke agent secara seimbang berdasarkan jumlah chat aktif yang sedang ditangani. Saat diaktifkan, chat yang belum ter-assign langsung dibagikan.</div>
+          </div>
+        </div>
+        <button
+          className={`aa-switch${autoAssign ? ' on' : ''}`}
+          onClick={handleToggleAutoAssign}
+          disabled={autoAssignBusy}
+          role="switch"
+          aria-checked={autoAssign}
+          title={autoAssign ? 'Nonaktifkan' : 'Aktifkan'}
+        >
+          <span className="aa-knob" />
+        </button>
+      </div>
+
+      <div className="aa-card wh-card">
+        <div className="aa-info">
+          <div className="aa-icon"><Clock size={18} /></div>
+          <div style={{ flex: 1 }}>
+            <div className="aa-title">Jam & Hari Kerja (Overdue)</div>
+            <div className="aa-desc">Bila aktif, indikator overdue tidak dihitung di luar jam/hari kerja. Zona waktu WIB.</div>
+            {wh && (
+              <div className="wh-body">
+                <label className="wh-enable">
+                  <input type="checkbox" checked={!!wh.enabled} onChange={e => setWh({ ...wh, enabled: e.target.checked })} />
+                  <span>Aktifkan batasan jam kerja</span>
+                </label>
+                <div className={`wh-controls${wh.enabled ? '' : ' disabled'}`}>
+                  <div className="wh-days">
+                    {WEEKDAYS.map(w => (
+                      <button
+                        key={w.d}
+                        type="button"
+                        className={`wh-day${(wh.days || []).includes(w.d) ? ' on' : ''}`}
+                        onClick={() => wh.enabled && toggleWhDay(w.d)}
+                        disabled={!wh.enabled}
+                      >{w.label}</button>
+                    ))}
+                  </div>
+                  <div className="wh-times">
+                    <label>Dari <input type="time" value={wh.start || '08:00'} disabled={!wh.enabled} onChange={e => setWh({ ...wh, start: e.target.value })} /></label>
+                    <label>Sampai <input type="time" value={wh.end || '17:00'} disabled={!wh.enabled} onChange={e => setWh({ ...wh, end: e.target.value })} /></label>
+                  </div>
+                </div>
+                <button className="am-btn primary wh-save" onClick={handleSaveWorkHours} disabled={whBusy}>
+                  {whSaved ? <><Check size={15} /> Tersimpan</> : whBusy ? 'Menyimpan...' : 'Simpan Jam Kerja'}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+        </div>
+      )}
+
+      {tab === 'regional' && (
+        <div className="aa-grid">
+      <div className="aa-card rr-card">
+        <div className="aa-info">
+          <div className="aa-icon"><MapPin size={18} /></div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="rr-head">
+              <div>
+                <div className="aa-title">Routing Regional (Barat / Timur)</div>
+                <div className="aa-desc">Bot menanyakan kota customer baru, lalu chat diarahkan ke agent regional yang sesuai. Customer lama kembali ke agent terakhirnya.</div>
+              </div>
+              {rr && (
+                <button
+                  className={`aa-switch${rr.enabled ? ' on' : ''}`}
+                  onClick={() => saveRegional({ enabled: !rr.enabled })}
+                  disabled={rrBusy || rr.status?.migrated === false}
+                  role="switch"
+                  aria-checked={!!rr.enabled}
+                  title={rr.enabled ? 'Nonaktifkan routing regional' : 'Aktifkan routing regional'}
+                ><span className="aa-knob" /></button>
+              )}
+            </div>
+
+            {rr && (
+              <div className="rr-body">
+                <div className="rr-status">
+                  <span className="rr-chip barat">Barat: {rr.status?.per_region?.barat ?? 0} agent tersedia</span>
+                  <span className="rr-chip timur">Timur: {rr.status?.per_region?.timur ?? 0} agent tersedia</span>
+                </div>
+                {rr.status?.migrated === false && (
+                  <div className="rr-warn"><AlertTriangle size={14} /> Kolom database regional belum ada. Jalankan SQL migrasi regional di Supabase terlebih dahulu.</div>
+                )}
+                {rr.status?.agents_without_region?.length > 0 && (
+                  <div className="rr-warn"><AlertTriangle size={14} /> Agent belum diberi regional (tidak akan menerima lead baru): {rr.status.agents_without_region.join(', ')}</div>
+                )}
+                {rr.enabled && !autoAssign && (
+                  <div className="rr-warn"><AlertTriangle size={14} /> Auto-assign sedang mati: bot tetap bertanya & menyimpan regional, tetapi chat tidak dibagikan otomatis.</div>
+                )}
+
+                <div className="rr-grid">
+                  <label className="rr-field">
+                    <span>Batas waktu menunggu jawaban (menit)</span>
+                    <input type="number" min="0" max="1440" value={rr.timeout_minutes}
+                      onChange={e => setRr({ ...rr, timeout_minutes: e.target.value })} />
+                    <small>Tidak dijawab dalam waktu ini → masuk antrian admin tanpa pesan ke customer. Isi 0 untuk menonaktifkan.</small>
+                  </label>
+                  <label className="rr-field">
+                    <span>Nomor internal (tidak ditanya bot)</span>
+                    <textarea rows={3} value={rr.internal_numbers}
+                      placeholder={'Satu nomor per baris, mis.\n081234567890'}
+                      onChange={e => setRr({ ...rr, internal_numbers: e.target.value })} />
+                    <small>Staf, teknisi, penerima notifikasi RenusPro. Grup WA otomatis dikecualikan.</small>
+                  </label>
+                </div>
+
+                <div className="rr-msgs">
+                  {BOT_MESSAGES.map(m => (
+                    <label key={m.key} className="rr-field">
+                      <span>{m.label}</span>
+                      <textarea rows={3} value={rr[m.key] || ''} onChange={e => setRr({ ...rr, [m.key]: e.target.value })} />
+                      <small>{m.hint}</small>
+                    </label>
+                  ))}
+                </div>
+
+                {rrError && <div className="am-form-err">{rrError}</div>}
+                <div className="rr-actions">
+                  <button className="am-btn primary" onClick={() => saveRegional()} disabled={rrBusy}>
+                    {rrSaved ? <><Check size={15} /> Tersimpan</> : rrBusy ? 'Menyimpan...' : 'Simpan Pengaturan Regional'}
+                  </button>
+                  <button className="am-btn secondary" onClick={handleBackfill} disabled={backfillBusy || rr.status?.migrated === false}
+                    title="Isi regional kontak lama dari regional agent yang menanganinya (sekali jalan)">
+                    <MapPin size={15} /> {backfillBusy ? 'Mengisi...' : 'Isi Regional Kontak Lama'}
+                  </button>
+                  {backfillResult && (
+                    <span className="cm-result">
+                      <Check size={14} /> {backfillResult.contacts_updated} kontak & {backfillResult.conversations_updated} chat terisi
+                      {backfillResult.without_source > 0 ? ` · ${backfillResult.without_source} chat belum bisa ditentukan (atur di menu Kontak)` : ''}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+        </div>
+      )}
+
+      {tab === 'system' && (
+        <div className="aa-grid">
+          <div className="aa-stack">
+      <div className="aa-card bt-card">
+        <div className="aa-info">
+          <div className="aa-icon"><KeyRound size={18} /></div>
+          <div>
+            <div className="aa-title">Token Bot WA (Integrasi RenusPro)</div>
+            <div className="aa-desc">Buat token JWT statis (tanpa kedaluwarsa) untuk sistem eksternal seperti WA Bot Notifikasi RenusPro. Tempel token ke Pengaturan RenusPro. Perlakukan seperti password.</div>
+          </div>
+        </div>
+        <button className="am-btn primary" onClick={handleGenerateBotToken} disabled={botTokenBusy}>
+          <KeyRound size={15} /> {botTokenBusy ? 'Membuat...' : 'Generate Token'}
+        </button>
+      </div>
+
+      {(botToken || botTokenError) && (
+        <div className="bt-result">
+          {botTokenError && <div className="bt-error">{botTokenError}</div>}
+          {botToken && (
+            <>
+              <div className="bt-warn">⚠️ Salin sekarang & simpan aman. Token tidak ditampilkan lagi setelah halaman ditutup.</div>
+              <div className="bt-token-row">
+                <textarea className="bt-token" readOnly value={botToken} rows={3} onFocus={e => e.target.select()} />
+                <button className="am-btn" onClick={handleCopyBotToken} title="Salin token">
+                  {botTokenCopied ? <Check size={15} /> : <Copy size={15} />}
+                  {botTokenCopied ? 'Tersalin' : 'Salin'}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+          </div>
+      <div className="aa-card">
+        <div className="aa-info">
+          <div className="aa-icon"><HardDrive size={18} /></div>
+          <div style={{ flex: 1 }}>
+            <div className="aa-title">Bersihkan Media Lama (Hemat Storage)</div>
+            <div className="aa-desc">Hapus file media (foto/video/dokumen) lebih lama dari sekian hari untuk membebaskan penyimpanan. Pesannya tetap ada, hanya media-nya ditandai kadaluarsa.</div>
+            <div className="cm-row">
+              <label className="cm-label">Lebih lama dari
+                <input type="number" min="1" value={cleanDays} onChange={e => setCleanDays(e.target.value)} disabled={cleanBusy} /> hari
+              </label>
+              <button className="am-btn danger" onClick={handleCleanupMedia} disabled={cleanBusy}>
+                <Trash2 size={15} /> {cleanBusy ? 'Membersihkan...' : 'Bersihkan Sekarang'}
+              </button>
+              {cleanResult != null && !cleanBusy && (
+                <span className="cm-result"><Check size={14} /> {cleanResult} media dihapus</span>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+        </div>
+      )}
+
       {modal === 'create' && (
         <Modal title="Tambah Agent Baru" onClose={() => setModal(null)}>
           <AgentForm onSave={handleCreate} onClose={() => setModal(null)} loading={saving} error={formError} isEdit={false} />
@@ -681,140 +753,156 @@ export default function AgentManagementPage() {
 
       <style>{`
         .am-page { padding: 24px 24px 40px; width: 100%; color: var(--text); }
-        .am-header {
-          display: flex; align-items: flex-start;
-          justify-content: space-between; gap: 12px; margin-bottom: 20px;
-        }
-        .am-header h1 { font-size: 20px; font-weight: 700; margin-bottom: 3px; color: var(--text); }
-        .am-header p { font-size: 13px; color: var(--text2); }
-        .aa-card { display: flex; align-items: center; justify-content: space-between; gap: 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; margin-bottom: 18px; box-shadow: var(--shadow); }
-        .aa-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 18px; align-items: start; }
-        .aa-grid .rr-card { grid-column: 1 / -1; align-items: flex-start; }
+        .am-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; min-height: 38px; }
+        .am-header h1 { display: flex; align-items: center; gap: 9px; font-size: 21px; font-weight: 700; color: var(--text); }
+        .am-count { font-size: 11.5px; font-weight: 700; color: var(--text2); background: var(--surface); border: 1px solid var(--border); padding: 1px 8px; border-radius: 999px; }
+        /* Tab */
+        .am-tabs { display: flex; gap: 4px; padding: 4px; margin-bottom: 16px; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); overflow-x: auto; scrollbar-width: none; }
+        .am-tabs::-webkit-scrollbar { display: none; }
+        .am-tab { position: relative; flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 36px; padding: 0 14px; border-radius: 9px; font-size: 13px; font-weight: 600; color: var(--text2); white-space: nowrap; transition: background 0.15s, color 0.15s; }
+        .am-tab:hover:not(.active) { background: var(--surface3); }
+        .am-tab.active { background: var(--primary); color: var(--on-primary); box-shadow: 0 1px 3px var(--shadow); }
+        .am-tab-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--warning, #d08b28); }
+        .am-tab.active .am-tab-dot { background: #fff; }
+        /* Kartu pengaturan */
+        .aa-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+        .aa-stack { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+        .aa-card { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; box-shadow: 0 1px 3px var(--shadow); min-width: 0; }
+        .aa-grid .rr-card { grid-column: 1 / -1; }
         .rr-card > .aa-info { flex: 1; width: 100%; }
-        .rr-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-        .rr-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
-        .rr-body { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; align-items: flex-start; }
-        .rr-status { display: flex; gap: 8px; flex-wrap: wrap; }
-        .rr-chip { font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border); }
-        .rr-chip.barat { color: #2563eb; background: rgba(37,99,235,0.1); border-color: rgba(37,99,235,0.3); }
-        .rr-chip.timur { color: #d97706; background: rgba(217,119,6,0.1); border-color: rgba(217,119,6,0.3); }
-        .rr-warn { display: flex; align-items: flex-start; gap: 7px; font-size: 12.5px; line-height: 1.5; color: var(--warning, #d08b28); background: rgba(208,139,40,0.1); border: 1px solid rgba(208,139,40,0.3); border-radius: 8px; padding: 8px 10px; width: 100%; }
-        .rr-warn svg { flex-shrink: 0; margin-top: 2px; }
-        .rr-grid, .rr-msgs { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%; }
-        .rr-field { display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; }
-        .rr-field > span { font-weight: 600; color: var(--text2); }
-        .rr-field input, .rr-field textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface2); color: var(--text); font-size: 13px; font-family: inherit; resize: vertical; }
-        .rr-field input:focus, .rr-field textarea:focus { outline: none; border-color: var(--primary); }
-        .rr-field small { color: var(--muted); font-size: 11.5px; }
-        .am-region-select { padding: 5px 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface2); color: var(--text); font-size: 12.5px; font-weight: 600; cursor: pointer; }
-        .am-region-select.barat { color: #2563eb; border-color: rgba(37,99,235,0.4); }
-        .am-region-select.timur { color: #d97706; border-color: rgba(217,119,6,0.4); }
-        .am-region-select.none { color: var(--warning, #d08b28); border-style: dashed; }
-        .am-region-select:disabled { opacity: 0.6; cursor: not-allowed; }
-        @media (max-width: 860px) { .rr-grid, .rr-msgs { grid-template-columns: 1fr; } }
-        .aa-grid .aa-card { margin-bottom: 0; height: 100%; }
-        @media (max-width: 860px) { .aa-grid { grid-template-columns: 1fr; } }
-        .bt-result { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; margin-bottom: 18px; margin-top: -8px; box-shadow: var(--shadow); }
-        .bt-error { color: var(--danger); font-size: 13px; }
-        .bt-warn { color: var(--warning); font-size: 12px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 8px 10px; margin-bottom: 10px; }
-        .bt-token-row { display: flex; align-items: flex-start; gap: 10px; flex-wrap: wrap; }
-        .bt-token { flex: 1; min-width: 220px; font-family: ui-monospace, monospace; font-size: 12px; color: var(--text); background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; resize: vertical; word-break: break-all; }
-        .wh-body { margin-top: 12px; display: flex; flex-direction: column; gap: 12px; }
-        .wh-enable { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--text); cursor: pointer; }
-        .wh-controls { display: flex; flex-direction: column; gap: 10px; }
-        .wh-controls.disabled { opacity: 0.5; }
-        .wh-days { display: flex; gap: 6px; flex-wrap: wrap; }
-        .wh-day { width: 40px; padding: 6px 0; border-radius: 8px; font-size: 12px; font-weight: 600; color: var(--text2); background: var(--surface3); border: 1px solid var(--border); }
-        .wh-day.on { background: var(--primary); color: var(--on-primary); border-color: var(--primary); }
-        .wh-times { display: flex; gap: 16px; flex-wrap: wrap; }
-        .wh-times label { font-size: 13px; color: var(--text2); display: flex; align-items: center; gap: 6px; }
-        .wh-times input[type="time"] { border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; font-size: 13px; color: var(--text); }
-        .wh-save { align-self: flex-start; }
-        .cm-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
-        .cm-label { font-size: 13px; color: var(--text2); display: inline-flex; align-items: center; gap: 6px; }
-        .cm-label input { width: 70px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; color: var(--text); background: var(--surface2); }
-        .cm-result { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 600; color: var(--success); }
         .aa-info { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
         .aa-icon { width: 38px; height: 38px; border-radius: 10px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: var(--primary-light); color: var(--primary); }
-        .aa-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 2px; }
-        .aa-desc { font-size: 12px; color: var(--text2); line-height: 1.5; max-width: 640px; }
-        .aa-switch { position: relative; width: 46px; height: 26px; border-radius: 999px; background: var(--muted); flex-shrink: 0; transition: background 0.2s; }
+        .aa-title { font-size: 14.5px; font-weight: 700; color: var(--text); margin-bottom: 3px; }
+        .aa-desc { font-size: 12.5px; color: var(--text2); line-height: 1.55; max-width: 680px; }
+        .aa-switch { position: relative; width: 46px; height: 26px; border-radius: 999px; background: var(--border2); flex-shrink: 0; transition: background 0.2s; }
         .aa-switch.on { background: var(--success); }
         .aa-switch:disabled { opacity: 0.6; cursor: not-allowed; }
-        .aa-knob { position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: var(--on-primary); box-shadow: 0 1px 3px rgba(0,0,0,0.2); transition: transform 0.2s; }
+        .aa-knob { position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.25); transition: transform 0.2s; }
         .aa-switch.on .aa-knob { transform: translateX(20px); }
         .aa-switch.sm { width: 38px; height: 22px; }
         .aa-switch.sm .aa-knob { width: 16px; height: 16px; top: 3px; left: 3px; }
         .aa-switch.sm.on .aa-knob { transform: translateX(16px); }
+        .bt-card { flex-wrap: wrap; }
+        .bt-result { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; box-shadow: 0 1px 3px var(--shadow); }
+        .bt-error { color: var(--danger); font-size: 13px; }
+        .bt-warn { color: var(--warning); font-size: 12.5px; background: rgba(208,139,40,0.1); border: 1px solid rgba(208,139,40,0.3); border-radius: 9px; padding: 8px 10px; margin-bottom: 10px; }
+        .bt-token-row { display: flex; align-items: flex-start; gap: 10px; flex-wrap: wrap; }
+        .bt-token { flex: 1; min-width: 220px; font-family: ui-monospace, monospace; font-size: 12px; color: var(--text); background: var(--surface2); border: 1px solid var(--border); border-radius: 9px; padding: 8px 10px; resize: vertical; word-break: break-all; }
+        .wh-body { margin-top: 14px; display: flex; flex-direction: column; gap: 12px; }
+        .wh-enable { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--text); cursor: pointer; }
+        .wh-enable input { width: 16px; height: 16px; accent-color: var(--primary); }
+        .wh-controls { display: flex; flex-direction: column; gap: 10px; }
+        .wh-controls.disabled { opacity: 0.5; }
+        .wh-days { display: flex; gap: 6px; flex-wrap: wrap; }
+        .wh-day { width: 44px; height: 34px; border-radius: 9px; font-size: 12.5px; font-weight: 600; color: var(--text2); background: var(--surface2); border: 1px solid var(--border); }
+        .wh-day.on { background: var(--primary); color: var(--on-primary); border-color: var(--primary); }
+        .wh-times { display: flex; gap: 16px; flex-wrap: wrap; }
+        .wh-times label { font-size: 13px; color: var(--text2); display: flex; align-items: center; gap: 8px; }
+        .wh-times input[type="time"] { height: 36px; border: 1px solid var(--border); border-radius: 9px; padding: 0 10px; font-size: 13px; color: var(--text); background: var(--surface2); font-family: inherit; }
+        .wh-save { align-self: flex-start; }
+        .cm-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 14px; }
+        .cm-label { font-size: 13px; color: var(--text2); display: inline-flex; align-items: center; gap: 8px; }
+        .cm-label input { width: 74px; height: 36px; padding: 0 10px; border: 1px solid var(--border); border-radius: 9px; font-size: 13px; color: var(--text); background: var(--surface2); }
+        .cm-result { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 600; color: var(--success); }
+        .rr-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .rr-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+        .rr-body { display: flex; flex-direction: column; gap: 14px; margin-top: 14px; align-items: flex-start; }
+        .rr-status { display: flex; gap: 8px; flex-wrap: wrap; }
+        .rr-chip { font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border); }
+        .rr-chip.barat { color: #3b82f6; background: rgba(37,99,235,0.1); border-color: rgba(37,99,235,0.3); }
+        .rr-chip.timur { color: #d97706; background: rgba(217,119,6,0.1); border-color: rgba(217,119,6,0.3); }
+        .rr-warn { display: flex; align-items: flex-start; gap: 7px; font-size: 12.5px; line-height: 1.5; color: var(--warning, #d08b28); background: rgba(208,139,40,0.1); border: 1px solid rgba(208,139,40,0.3); border-radius: 9px; padding: 8px 10px; width: 100%; }
+        .rr-warn svg { flex-shrink: 0; margin-top: 2px; }
+        .rr-grid, .rr-msgs { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; width: 100%; }
+        .rr-field { display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; }
+        .rr-field > span { font-weight: 600; color: var(--text2); }
+        .rr-field input, .rr-field textarea { width: 100%; padding: 9px 11px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface2); color: var(--text); font-size: 13px; font-family: inherit; resize: vertical; line-height: 1.45; }
+        .rr-field input:focus, .rr-field textarea:focus { outline: none; border-color: var(--primary); background: var(--surface); }
+        .rr-field small { color: var(--muted); font-size: 11.5px; line-height: 1.4; }
+        .am-region-select { height: 32px; padding: 0 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface2); color: var(--text); font-size: 12.5px; font-weight: 600; cursor: pointer; font-family: inherit; }
+        .am-region-select.barat { color: #3b82f6; border-color: rgba(37,99,235,0.4); }
+        .am-region-select.timur { color: #d97706; border-color: rgba(217,119,6,0.4); }
+        .am-region-select.none { color: var(--warning, #d08b28); border-style: dashed; }
+        .am-region-select:disabled { opacity: 0.6; cursor: not-allowed; }
         .am-avail { display: flex; align-items: center; gap: 8px; }
         .am-avail-label { font-size: 12px; font-weight: 600; color: var(--muted); }
         .am-avail-label.on { color: var(--success); }
-        .am-btn {
-          display: inline-flex; align-items: center; gap: 6px;
-          padding: 8px 16px; border-radius: 8px;
-          font-size: 13px; font-weight: 600; transition: all 0.15s;
-          white-space: nowrap;
-        }
+        .am-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 38px; padding: 0 16px; border-radius: 10px; font-size: 13px; font-weight: 600; transition: all 0.15s; white-space: nowrap; }
         .am-btn.primary { background: var(--primary); color: var(--on-primary); }
-        .am-btn.primary:hover { background: var(--primary-hover); }
-        .am-btn.secondary { background: var(--surface2); color: var(--text2); border: 1px solid var(--border); }
-        .am-btn.secondary:hover { background: var(--surface3); }
-        .am-btn.danger { background: #fef2f2; color: var(--danger); border: 1px solid #fecaca; }
-        .am-btn.danger:hover { background: #fee2e2; }
+        .am-btn.primary:hover:not(:disabled) { background: var(--primary-hover); }
+        .am-btn.secondary, .am-btn:not(.primary):not(.danger) { background: var(--surface2); color: var(--text2); border: 1px solid var(--border); }
+        .am-btn.secondary:hover:not(:disabled) { background: var(--surface3); }
+        .am-btn.danger { background: rgba(229,62,62,0.1); color: var(--danger); border: 1px solid rgba(229,62,62,0.3); }
+        .am-btn.danger:hover:not(:disabled) { background: rgba(229,62,62,0.16); }
         .am-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-        .am-table-box { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; box-shadow: var(--shadow); }
+        /* Tabel agent */
+        .am-table-box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px var(--shadow); }
         .am-table-wrap { overflow-x: auto; }
         .am-table { width: 100%; border-collapse: collapse; }
-        .am-table th { text-align: left; padding: 12px 16px; font-size: 11px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); background: var(--surface2); }
-        .am-table td { padding: 14px 16px; font-size: 13px; border-bottom: 1px solid var(--surface3); color: var(--text); }
+        .am-table th { text-align: left; padding: 11px 16px; font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); background: var(--surface2); white-space: nowrap; }
+        .am-table td { padding: 12px 16px; font-size: 13px; border-bottom: 1px solid var(--border); color: var(--text); }
         .am-table tr:last-child td { border-bottom: none; }
         .am-table tr:hover td { background: var(--surface2); }
-        .am-agent-cell { display: flex; align-items: center; gap: 10px; }
-        .am-avatar {
-          width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
-          display: flex; align-items: center; justify-content: center;
-          font-size: 13px; font-weight: 700;
-        }
-        .am-username { font-size: 13px; color: var(--primary); font-weight: 500; font-family: monospace; }
+        .am-agent-cell { display: flex; align-items: center; gap: 10px; font-weight: 600; }
+        .am-avatar { width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; }
+        .am-username { font-size: 13px; color: var(--text2); }
         .am-email { color: var(--text2); font-size: 13px; }
-        .am-date { color: var(--muted); font-size: 12px; }
-        .am-role { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 12px; font-weight: 600; }
-        .am-role.admin { background: #fffbeb; color: var(--warning); }
-        .am-role.agent { background: #eff6ff; color: var(--primary); }
-        .am-actions { display: flex; gap: 6px; }
-        .am-icon-btn { width: 32px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
-        .am-icon-btn.edit { color: var(--muted); }
-        .am-icon-btn.edit:hover { background: #eff6ff; color: var(--primary); }
-        .am-icon-btn.del { color: var(--muted); }
-        .am-icon-btn.del:hover { background: #fef2f2; color: var(--danger); }
+        .am-date { color: var(--muted); font-size: 12.5px; white-space: nowrap; }
+        .am-role { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 700; }
+        .am-role.admin { background: rgba(208,139,40,0.14); color: var(--warning); }
+        .am-role.agent { background: var(--primary-light); color: var(--primary); }
+        .am-actions { display: flex; gap: 4px; }
+        .am-icon-btn { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--muted); transition: all 0.15s; }
+        .am-icon-btn.edit:hover { background: var(--primary-light); color: var(--primary); }
+        .am-icon-btn.del:hover { background: rgba(229,62,62,0.1); color: var(--danger); }
         .am-loading { padding: 16px; display: flex; flex-direction: column; gap: 8px; }
-        .am-skel { height: 56px; background: var(--surface3); border-radius: 8px; animation: pulse 1.4s ease infinite; }
+        .am-skel { height: 52px; background: var(--skeleton); border-radius: 9px; animation: pulse 1.4s ease infinite; }
         .am-empty { padding: 60px 20px; text-align: center; color: var(--muted); font-size: 14px; display: flex; flex-direction: column; align-items: center; }
-        .am-overlay { position: fixed; inset: 0; z-index: 500; background: rgba(15,23,42,0.5); display: flex; align-items: center; justify-content: center; padding: 20px; }
-        .am-modal { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; width: 100%; max-width: 440px; box-shadow: 0 20px 60px rgba(0,0,0,0.15); overflow: hidden; }
-        .am-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); background: var(--surface2); }
-        .am-modal-header h3 { font-size: 15px; font-weight: 600; color: var(--text); }
-        .am-close { width: 30px; height: 30px; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: var(--muted); transition: all 0.15s; }
-        .am-close:hover { background: var(--border); color: var(--text2); }
-        .am-form { padding: 20px; display: flex; flex-direction: column; gap: 14px; }
-        .am-field { display: flex; flex-direction: column; gap: 5px; }
+        /* Kartu agent (HP) */
+        .am-card-list { display: none; flex-direction: column; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+        .am-card { display: flex; flex-direction: column; gap: 10px; padding: 12px 12px 12px 14px; border-bottom: 1px solid var(--border); }
+        .am-card:last-child { border-bottom: none; }
+        .am-card-top { display: flex; align-items: center; gap: 11px; }
+        .am-card-id { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+        .am-card-name { font-size: 14px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .am-card-sub { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+        .am-card-ctrl { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-left: 45px; }
+        /* Modal */
+        .am-overlay { position: fixed; inset: 0; z-index: 500; background: var(--scrim); display: flex; align-items: center; justify-content: center; padding: 16px; }
+        .am-modal { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; width: 100%; max-width: 440px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); overflow: hidden; max-height: calc(100vh - 32px); overflow-y: auto; }
+        .am-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px 12px 18px; border-bottom: 1px solid var(--border); }
+        .am-modal-header h3 { font-size: 15px; font-weight: 700; color: var(--text); }
+        .am-close { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--muted); transition: all 0.15s; }
+        .am-close:hover { background: var(--surface3); color: var(--text2); }
+        .am-form { padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 14px; }
+        .am-field { display: flex; flex-direction: column; gap: 6px; }
         .am-field label { font-size: 12px; color: var(--text2); font-weight: 600; }
-        .am-field input, .am-field select { background: var(--surface2); border: 1px solid var(--border); border-radius: 7px; color: var(--text); padding: 10px 14px; font-size: 14px; outline: none; transition: border-color 0.15s; }
-        .am-field input:focus, .am-field select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
-        .am-field input::placeholder { color: var(--border2); }
+        .am-field input, .am-field select { height: 40px; background: var(--surface2); border: 1px solid var(--border); border-radius: 9px; color: var(--text); padding: 0 12px; font-size: 14px; outline: none; transition: border-color 0.15s; font-family: inherit; }
+        .am-field input:focus, .am-field select:focus { border-color: var(--primary); background: var(--surface); }
+        .am-field input::placeholder { color: var(--muted); }
         .req { color: var(--danger); }
         .am-pw-wrap { position: relative; }
         .am-pw-wrap input { width: 100%; padding-right: 40px; }
-        .am-pw-eye { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); padding: 4px; }
+        .am-pw-eye { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); color: var(--muted); padding: 4px; }
         .am-pw-eye:hover { color: var(--text2); }
-        .am-hint { font-size: 11px; color: var(--muted); margin-top: 2px; }
+        .am-hint { font-size: 11.5px; color: var(--muted); }
         .am-hint.err { color: var(--danger); }
-        .am-form-err { padding: 10px 14px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 7px; color: var(--danger); font-size: 13px; }
-        .am-form-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
-        .am-confirm { padding: 20px; }
+        .am-form-err { padding: 10px 14px; background: rgba(229,62,62,0.08); border: 1px solid rgba(229,62,62,0.3); border-radius: 9px; color: var(--danger); font-size: 13px; }
+        .am-form-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 2px; }
+        .am-confirm { padding: 18px; }
         .am-confirm p { font-size: 14px; color: var(--text); margin-bottom: 6px; }
         .am-confirm-sub { font-size: 13px; color: var(--text2); }
-        .am-confirm .am-form-actions { margin-top: 20px; }
+        .am-confirm .am-form-actions { margin-top: 18px; }
+        @media (max-width: 860px) { .aa-grid, .rr-grid, .rr-msgs { grid-template-columns: 1fr; } }
+        @media (max-width: 768px) {
+          .am-page { padding: 16px 14px 28px; }
+          .am-tab { flex: 0 0 auto; }
+          .am-table-box { display: none; }
+          .am-card-list { display: flex; }
+          .aa-card { padding: 14px; }
+          .rr-head { flex-direction: row; }
+        }
+        @media (max-width: 420px) { .am-hide-xs { display: none; } .am-header .am-btn { width: 38px; padding: 0; } }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
       `}</style>
     </div>
