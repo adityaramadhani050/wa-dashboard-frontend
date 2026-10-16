@@ -36,8 +36,9 @@ export async function initPushNotifications({ onToken } = {}) {
     })
     // Tap notifikasi → buka chat terkait
     await PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
-      const convId = action?.notification?.data?.conversationId
-      if (convId) window.location.assign(`/chat/${convId}`)
+      const data = action?.notification?.data || {}
+      if (data.conversationId) window.location.assign(`/chat/${data.conversationId}`)
+      else if (typeof data.url === 'string' && data.url.startsWith('/')) window.location.assign(data.url)
     })
   } catch (e) {
     console.warn('[Push] init failed:', e?.message || e)

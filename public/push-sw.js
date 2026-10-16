@@ -5,13 +5,15 @@ self.addEventListener('push', (event) => {
   try { data = event.data ? event.data.json() : {} } catch (e) { data = {} }
   const title = data.title || 'Pesan baru'
   const convId = (data.data && data.data.conversationId) || ''
+  const url = (data.data && data.data.url) || ''
+  const tag = (data.data && data.data.tag) || (convId ? `conv-${convId}` : undefined)
   const options = {
     body: data.body || 'Pesan baru masuk',
     icon: '/pwa-192.png',
     badge: '/pwa-192.png',
-    tag: convId ? `conv-${convId}` : undefined,
+    tag,
     renotify: true,
-    data: { conversationId: convId },
+    data: { conversationId: convId, url },
   }
   event.waitUntil((async () => {
     // Kalau app sedang dibuka & fokus, biarkan notifikasi in-app (socket) yang tampil
@@ -24,8 +26,9 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
-  const convId = event.notification.data && event.notification.data.conversationId
-  const url = convId ? `/chat/${convId}` : '/'
+  const nd = event.notification.data || {}
+  const convId = nd.conversationId
+  const url = nd.url && nd.url.startsWith('/') ? nd.url : convId ? `/chat/${convId}` : '/'
   event.waitUntil((async () => {
     const allClients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
     for (const client of allClients) {

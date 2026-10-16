@@ -137,7 +137,10 @@ export const getFollowupSummary = (filters = {}) => api.get('/followup/summary',
 export const getConversationFollowup = (conversationId) => api.get(`/followup/conversation/${conversationId}`).then(r => r.data)
 export const completeFollowupTask = (taskId, payload) => api.post(`/followup/tasks/${taskId}/complete`, payload).then(r => r.data)
 export const getFollowupSettings = () => api.get('/followup/settings').then(r => r.data)
-export const saveFollowupSettings = (templates) => api.put('/followup/settings', { templates }).then(r => r.data)
+// payload: { templates?, alert?: { enabled, late_days } }
+export const saveFollowupSettings = (payload) => api.put('/followup/settings', payload).then(r => r.data)
+export const getFollowupReport = (from, to, region) =>
+  api.get('/followup/report', { params: { from, to, region: region || undefined } }).then(r => r.data)
 export const generateFollowupDraft = (conversationId, step) =>
   api.post('/ai/followup-draft', { conversation_id: conversationId, step }, { timeout: 30000 }).then(r => r.data)
 

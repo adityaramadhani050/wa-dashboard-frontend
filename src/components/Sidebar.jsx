@@ -5,7 +5,7 @@ import { useSocket } from '../context/SocketContext'
 import { getFollowupDue } from '../hooks/useApi'
 import { STEP_INFO, dueLabel, dueTone } from './followupUi'
 import { enableWebPush, getNotificationStatus } from '../native/webpush'
-import { MessageSquare, BarChart2, QrCode, LogOut, Users, BookUser, Zap, Bell, BellRing, Megaphone, ListChecks } from 'lucide-react'
+import { MessageSquare, BarChart2, QrCode, LogOut, Users, BookUser, Zap, Bell, BellRing, Megaphone, ListChecks, AlertTriangle } from 'lucide-react'
 
 export default function IconBar() {
   const { user, logout } = useAuth()
@@ -16,6 +16,8 @@ export default function IconBar() {
   // Lonceng = tugas follow-up jatuh tempo (hari ini & terlambat) milik user
   const [dueTasks, setDueTasks] = useState([])
   const [dueCount, setDueCount] = useState(0)
+  // Admin: tugas yang terlambat > N hari kerja
+  const [lateAlert, setLateAlert] = useState(null)
   const [showReminders, setShowReminders] = useState(false)
   const panelRef = useRef(null)
   const [notifStatus, setNotifStatus] = useState('granted') // sembunyikan tombol default
@@ -48,6 +50,7 @@ export default function IconBar() {
       const d = await getFollowupDue()
       setDueTasks(Array.isArray(d?.tasks) ? d.tasks : [])
       setDueCount(d?.count || 0)
+      setLateAlert(d?.alert?.count ? d.alert : null)
     } catch {}
   }, [])
 
@@ -120,6 +123,15 @@ export default function IconBar() {
           {showReminders && (
             <div className="ib-reminder-panel">
               <div className="ib-reminder-panel-title">Follow-up jatuh tempo{dueCount ? ` (${dueCount})` : ''}</div>
+              {isAdmin && lateAlert && (
+                <button className="ib-fu-alert" onClick={() => { setShowReminders(false); navigate('/followup?tab=overdue&late=1') }}>
+                  <AlertTriangle size={14} />
+                  <span>
+                    <b>{lateAlert.count} terlambat &gt;{lateAlert.late_days} hari kerja</b>
+                    <small>{lateAlert.by_agent.slice(0, 3).map(a => `${a.name} ${a.count}`).join(' · ')}{lateAlert.by_agent.length > 3 ? ' · …' : ''}</small>
+                  </span>
+                </button>
+              )}
               {dueTasks.length === 0 ? (
                 <div className="ib-reminder-empty">Tidak ada follow-up yang jatuh tempo. 👍</div>
               ) : (
@@ -183,6 +195,10 @@ export default function IconBar() {
         .ib-fu-step { display: inline-block; color: #fff; font-size: 9.5px; font-weight: 800; letter-spacing: .3px; padding: 1px 6px; border-radius: 999px; margin-top: 2px; }
         .ib-fu-due { flex-shrink: 0; font-size: 10.5px; font-weight: 700; }
         .ib-fu-due.today { color: #d97706; } .ib-fu-due.late { color: var(--danger, #e53e3e); }
+        .ib-fu-alert { width: 100%; display: flex; align-items: flex-start; gap: 8px; padding: 9px 14px; text-align: left; color: var(--danger, #e53e3e); background: rgba(229,62,62,0.08); border-bottom: 1px solid var(--border); cursor: pointer; }
+        .ib-fu-alert span { display: flex; flex-direction: column; gap: 1px; font-size: 12px; min-width: 0; }
+        .ib-fu-alert small { font-size: 11px; color: var(--text2); }
+        .ib-fu-alert:hover { background: rgba(229,62,62,0.14); }
         .ib-reminder-all { width: 100%; padding: 10px 14px; font-size: 12px; font-weight: 700; color: var(--primary); border-top: 1px solid var(--border); text-align: center; }
         .ib-reminder-all:hover { background: var(--surface3); }
         @media (max-width: 768px) {

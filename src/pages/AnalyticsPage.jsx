@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { getDailyStats, getAgentStats, getContactStats, getContacts, getConversations, getTopTemplates, getResponseKpi, getFunnel } from '../hooks/useApi'
+import { getDailyStats, getAgentStats, getContactStats, getContacts, getConversations, getTopTemplates, getResponseKpi, getFunnel, getFollowupReport } from '../hooks/useApi'
+import FollowupReport from '../components/FollowupReport'
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer
@@ -76,6 +77,7 @@ export default function AnalyticsPage() {
   const [topTemplates, setTopTemplates] = useState([])
   const [kpi, setKpi] = useState(null)
   const [funnel, setFunnel] = useState(null)
+  const [fuReport, setFuReport] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [exporting, setExporting] = useState('')
@@ -88,11 +90,12 @@ export default function AnalyticsPage() {
     setError('')
     const r = regionRef.current || undefined
     try {
-      const [d, a, c, tpl, k, fn] = await Promise.all([
+      const [d, a, c, tpl, k, fn, fr] = await Promise.all([
         getDailyStats(f, t, r), getAgentStats(f, t, r), getContactStats(r),
         getTopTemplates(5).catch(() => []),
         getResponseKpi(f, t, r).catch(() => null),
         getFunnel(f, t, r).catch(() => null),
+        getFollowupReport(f, t, r).catch(() => null),
       ])
       setDaily(Array.isArray(d) ? d : [])
       setAgents(Array.isArray(a) ? a : [])
@@ -100,6 +103,7 @@ export default function AnalyticsPage() {
       setTopTemplates(Array.isArray(tpl) ? tpl : [])
       setKpi(k || null)
       setFunnel(fn || null)
+      setFuReport(fr?.totals ? fr : null)
     } catch {
       setError('Gagal memuat analytics. Cek koneksi backend.')
     } finally {
@@ -391,6 +395,9 @@ export default function AnalyticsPage() {
           )}
         </div>
       </div>
+
+      {/* Laporan follow-up */}
+      <FollowupReport data={fuReport} loading={loading} from={from} to={to} />
 
       {/* Charts */}
       <div className="an-charts">
