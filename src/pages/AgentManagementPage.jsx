@@ -14,7 +14,7 @@ const BOT_MESSAGES = [
   { key: 'msg_retry', label: 'Tanya ulang', hint: 'Bila jawaban pertama tidak dikenali. Variabel: {{nama}}' },
   { key: 'msg_confirm', label: 'Konfirmasi regional (dengan agent)', hint: 'Lokasi terdeteksi & agent sudah ditugaskan. Variabel: {{nama}}, {{regional}}, {{agent}}' },
   { key: 'msg_confirm_queue', label: 'Konfirmasi regional (agent belum tersedia)', hint: 'Lokasi terdeteksi tapi semua agent regional itu sedang tidak tersedia. Variabel: {{nama}}, {{regional}}' },
-  { key: 'msg_fail', label: 'Lokasi tidak terdeteksi', hint: 'Sebelum masuk antrian admin. Variabel: {{nama}}' },
+  { key: 'msg_fail', label: 'Lokasi tidak terdeteksi', hint: 'Dikirim bila 2x jawaban tidak dikenali (tidak dikirim saat timeout). Variabel: {{nama}}' },
 ]
 
 const WEEKDAYS = [
@@ -504,9 +504,9 @@ export default function AgentManagementPage() {
                 <div className="rr-grid">
                   <label className="rr-field">
                     <span>Batas waktu menunggu jawaban (menit)</span>
-                    <input type="number" min="5" max="1440" value={rr.timeout_minutes}
+                    <input type="number" min="0" max="1440" value={rr.timeout_minutes}
                       onChange={e => setRr({ ...rr, timeout_minutes: e.target.value })} />
-                    <small>Tidak dijawab dalam waktu ini → masuk antrian admin.</small>
+                    <small>Tidak dijawab dalam waktu ini → masuk antrian admin tanpa pesan ke customer. Isi 0 untuk menonaktifkan.</small>
                   </label>
                   <label className="rr-field">
                     <span>Nomor internal (tidak ditanya bot)</span>
