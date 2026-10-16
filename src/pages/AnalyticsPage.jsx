@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { getDailyStats, getAgentStats, getContactStats, getContacts, getConversations, getTopTemplates, getResponseKpi, getFunnel, getFollowupReport } from '../hooks/useApi'
 import FollowupReport from '../components/FollowupReport'
+import { formatDurShort, formatDurLong } from '../lib/duration'
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer
@@ -58,9 +59,9 @@ function downloadCsv(filename, rows) {
   URL.revokeObjectURL(url)
 }
 
-function StatCard({ icon: Icon, label, value, sub, color, loading }) {
+function StatCard({ icon: Icon, label, value, sub, color, loading, title }) {
   return (
-    <div className="an-stat">
+    <div className="an-stat" title={title}>
       <div className="an-stat-top">
         <span className="an-stat-lbl">{label}</span>
         <span className="an-stat-icon" style={{ background: `${color}1f`, color }}><Icon size={16} /></span>
@@ -303,7 +304,8 @@ export default function AnalyticsPage() {
           loading={loading}
           icon={Clock}
           label="Waktu Respons"
-          value={globalAvgResponse != null ? `${globalAvgResponse} mnt` : '—'}
+          value={globalAvgResponse != null ? formatDurShort(globalAvgResponse) : '—'}
+          title={globalAvgResponse != null ? `Rata-rata ${formatDurLong(globalAvgResponse)}` : undefined}
           sub="rata-rata agent"
           color="#f59e0b"
         />
@@ -332,13 +334,19 @@ export default function AnalyticsPage() {
         <div className="an-table-box">
           <SectionHead icon={Users} title="Detail per Agent" right={`${agents.length} agent`} />
           <div className="an-table-wrap">
-            <table className="an-table">
+            <table className="an-table an-agent-table">
+              <colgroup>
+                <col style={{ width: '24%' }} />
+                {[...Array(6)].map((_, i) => <col key={i} style={{ width: '8.5%' }} />)}
+                <col style={{ width: '11%' }} />
+                <col style={{ width: '14%' }} />
+              </colgroup>
               <thead>
                 <tr>
                   <th>Agent</th>
-                  <th>Aktif</th><th>Resolved</th>
-                  <th>Lead</th><th>Penawaran</th><th>Survey</th><th>Deal</th>
-                  <th>Avg Respons</th><th>Deal Rate</th>
+                  <th className="num" title="Chat open + sedang dihandle">Aktif</th><th className="num">Resolved</th>
+                  <th className="num">Lead</th><th className="num">Penawaran</th><th className="num">Survey</th><th className="num">Deal</th>
+                  <th className="num" title="Rata-rata waktu balasan pertama agent">Avg Respons</th><th>Deal Rate</th>
                 </tr>
               </thead>
               <tbody>
@@ -351,19 +359,23 @@ export default function AnalyticsPage() {
                       <td>
                         <div className="an-agent-cell">
                           <div className="an-avatar">{(a.name || 'A')[0].toUpperCase()}</div>
-                          <div>
-                            <div className="an-agent-name">{a.name}</div>
-                            <div className="an-agent-email">{a.email}</div>
+                          <div className="an-agent-id">
+                            <div className="an-agent-name" title={a.name}>{a.name}</div>
+                            {a.email && <div className="an-agent-email" title={a.email}>{a.email}</div>}
                           </div>
                         </div>
                       </td>
-                      <td><span className="an-badge active" title={`${a.open||0} open + ${a.in_progress||0} in progress`}>{active}</span></td>
-                      <td><span className="an-badge resolved">{a.resolved || 0}</span></td>
-                      <td><span className="an-badge lead">{lead}</span></td>
-                      <td><span className="an-badge penawaran">{a.penawaran || 0}</span></td>
-                      <td><span className="an-badge survey">{a.survey || 0}</span></td>
-                      <td><span className="an-badge deal">{a.deal || 0}</span></td>
-                      <td><span className="an-resp">{a.avgResponse != null ? `${a.avgResponse} mnt` : '—'}</span></td>
+                      <td className="num"><span className="an-badge active" title={`${a.open||0} open + ${a.in_progress||0} sedang dihandle`}>{active}</span></td>
+                      <td className="num"><span className="an-badge resolved">{a.resolved || 0}</span></td>
+                      <td className="num"><span className="an-badge lead">{lead}</span></td>
+                      <td className="num"><span className="an-badge penawaran">{a.penawaran || 0}</span></td>
+                      <td className="num"><span className="an-badge survey">{a.survey || 0}</span></td>
+                      <td className="num"><span className="an-badge deal">{a.deal || 0}</span></td>
+                      <td className="num">
+                        {a.avgResponse != null
+                          ? <span className={`an-resp${a.avgResponse > (kpi?.kpiMinutes ?? 5) ? ' slow' : ''}`} title={`Rata-rata ${formatDurLong(a.avgResponse)}`}>{formatDurShort(a.avgResponse)}</span>
+                          : <span className="an-resp none">—</span>}
+                      </td>
                       <td>
                         <div className="an-rate">
                           <div className="an-rate-bar"><div className="an-rate-fill" style={{ width: `${rate}%` }} /></div>
@@ -582,13 +594,13 @@ export default function AnalyticsPage() {
         .an-kpi-sub { font-size: 12px; color: var(--text2); margin-top: 6px; margin-bottom: 12px; }
         .an-kpi-agents { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; border-top: 1px solid var(--border); padding-top: 12px; }
         .an-kpi-agent-row { display: flex; align-items: center; gap: 10px; }
-        .an-kpi-agent-name { font-size: 12px; color: var(--text2); width: 110px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .an-kpi-agent-name { font-size: 12px; color: var(--text2); width: 120px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .an-kpi-bar { flex: 1; height: 8px; background: var(--surface3); border-radius: 999px; overflow: hidden; }
         .an-kpi-bar-fill { height: 100%; border-radius: 999px; transition: width 0.3s; }
         .an-kpi-agent-pct { font-size: 11px; font-weight: 600; color: var(--text); width: 92px; text-align: right; flex-shrink: 0; }
         .an-funnel { display: flex; flex-direction: column; gap: 10px; }
         .an-funnel-row { display: flex; align-items: center; gap: 10px; }
-        .an-funnel-lbl { font-size: 12px; color: var(--text2); width: 80px; flex-shrink: 0; }
+        .an-funnel-lbl { font-size: 12px; color: var(--text2); width: 120px; flex-shrink: 0; }
         .an-funnel-bar-wrap { flex: 1; background: var(--surface3); border-radius: 6px; overflow: hidden; }
         .an-funnel-bar { height: 26px; border-radius: 6px; display: flex; align-items: center; justify-content: flex-end; padding: 0 8px; min-width: 24px; transition: width 0.3s; }
         .an-funnel-count { font-size: 12px; font-weight: 700; color: var(--on-primary); }
@@ -598,12 +610,15 @@ export default function AnalyticsPage() {
         /* Table */
         .an-table-box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px; margin-bottom: 16px; box-shadow: 0 1px 3px var(--shadow); }
         .an-table-wrap { overflow-x: auto; }
-        .an-table { width: 100%; border-collapse: collapse; }
-        .an-table th { text-align: left; padding: 8px 12px; font-size: 11px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
-        .an-table td { padding: 10px 12px; font-size: 13px; border-bottom: 1px solid var(--border); color: var(--text); }
+        .an-table { width: 100%; border-collapse: collapse; table-layout: fixed; min-width: 760px; }
+        .an-table th { text-align: left; padding: 9px 12px; font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; line-height: 1.3; border-bottom: 1px solid var(--border); vertical-align: bottom; }
+        .an-table td { padding: 10px 12px; font-size: 13px; border-bottom: 1px solid var(--border); color: var(--text); overflow: hidden; }
+        .an-table th.num, .an-table td.num { text-align: center; }
         .an-table tr:last-child td { border-bottom: none; }
         .an-table tr:hover td { background: var(--surface2); }
-        .an-agent-cell { display: flex; align-items: center; gap: 8px; }
+        .an-agent-cell { display: flex; align-items: center; gap: 10px; min-width: 0; }
+        .an-agent-id { min-width: 0; }
+        .an-agent-name, .an-agent-email { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .an-avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--primary-light); color: var(--primary); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; }
         .an-agent-name { font-size: 13px; font-weight: 500; color: var(--text); }
         .an-agent-email { font-size: 11px; color: var(--muted); }
@@ -618,11 +633,13 @@ export default function AnalyticsPage() {
         .an-badge.survey { background: rgba(217,119,6,0.14); color: #d97706; }
         .an-badge.deal { background: rgba(16,185,129,0.14); color: #10b981; }
         @media (prefers-color-scheme: dark) { .an-badge.penawaran { color: #a5b4fc; } .an-badge.lead, .an-badge.open { color: #7aa7ff; } }
-        .an-resp { font-size: 13px; color: var(--warning); font-weight: 500; }
-        .an-rate { display: flex; align-items: center; gap: 6px; }
-        .an-rate-bar { width: 64px; height: 6px; background: var(--surface3); border-radius: 3px; overflow: hidden; }
+        .an-resp { display: inline-block; min-width: 44px; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; color: var(--success); background: rgba(16,185,129,0.12); font-variant-numeric: tabular-nums; }
+        .an-resp.slow { color: #d97706; background: rgba(217,119,6,0.13); }
+        .an-resp.none { color: var(--muted); background: none; }
+        .an-rate { display: flex; align-items: center; gap: 8px; }
+        .an-rate-bar { flex: 1; max-width: 90px; height: 6px; background: var(--surface3); border-radius: 3px; overflow: hidden; }
         .an-rate-fill { height: 100%; background: var(--primary); border-radius: 3px; }
-        .an-rate span { font-size: 12px; color: var(--text2); min-width: 28px; }
+        .an-rate span { font-size: 12px; font-weight: 600; color: var(--text2); min-width: 34px; text-align: right; font-variant-numeric: tabular-nums; }
 
         @media (max-width: 1100px) { .an-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
         @media (max-width: 760px) {

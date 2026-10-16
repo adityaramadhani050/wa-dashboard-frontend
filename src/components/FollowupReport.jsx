@@ -47,16 +47,22 @@ export default function FollowupReport({ data, loading, rangeLabel }) {
             <div className="fr-box">
               <h4>Kepatuhan per Agent</h4>
               <div className="an-table-wrap">
-                <table className="an-table fr-table">
+                <table className="an-table fr-table fr-comp">
+                  <colgroup>
+                    <col style={{ width: '27%' }} />
+                    <col style={{ width: '11%' }} /><col style={{ width: '11%' }} /><col style={{ width: '9%' }} /><col style={{ width: '9%' }} />
+                    <col style={{ width: '22%' }} />
+                    <col style={{ width: '11%' }} />
+                  </colgroup>
                   <thead>
                     <tr>
                       <th>Agent</th>
-                      <th title="Tugas yang jatuh tempo di rentang ini (yang belum lewat hari jatuh tempo tidak dihitung)">Jatuh tempo</th>
-                      <th>Tepat waktu</th>
-                      <th title="Dikerjakan setelah hari jatuh tempo">Telat</th>
-                      <th title="Lewat jatuh tempo dan belum dikerjakan">Belum</th>
+                      <th className="num" title="Tugas yang jatuh tempo di rentang ini (yang belum lewat hari jatuh tempo tidak dihitung)">Jatuh tempo</th>
+                      <th className="num">Tepat waktu</th>
+                      <th className="num" title="Dikerjakan setelah hari jatuh tempo">Telat</th>
+                      <th className="num" title="Lewat jatuh tempo dan belum dikerjakan">Belum</th>
                       <th>% Tepat waktu</th>
-                      <th title={`Saat ini terlambat lebih dari ${lateDays} hari kerja`}>&gt;{lateDays} hari</th>
+                      <th className="num" title={`Saat ini terlambat lebih dari ${lateDays} hari kerja`}>&gt;{lateDays} hari</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -64,18 +70,18 @@ export default function FollowupReport({ data, loading, rangeLabel }) {
                       <tr><td colSpan={7} className="fr-empty-cell">Belum ada agent</td></tr>
                     ) : data.agents.map(a => (
                       <tr key={a.agent_id || 'unassigned'}>
-                        <td className="fr-name">{a.name}</td>
-                        <td>{a.due}</td>
-                        <td>{a.on_time}</td>
-                        <td>{a.late_done}</td>
-                        <td>{a.open_late}</td>
+                        <td className="fr-name" title={a.name}>{a.name}</td>
+                        <td className="num">{a.due}</td>
+                        <td className="num">{a.on_time}</td>
+                        <td className="num">{a.late_done}</td>
+                        <td className="num">{a.open_late}</td>
                         <td>
                           <div className="an-rate">
                             <div className="an-rate-bar"><div className="an-rate-fill" style={{ width: `${a.on_time_pct || 0}%`, background: toneOf(a.on_time_pct) }} /></div>
                             <span>{pct(a.on_time_pct)}</span>
                           </div>
                         </td>
-                        <td>{a.late_alert ? <span className="fr-late"><AlertTriangle size={11} />{a.late_alert}</span> : 0}</td>
+                        <td className="num">{a.late_alert ? <span className="fr-late"><AlertTriangle size={11} />{a.late_alert}</span> : 0}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -105,11 +111,17 @@ export default function FollowupReport({ data, loading, rangeLabel }) {
           <div className="fr-box">
             <h4>Hasil per Tahap</h4>
             <div className="an-table-wrap">
-              <table className="an-table fr-table">
+              <table className="an-table fr-table fr-steps">
+                <colgroup>
+                  <col style={{ width: '25%' }} />
+                  <col style={{ width: '10%' }} /><col style={{ width: '12%' }} /><col style={{ width: '10%' }} />
+                  <col style={{ width: '10%' }} /><col style={{ width: '8%' }} /><col style={{ width: '8%' }} />
+                  <col style={{ width: '17%' }} />
+                </colgroup>
                 <thead>
                   <tr>
-                    <th>Tahap</th><th>Dikerjakan</th><th>Dibalas</th><th>Keberatan</th>
-                    <th>Lanjut (Survey/Deal)</th><th>Deal</th><th>Lost</th><th>Konversi</th>
+                    <th>Tahap</th><th className="num">Dikerjakan</th><th className="num">Dibalas</th><th className="num">Keberatan</th>
+                    <th className="num" title="Lanjut ke Survey / Deal">Lanjut</th><th className="num">Deal</th><th className="num">Lost</th><th>Konversi</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -121,12 +133,12 @@ export default function FollowupReport({ data, loading, rangeLabel }) {
                           <span className="fr-step" style={{ background: info.color }}>{info.day ? `${info.day} · ` : ''}{info.label}</span>
                           {best && best.step === s.step && <span className="fr-best"><Trophy size={11} />Paling efektif</span>}
                         </td>
-                        <td>{s.done}</td>
-                        <td>{s.replied}{s.done ? <small className="fr-muted"> ({Math.round((s.replied / s.done) * 100)}%)</small> : null}</td>
-                        <td>{s.objection}</td>
-                        <td><span className="an-badge deal">{s.converted}</span></td>
-                        <td>{s.deal}</td>
-                        <td>{s.lost}</td>
+                        <td className="num">{s.done}</td>
+                        <td className="num">{s.replied}{s.done ? <small className="fr-muted"> ({Math.round((s.replied / s.done) * 100)}%)</small> : null}</td>
+                        <td className="num">{s.objection}</td>
+                        <td className="num"><span className="an-badge deal">{s.converted}</span></td>
+                        <td className="num">{s.deal}</td>
+                        <td className="num">{s.lost}</td>
                         <td>
                           <div className="an-rate">
                             <div className="an-rate-bar"><div className="an-rate-fill" style={{ width: `${s.converted_pct || 0}%`, background: '#10b981' }} /></div>
@@ -157,8 +169,12 @@ export default function FollowupReport({ data, loading, rangeLabel }) {
         .fr-grid { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 14px; margin-bottom: 14px; }
         .fr-box { border: 1px solid var(--border); border-radius: 12px; padding: 14px; min-width: 0; }
         .fr-box h4 { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 10px; }
-        .fr-table th, .fr-table td { padding: 8px 10px; white-space: nowrap; }
-        .fr-name { font-weight: 600; }
+        .fr-table th, .fr-table td { padding: 8px 10px; }
+        .fr-table td { white-space: nowrap; }
+        .fr-table.fr-comp { min-width: 600px; }
+        .fr-table.fr-steps { min-width: 720px; }
+        .fr-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
+        .fr-table td:first-child { overflow: hidden; text-overflow: ellipsis; }
         .fr-empty-cell { text-align: center; color: var(--muted); }
         .fr-late { display: inline-flex; align-items: center; gap: 3px; font-weight: 700; color: #ef4444; }
         .fr-step { display: inline-block; color: #fff; font-size: 10.5px; font-weight: 800; letter-spacing: .3px; padding: 2px 8px; border-radius: 999px; }
