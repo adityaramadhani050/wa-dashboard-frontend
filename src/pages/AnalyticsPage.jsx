@@ -292,7 +292,7 @@ export default function AnalyticsPage() {
               <thead>
                 <tr>
                   <th>Agent</th>
-                  <th>Aktif</th><th>Open</th><th>Resolved</th>
+                  <th>Aktif</th><th>Resolved</th>
                   <th>Lead</th><th>Penawaran</th><th>Survey</th><th>Deal</th>
                   <th>Avg Respons</th><th>Deal Rate</th>
                 </tr>
@@ -314,7 +314,6 @@ export default function AnalyticsPage() {
                         </div>
                       </td>
                       <td><span className="an-badge active" title={`${a.open||0} open + ${a.in_progress||0} in progress`}>{active}</span></td>
-                      <td><span className="an-badge open">{a.open || 0}</span></td>
                       <td><span className="an-badge resolved">{a.resolved || 0}</span></td>
                       <td><span className="an-badge lead">{lead}</span></td>
                       <td><span className="an-badge penawaran">{a.penawaran || 0}</span></td>
