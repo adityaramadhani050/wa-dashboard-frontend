@@ -27,7 +27,7 @@ export default function FollowupReport({ data, loading, rangeLabel }) {
     <div className="an-table-box fr">
       <div className="an-sec-head">
         <h3><ListChecks size={15} />Laporan Follow-up</h3>
-        <span className="an-sec-right">Chat Prospek / Follow-Up{rangeLabel ? ` · ${rangeLabel}` : ''}</span>
+        <span className="an-sec-right">Chat bertag Follow-Up{rangeLabel ? ` · ${rangeLabel}` : ''}</span>
       </div>
 
       {loading ? <div className="an-skel" style={{ height: 160 }} /> : !t ? (
