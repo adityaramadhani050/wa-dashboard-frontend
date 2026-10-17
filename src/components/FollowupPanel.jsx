@@ -9,7 +9,7 @@ let templatesCache = null
 const STOP_REASON = {
   'outcome:interested': 'customer tertarik lanjut',
   'outcome:lost': 'customer tidak jadi',
-  trigger_removed: 'tag Penawaran/Follow-Up dilepas',
+  trigger_removed: 'tag Prospek/Follow-Up dilepas',
 }
 
 // Nada hasil akhir urutan: lanjut (hijau) / lost (merah) / berhenti (netral)
@@ -81,7 +81,7 @@ export default function FollowupPanel({ data, conversationId, contactName, onIns
       </div>
 
       {!seq && !current ? (
-        <div className="fup-empty">Belum ada follow-up. Pasang label <b>Follow-Up</b> atau <b>Penawaran</b>; urutan dimulai otomatis saat chat Resolved.</div>
+        <div className="fup-empty">Belum ada follow-up. Pasang label <b>Follow-Up</b> atau <b>Prospek</b>; urutan dimulai otomatis saat chat Resolved.</div>
       ) : (
         <>
           {seq && seq.status !== 'stopped' && (

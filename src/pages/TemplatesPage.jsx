@@ -117,7 +117,7 @@ function BroadcastTemplateForm({ initial, onSave, onClose, loading, error }) {
     <form onSubmit={handleSubmit} className="am-form">
       <div className="am-field">
         <label>Nama Template <span className="req">*</span></label>
-        <input value={name} onChange={e => setName(e.target.value)} placeholder="contoh: Follow-up Penawaran" required />
+        <input value={name} onChange={e => setName(e.target.value)} placeholder="contoh: Follow-up Prospek" required />
       </div>
       <div className="am-field">
         <label>Isi Pesan</label>

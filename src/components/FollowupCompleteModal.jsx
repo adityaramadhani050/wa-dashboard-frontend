@@ -8,7 +8,7 @@ const OUTCOMES = [
   { key: 'considering', label: 'Dibalas, masih pertimbangan', hint: 'Lanjut ke tahap berikutnya' },
   { key: 'objection', label: 'Keberatan', hint: 'Pilih alasannya' },
   { key: 'later', label: 'Minta dihubungi nanti', hint: 'Pilih tanggal' },
-  { key: 'interested', label: 'Tertarik lanjut (Survey/Deal)', hint: 'Follow-up selesai' },
+  { key: 'interested', label: 'Tertarik lanjut / Deal', hint: 'Follow-up selesai' },
   { key: 'lost', label: 'Tidak jadi / Lost', hint: 'Follow-up selesai' },
 ]
 
@@ -40,7 +40,7 @@ export default function FollowupCompleteModal({ task, conversationId, contactNam
       if (outcome === 'later') payload.next_contact_at = new Date(`${nextDate}T09:00:00+07:00`).toISOString()
       const res = await completeFollowupTask(task.id, payload)
       if (res?.stopped) {
-        // Tawarkan memasang tag yang sesuai (Survey/Deal atau Fail)
+        // Tawarkan memasang tag yang sesuai (Deal atau Fail)
         const all = await getTags().catch(() => [])
         const re = res.stopped === 'interested' ? /surv|\bdeal\b/i : /fail|gagal|batal|lost/i
         const tags = (Array.isArray(all) ? all : []).filter(t => re.test(t.name || ''))

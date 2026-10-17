@@ -27,7 +27,7 @@ export default function FollowupReport({ data, loading, rangeLabel }) {
     <div className="an-table-box fr">
       <div className="an-sec-head">
         <h3><ListChecks size={15} />Laporan Follow-up</h3>
-        <span className="an-sec-right">Chat Penawaran / Follow-Up{rangeLabel ? ` · ${rangeLabel}` : ''}</span>
+        <span className="an-sec-right">Chat Prospek / Follow-Up{rangeLabel ? ` · ${rangeLabel}` : ''}</span>
       </div>
 
       {loading ? <div className="an-skel" style={{ height: 160 }} /> : !t ? (
@@ -38,7 +38,7 @@ export default function FollowupReport({ data, loading, rangeLabel }) {
             <MiniStat label="Follow-up dikerjakan" value={t.done} sub={`${t.running} chat sedang berjalan`} />
             <MiniStat label="Tepat waktu" value={pct(t.on_time_pct)} color={toneOf(t.on_time_pct)} sub={`${t.on_time} dari ${t.due} jatuh tempo`} />
             <MiniStat label="Dibalas customer" value={pct(t.replied_pct)} sub={`${t.replied} follow-up dibalas`} />
-            <MiniStat label="Lanjut Survey/Deal" value={t.converted} color="#10b981" sub={`${t.deal} sudah Deal`} />
+            <MiniStat label="Lanjut / Deal" value={t.converted} color="#10b981" sub={`${t.deal} sudah Deal`} />
             <MiniStat label="Tidak jadi / Lost" value={t.lost} color={t.lost ? '#ef4444' : undefined} />
             <MiniStat label={`Terlambat >${lateDays} hari kerja`} value={t.late_alert} color={t.late_alert ? '#ef4444' : undefined} sub="saat ini" />
           </div>
@@ -121,7 +121,7 @@ export default function FollowupReport({ data, loading, rangeLabel }) {
                 <thead>
                   <tr>
                     <th>Tahap</th><th className="num">Dikerjakan</th><th className="num">Dibalas</th><th className="num">Keberatan</th>
-                    <th className="num" title="Lanjut ke Survey / Deal">Lanjut</th><th className="num">Deal</th><th className="num">Lost</th><th>Konversi</th>
+                    <th className="num" title="Tertarik lanjut / Deal">Lanjut</th><th className="num">Deal</th><th className="num">Lost</th><th>Konversi</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -152,9 +152,9 @@ export default function FollowupReport({ data, loading, rangeLabel }) {
               </table>
             </div>
             <div className="fr-note">
-              Lanjut/Lost dicatat pada tahap follow-up terakhir yang dikerjakan sebelum urutan berhenti (hasil "Tertarik lanjut" / "Tidak jadi", atau tag Survey/Deal/Fail).
+              Lanjut/Lost dicatat pada tahap follow-up terakhir yang dikerjakan sebelum urutan berhenti (hasil "Tertarik lanjut" / "Tidak jadi", atau tag Deal/Fail).
               Konversi = Lanjut ÷ Dikerjakan.
-              {t.pre_followup > 0 && ` ${t.pre_followup} chat lanjut ke Survey/Deal sebelum follow-up pertama dikerjakan.`}
+              {t.pre_followup > 0 && ` ${t.pre_followup} chat lanjut / Deal sebelum follow-up pertama dikerjakan.`}
             </div>
           </div>
         </>
