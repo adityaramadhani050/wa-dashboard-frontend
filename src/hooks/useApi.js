@@ -66,6 +66,7 @@ export const bulkSetContactRegion = (ids, region) =>
 export const getDailyStats = (from, to, region) => api.get('/stats/daily', { params: { from, to, region: region || undefined } }).then(r => r.data)
 export const getAgentStats = (from, to, region) => api.get('/stats/agents', { params: { from, to, region: region || undefined } }).then(r => r.data)
 export const getContactStats = (region) => api.get('/stats/contacts', { params: { region: region || undefined } }).then(r => r.data)
+export const getAnalyticsSummary = (from, to, region) => api.get('/stats/summary', { params: { from, to, region: region || undefined } }).then(r => r.data)
 export const getResponseKpi = (from, to, region) => api.get('/stats/response-kpi', { params: { from, to, region: region || undefined } }).then(r => r.data)
 export const getFunnel = (from, to, region) => api.get('/stats/funnel', { params: { from, to, region: region || undefined } }).then(r => r.data)
 export const getAgents = () => api.get('/agents').then(r => r.data)

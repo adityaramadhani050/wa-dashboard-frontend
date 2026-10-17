@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { getDailyStats, getAgentStats, getContactStats, getContacts, getConversations, getTopTemplates, getResponseKpi, getFunnel, getFollowupReport } from '../hooks/useApi'
+import { getDailyStats, getAgentStats, getAnalyticsSummary, getContacts, getConversations, getTopTemplates, getResponseKpi, getFunnel, getFollowupReport } from '../hooks/useApi'
 import FollowupReport from '../components/FollowupReport'
 import { formatDurShort, formatDurLong } from '../lib/duration'
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer
 } from 'recharts'
-import { RefreshCw, TrendingUp, Users, MessageSquare, UserCheck, Clock, UserPlus, Calendar, Download, Zap, MapPin, ChevronDown, Activity, BarChart2, ArrowDownLeft, ArrowUpRight, Inbox, CheckCircle2 } from 'lucide-react'
+import { RefreshCw, TrendingUp, Users, MessageSquare, UserCheck, Clock, UserPlus, Calendar, Download, Zap, MapPin, ChevronDown, Activity, BarChart2, Inbox, CheckCircle2, Info } from 'lucide-react'
 
 const REGION_OPTIONS = [
   { key: '', label: 'Semua' },
@@ -32,6 +32,8 @@ function fmtRange(from, to) {
   const left = f.toLocaleDateString('id-ID', sameMonth ? { day: 'numeric' } : sameYear ? { day: 'numeric', month: 'short' } : full)
   return `${left} – ${t.toLocaleDateString('id-ID', full)}`
 }
+
+const AGENT_NUM_COLS = ['lead', 'old', 'active', 'resolved', 'penawaran', 'survey', 'deal']
 
 const PRESETS = [
   { days: 1, label: 'Hari ini' },
@@ -104,7 +106,7 @@ export default function AnalyticsPage() {
   const [to, setTo] = useState(defaultTo)
   const [daily, setDaily] = useState([])
   const [agents, setAgents] = useState([])
-  const [contacts, setContacts] = useState(null)
+  const [summary, setSummary] = useState(null)
   const [topTemplates, setTopTemplates] = useState([])
   const [kpi, setKpi] = useState(null)
   const [funnel, setFunnel] = useState(null)
@@ -130,8 +132,8 @@ export default function AnalyticsPage() {
     setError('')
     const r = regionRef.current || undefined
     try {
-      const [d, a, c, tpl, k, fn, fr] = await Promise.all([
-        getDailyStats(f, t, r), getAgentStats(f, t, r), getContactStats(r),
+      const [d, a, sm, tpl, k, fn, fr] = await Promise.all([
+        getDailyStats(f, t, r), getAgentStats(f, t, r), getAnalyticsSummary(f, t, r).catch(() => null),
         getTopTemplates(5).catch(() => []),
         getResponseKpi(f, t, r).catch(() => null),
         getFunnel(f, t, r).catch(() => null),
@@ -139,7 +141,7 @@ export default function AnalyticsPage() {
       ])
       setDaily(Array.isArray(d) ? d : [])
       setAgents(Array.isArray(a) ? a : [])
-      setContacts(c || null)
+      setSummary(sm || null)
       setTopTemplates(Array.isArray(tpl) ? tpl : [])
       setKpi(k || null)
       setFunnel(fn || null)
@@ -203,25 +205,10 @@ export default function AnalyticsPage() {
   }
   const rangeLabel = fmtRange(from, to)
 
-  const totalMessages = daily.reduce((s, d) => s + (d.messages || 0), 0)
-  const totalIncoming = daily.reduce((s, d) => s + (d.incoming || 0), 0)
-  const totalOutgoing = daily.reduce((s, d) => s + (d.outgoing || 0), 0)
-  const totalResolved = agents.reduce((s, a) => s + (a.resolved || 0), 0)
-  const totalHandled = agents.reduce((s, a) => s + (a.total || 0), 0)
-  // Chat aktif yang sedang dihandle = open + in_progress (belum resolved)
-  const totalActive = agents.reduce((s, a) => s + (a.open || 0) + (a.in_progress || 0), 0)
-  const totalOpen = agents.reduce((s, a) => s + (a.open || 0), 0)
-  // Kontak baru dalam periode (dari data harian yang sudah difilter)
-  const totalNewContacts = daily.reduce((s, d) => s + (d.new_contacts || 0), 0)
-  const unassignedNew = Math.max(0, totalNewContacts - agents.reduce((s, a) => s + (a.new_contacts || 0), 0))
-
-  const responseTimes = agents.filter(a => a.avgResponse != null).map(a => a.avgResponse)
-  const globalAvgResponse = responseTimes.length > 0
-    ? Math.round(responseTimes.reduce((s, t) => s + t, 0) / responseTimes.length)
-    : null
-
+  const kpiMinutes = kpi?.kpiMinutes ?? 5
+  const sumOr = (key) => summary?.[key] ?? null
   const chartData = daily.map(d => ({
-    date: new Date(d.date).toLocaleDateString('id', { day: 'numeric', month: 'short' }),
+    date: new Date(`${d.date}T00:00:00`).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }),
     Masuk: d.incoming || 0,
     Keluar: d.outgoing || 0,
     'Kontak Baru': d.new_contacts || 0,
@@ -229,7 +216,7 @@ export default function AnalyticsPage() {
 
   const agentChart = agents.map(a => ({
     name: a.name || 'Agent',
-    Lead: a.lead != null ? a.lead : (a.total || 0),
+    'Lead Baru': a.new_contacts || 0,
     Penawaran: a.penawaran || 0,
     Survey: a.survey || 0,
     Deal: a.deal || 0,
@@ -296,68 +283,79 @@ export default function AnalyticsPage() {
 
       {error && <div className="an-error">{error}</div>}
 
-      {/* Summary cards */}
+      {/* Kartu ringkasan */}
       <div className="an-cards">
-        <StatCard loading={loading} icon={MessageSquare} label="Total Pesan" value={totalMessages.toLocaleString('id-ID')} color="#2563eb" />
-        <StatCard loading={loading} icon={ArrowDownLeft} label="Pesan Masuk" value={totalIncoming.toLocaleString('id-ID')} color="#0ea5e9" />
-        <StatCard loading={loading} icon={ArrowUpRight} label="Pesan Keluar" value={totalOutgoing.toLocaleString('id-ID')} color="#f59e0b" />
         <StatCard
           loading={loading}
-          icon={Clock}
-          label="Waktu Respons"
-          value={globalAvgResponse != null ? formatDurShort(globalAvgResponse) : '—'}
-          title={globalAvgResponse != null ? `Rata-rata ${formatDurLong(globalAvgResponse)}` : undefined}
-          sub="rata-rata agent"
-          color="#f59e0b"
+          icon={UserPlus}
+          label="Kontak Baru"
+          value={sumOr('new_contacts')}
+          sub={summary ? `${summary.total_contacts.toLocaleString('id-ID')} kontak total` : null}
+          title="Kontak yang pertama kali chat dalam periode (tanpa grup & Non-Client)"
+          color="#2563eb"
+        />
+        <StatCard
+          loading={loading}
+          icon={UserCheck}
+          label="Di-assign"
+          value={sumOr('new_assigned')}
+          sub={summary ? (summary.new_unassigned ? `${summary.new_unassigned} belum di-assign` : 'semua kontak baru sudah di-assign') : null}
+          title="Kontak baru dalam periode yang sudah di-assign ke agent/admin"
+          color="#6366f1"
         />
         <StatCard
           loading={loading}
           icon={Inbox}
           label="Sedang Dihandle"
-          value={totalActive}
-          sub={`${totalOpen} belum dibalas agent`}
+          value={sumOr('active')}
+          sub={summary ? `${summary.awaiting} menunggu balasan${summary.active_unassigned ? ` · ${summary.active_unassigned} belum di-assign` : ''}` : null}
+          title="Chat Open/Aktif yang di-assign SAAT INI (tidak tergantung periode)"
           color="#8b5cf6"
         />
-        <StatCard loading={loading} icon={CheckCircle2} label="Resolved" value={totalResolved} color="#10b981" />
-        <StatCard loading={loading} icon={UserCheck} label="Di-assign" value={totalHandled} color="#6366f1" />
         <StatCard
           loading={loading}
-          icon={UserPlus}
-          label="Kontak Baru"
-          value={totalNewContacts}
-          sub={contacts?.total != null ? `${contacts.total.toLocaleString('id-ID')} kontak total` : null}
-          color="#2563eb"
+          icon={CheckCircle2}
+          label="Resolved"
+          value={sumOr('resolved')}
+          sub="di-resolve dalam periode"
+          title="Chat yang berstatus Resolved dan di-resolve dalam periode (tanpa Non-Client)"
+          color="#10b981"
         />
       </div>
 
-      {/* Detail per Agent (dipindah ke atas KPI & Funnel) */}
+      {/* Detail per Agent */}
       {!loading && agents.length > 0 && (
         <div className="an-table-box">
-          <SectionHead icon={Users} title="Detail per Agent" right={`${agents.length} agent`} />
+          <SectionHead icon={Users} title="Detail per Agent" right={`${agents.length} agent · ${rangeLabel}`} />
           <div className="an-table-wrap">
             <table className="an-table an-agent-table">
               <colgroup>
-                <col style={{ width: '20%' }} />
-                {[...Array(7)].map((_, i) => <col key={i} style={{ width: i === 4 ? '10%' : '8%' }} />)}
-                <col style={{ width: '10%' }} />
-                <col style={{ width: '12%' }} />
+                <col style={{ width: '19%' }} />
+                {AGENT_NUM_COLS.map((c) => <col key={c} style={{ width: c === 'penawaran' ? '9.5%' : '7.5%' }} />)}
+                <col style={{ width: '9.5%' }} />
+                <col style={{ width: '10.5%' }} />
               </colgroup>
               <thead>
                 <tr>
                   <th>Agent</th>
-                  <th className="num" title="Kontak baru dalam periode yang di-assign ke agent ini">Kontak Baru</th>
-                  <th className="num" title="Chat open + sedang dihandle">Aktif</th><th className="num">Resolved</th>
-                  <th className="num">Lead</th><th className="num">Penawaran</th><th className="num">Survey</th><th className="num">Deal</th>
-                  <th className="num" title="Rata-rata waktu balasan pertama agent">Avg Respons</th><th>Deal Rate</th>
+                  <th className="num" title="Kontak yang pertama kali chat dalam periode dan di-assign ke agent ini">Lead Baru</th>
+                  <th className="num" title="Chat customer lama (kontak sebelum periode) yang ada pesan dalam periode, mis. follow-up">Chat Lama</th>
+                  <th className="num" title="Chat Open/Aktif yang dipegang SAAT INI">Aktif</th>
+                  <th className="num" title="Chat yang di-resolve dalam periode">Resolved</th>
+                  <th className="num" title="Chat yang diberi tag Penawaran dalam periode">Penawaran</th>
+                  <th className="num" title="Chat yang diberi tag Survey dalam periode">Survey</th>
+                  <th className="num" title="Chat yang diberi tag Deal dalam periode (termasuk customer lama)">Deal</th>
+                  <th className="num" title={`Rata-rata waktu agent membalas pesan customer dalam periode${kpi?.workHours ? ' (dihitung dalam jam kerja)' : ''}`}>Avg Respons</th>
+                  <th title="Deal ÷ Lead Baru dalam periode">Deal Rate</th>
                 </tr>
               </thead>
               <tbody>
-                {agents.map((a, i) => {
-                  const lead = a.lead != null ? a.lead : (a.total || 0)
-                  const rate = lead > 0 ? Math.round(((a.deal || 0) / lead) * 100) : 0
+                {agents.map((a) => {
+                  const lead = a.new_contacts || 0
+                  const rate = lead > 0 ? Math.round(((a.deal || 0) / lead) * 100) : null
                   const active = (a.open || 0) + (a.in_progress || 0)
                   return (
-                    <tr key={i}>
+                    <tr key={a.id || a.name}>
                       <td>
                         <div className="an-agent-cell">
                           <div className="an-avatar">{(a.name || 'A')[0].toUpperCase()}</div>
@@ -367,23 +365,27 @@ export default function AnalyticsPage() {
                           </div>
                         </div>
                       </td>
-                      <td className="num"><span className="an-badge newc">{a.new_contacts || 0}</span></td>
-                      <td className="num"><span className="an-badge active" title={`${a.open||0} open + ${a.in_progress||0} sedang dihandle`}>{active}</span></td>
-                      <td className="num"><span className="an-badge resolved">{a.resolved || 0}</span></td>
                       <td className="num"><span className="an-badge lead">{lead}</span></td>
+                      <td className="num"><span className="an-badge old">{a.old_chats || 0}</span></td>
+                      <td className="num">
+                        <span className="an-badge active" title={`${a.open || 0} open · ${a.in_progress || 0} aktif · ${a.awaiting || 0} menunggu balasan`}>{active}</span>
+                      </td>
+                      <td className="num"><span className="an-badge resolved">{a.resolved || 0}</span></td>
                       <td className="num"><span className="an-badge penawaran">{a.penawaran || 0}</span></td>
                       <td className="num"><span className="an-badge survey">{a.survey || 0}</span></td>
                       <td className="num"><span className="an-badge deal">{a.deal || 0}</span></td>
                       <td className="num">
                         {a.avgResponse != null
-                          ? <span className={`an-resp${a.avgResponse > (kpi?.kpiMinutes ?? 5) ? ' slow' : ''}`} title={`Rata-rata ${formatDurLong(a.avgResponse)}`}>{formatDurShort(a.avgResponse)}</span>
-                          : <span className="an-resp none">—</span>}
+                          ? <span className={`an-resp${a.avgResponse > kpiMinutes ? ' slow' : ''}`} title={`Rata-rata ${formatDurLong(a.avgResponse)} dari ${a.replies} balasan`}>{formatDurShort(a.avgResponse)}</span>
+                          : <span className="an-resp none" title="Belum ada balasan dalam periode">—</span>}
                       </td>
                       <td>
-                        <div className="an-rate">
-                          <div className="an-rate-bar"><div className="an-rate-fill" style={{ width: `${rate}%` }} /></div>
-                          <span>{rate}%</span>
-                        </div>
+                        {rate == null ? <span className="an-rate-none" title="Belum ada lead baru dalam periode">—</span> : (
+                          <div className="an-rate" title={`${a.deal || 0} deal ÷ ${lead} lead baru`}>
+                            <div className="an-rate-bar"><div className="an-rate-fill" style={{ width: `${Math.min(rate, 100)}%` }} /></div>
+                            <span>{rate}%</span>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   )
@@ -391,33 +393,37 @@ export default function AnalyticsPage() {
               </tbody>
             </table>
           </div>
-          {unassignedNew > 0 && (
-            <div className="an-table-note">
-              <UserPlus size={13} /> {unassignedNew} dari {totalNewContacts} kontak baru belum di-assign ke agent{region ? ' regional ini' : ''}
-            </div>
-          )}
+          <div className="an-table-note">
+            {summary?.new_unassigned > 0 && (
+              <span className="an-note-warn"><UserPlus size={13} /> {summary.new_unassigned} dari {summary.new_contacts} kontak baru belum di-assign</span>
+            )}
+            <span><Info size={13} /> Lead Baru = kontak pertama kali chat dalam periode · Chat Lama = customer lama yang chat/di-follow-up dalam periode · Aktif = kondisi saat ini · tag & resolved dihitung saat terjadi dalam periode</span>
+          </div>
         </div>
       )}
 
       {/* KPI Response Time & Funnel */}
       <div className="an-kpi-row">
         <div className="an-kpi-box">
-          <SectionHead icon={Clock} title={`KPI Respons < ${kpi?.kpiMinutes ?? 5} menit`} />
-          {loading ? <div className="an-skel" style={{ height: 120 }} /> : !kpi || kpi.total === 0 ? (
+          <SectionHead icon={Clock} title={`KPI Respons ≤ ${kpiMinutes} menit`} right={kpi?.workHours ? 'dihitung dalam jam kerja' : null} />
+          {loading ? <div className="an-skel" style={{ height: 120 }} /> : !kpi || (kpi.total === 0 && !kpi.unreplied) ? (
             <div className="an-chart-empty">Belum ada data balasan pada rentang ini</div>
           ) : (
             <>
               <div className="an-kpi-big" style={{ color: kpi.percent >= 80 ? '#10b981' : kpi.percent >= 50 ? '#f59e0b' : '#ef4444' }}>
                 {kpi.percent}%
               </div>
-              <div className="an-kpi-sub">{kpi.met} dari {kpi.total} percakapan dibalas ≤{kpi.kpiMinutes} menit</div>
+              <div className="an-kpi-sub">
+                {kpi.met} dari {kpi.total} pesan customer dibalas agent ≤{kpiMinutes} menit
+                {kpi.unreplied > 0 && <span className="an-kpi-wait"> · {kpi.unreplied} masih menunggu balasan</span>}
+              </div>
               {kpi.agents?.length > 0 && (
                 <div className="an-kpi-agents">
                   {kpi.agents.map(a => (
                     <div key={a.agent_id || 'unassigned'} className="an-kpi-agent-row">
                       <span className="an-kpi-agent-name">{a.name}</span>
                       <div className="an-kpi-bar"><div className="an-kpi-bar-fill" style={{ width: `${a.percent}%`, background: a.percent >= 80 ? '#10b981' : a.percent >= 50 ? '#f59e0b' : '#ef4444' }} /></div>
-                      <span className="an-kpi-agent-pct">{a.percent}% <span style={{color:'var(--muted)'}}>({a.met}/{a.total})</span></span>
+                      <span className="an-kpi-agent-pct" title={a.unreplied ? `${a.unreplied} menunggu balasan` : undefined}>{a.percent}% <span style={{ color: 'var(--muted)' }}>({a.met}/{a.total})</span></span>
                     </div>
                   ))}
                 </div>
@@ -427,24 +433,24 @@ export default function AnalyticsPage() {
         </div>
 
         <div className="an-kpi-box">
-          <SectionHead icon={TrendingUp} title="Funnel Konversi" />
+          <SectionHead icon={TrendingUp} title="Funnel Konversi" right="lead baru & tag dalam periode" />
           {loading ? <div className="an-skel" style={{ height: 120 }} /> : !funnel || !funnel.stages?.length ? (
             <div className="an-chart-empty">Belum ada data funnel</div>
           ) : (
             <div className="an-funnel">
               {funnel.stages.map((s, i) => {
-                const base = funnel.stages[0]?.count || 1
-                const pct = Math.round((s.count / base) * 100)
+                const base = funnel.stages[0]?.count || 0
+                const pct = base ? Math.round((s.count / base) * 100) : null
                 const colors = ['#2563eb', '#6366f1', '#f59e0b', '#10b981', '#0ea5e9']
                 return (
                   <div key={s.stage} className="an-funnel-row">
-                    <span className="an-funnel-lbl">{s.stage}</span>
+                    <span className="an-funnel-lbl">{s.stage === 'Lead' ? 'Lead Baru' : s.stage}</span>
                     <div className="an-funnel-bar-wrap">
-                      <div className="an-funnel-bar" style={{ width: `${Math.max(pct, 3)}%`, background: colors[i % colors.length] }}>
+                      <div className="an-funnel-bar" style={{ width: `${Math.min(100, Math.max(pct ?? (s.count ? 100 : 0), 3))}%`, background: colors[i % colors.length] }}>
                         <span className="an-funnel-count">{s.count}</span>
                       </div>
                     </div>
-                    <span className="an-funnel-pct">{pct}%</span>
+                    <span className="an-funnel-pct" title={i ? 'Dibanding jumlah lead baru' : undefined}>{pct == null ? '—' : `${pct}%`}</span>
                   </div>
                 )
               })}
@@ -463,7 +469,7 @@ export default function AnalyticsPage() {
       <div className="an-charts">
         <div className="an-chart-box">
           <SectionHead icon={Activity} title="Aktivitas Pesan" right={rangeLabel} />
-          {loading ? <div className="an-skel" /> : chartData.every(d => d.Masuk === 0 && d.Keluar === 0) ? (
+          {loading ? <div className="an-skel" /> : chartData.every(d => d.Masuk === 0 && d.Keluar === 0 && d['Kontak Baru'] === 0) ? (
             <div className="an-chart-empty">Belum ada data pesan</div>
           ) : (
             <ResponsiveContainer width="100%" height={220}>
@@ -482,7 +488,7 @@ export default function AnalyticsPage() {
         </div>
 
         <div className="an-chart-box">
-          <SectionHead icon={BarChart2} title="Performa Agent" right="Lead → Penawaran → Survey → Deal" />
+          <SectionHead icon={BarChart2} title="Performa Agent" right="Lead Baru · Penawaran · Survey · Deal" />
           {loading ? <div className="an-skel" /> : agents.length === 0 ? (
             <div className="an-chart-empty">Belum ada percakapan yang di-assign</div>
           ) : (
@@ -493,7 +499,7 @@ export default function AnalyticsPage() {
                 <YAxis tick={{ fill: 'var(--muted)', fontSize: 11 }} allowDecimals={false} />
                 <Tooltip content={<Tip />} />
                 <Legend wrapperStyle={{ fontSize: 12, color: 'var(--text2)' }} />
-                <Bar dataKey="Lead" fill="#2563eb" radius={[4,4,0,0]} />
+                <Bar dataKey="Lead Baru" fill="#2563eb" radius={[4,4,0,0]} />
                 <Bar dataKey="Penawaran" fill="#6366f1" radius={[4,4,0,0]} />
                 <Bar dataKey="Survey" fill="#f59e0b" radius={[4,4,0,0]} />
                 <Bar dataKey="Deal" fill="#10b981" radius={[4,4,0,0]} />
@@ -506,7 +512,7 @@ export default function AnalyticsPage() {
       {/* Template Terpopuler */}
       {!loading && topTemplates.length > 0 && (
         <div className="an-table-box">
-          <SectionHead icon={Zap} title="Template Terpopuler" />
+          <SectionHead icon={Zap} title="Template Terpopuler" right="sepanjang waktu" />
           <div className="an-tpl-list">
             {topTemplates.map((t, i) => (
               <div key={t.id} className="an-tpl-item">
@@ -621,7 +627,12 @@ export default function AnalyticsPage() {
         .an-table { width: 100%; border-collapse: collapse; table-layout: fixed; min-width: 760px; }
         .an-agent-table { min-width: 840px; }
         .an-agent-table th.num, .an-agent-table td.num { padding-left: 6px; padding-right: 6px; }
-        .an-table-note { display: flex; align-items: center; gap: 6px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border); font-size: 12px; color: var(--muted); }
+        .an-table-note { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border); font-size: 12px; color: var(--muted); line-height: 1.45; }
+        .an-table-note > span { display: flex; align-items: flex-start; gap: 6px; }
+        .an-table-note svg { flex-shrink: 0; margin-top: 2px; }
+        .an-note-warn { color: #d97706; font-weight: 600; }
+        .an-rate-none { color: var(--muted); font-size: 12px; }
+        .an-kpi-wait { color: #d97706; font-weight: 600; }
         .an-table th { text-align: left; padding: 9px 12px; font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; line-height: 1.3; border-bottom: 1px solid var(--border); vertical-align: bottom; }
         .an-table td { padding: 10px 12px; font-size: 13px; border-bottom: 1px solid var(--border); color: var(--text); overflow: hidden; }
         .an-table th.num, .an-table td.num { text-align: center; }
@@ -635,7 +646,7 @@ export default function AnalyticsPage() {
         .an-agent-email { font-size: 11px; color: var(--muted); }
         .an-badge { display: inline-block; min-width: 28px; text-align: center; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; }
         /* Warna transparan agar nyaman di mode gelap & terang */
-        .an-badge.newc { background: rgba(139,92,246,0.14); color: #8b5cf6; }
+        .an-badge.old { background: rgba(100,116,139,0.16); color: var(--text2); }
         .an-badge.active { background: rgba(14,165,233,0.14); color: #0ea5e9; }
         .an-badge.open { background: rgba(37,99,235,0.14); color: #3b82f6; }
         .an-badge.progress { background: rgba(217,119,6,0.14); color: #d97706; }
@@ -644,7 +655,7 @@ export default function AnalyticsPage() {
         .an-badge.penawaran { background: rgba(99,102,241,0.15); color: #6366f1; }
         .an-badge.survey { background: rgba(217,119,6,0.14); color: #d97706; }
         .an-badge.deal { background: rgba(16,185,129,0.14); color: #10b981; }
-        @media (prefers-color-scheme: dark) { .an-badge.penawaran { color: #a5b4fc; } .an-badge.lead, .an-badge.open { color: #7aa7ff; } .an-badge.newc { color: #b69cff; } }
+        @media (prefers-color-scheme: dark) { .an-badge.penawaran { color: #a5b4fc; } .an-badge.lead, .an-badge.open { color: #7aa7ff; } }
         .an-resp { display: inline-block; min-width: 44px; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; color: var(--success); background: rgba(16,185,129,0.12); font-variant-numeric: tabular-nums; }
         .an-resp.slow { color: #d97706; background: rgba(217,119,6,0.13); }
         .an-resp.none { color: var(--muted); background: none; }
