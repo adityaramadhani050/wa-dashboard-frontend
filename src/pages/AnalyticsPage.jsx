@@ -319,8 +319,8 @@ export default function AnalyticsPage() {
           icon={Inbox}
           label="Aktif"
           value={sumOr('active')}
-          sub={summary ? `status saat ini · ${summary.awaiting} menunggu balasan` : null}
-          title="Dari Total Lead periode ini: yang statusnya masih Open/Aktif saat ini"
+          sub={summary ? (summary.live ? `status saat ini · ${summary.awaiting} menunggu balasan` : 'belum di-resolve sejak periode ini') : null}
+          title="Dari Total Lead: hari ini = masih Open/Aktif saat ini; periode lampau = belum pernah di-resolve sejak periode itu"
           color="#8b5cf6"
         />
         <StatCard
@@ -329,7 +329,7 @@ export default function AnalyticsPage() {
           label="Resolved"
           value={sumOr('resolved')}
           sub={summary ? `dari ${summary.total_leads} total lead` : null}
-          title="Dari Total Lead periode ini: yang statusnya sudah Resolved saat ini"
+          title="Dari Total Lead: hari ini = sudah Resolved saat ini; periode lampau = sudah di-resolve setelah periode itu (walau kini aktif lagi karena aktivitas baru)"
           color="#10b981"
         />
       </div>
@@ -351,8 +351,8 @@ export default function AnalyticsPage() {
                   <th>Agent</th>
                   <th className="num" title="Kontak yang pertama kali chat dalam periode">Lead Baru</th>
                   <th className="num" title="Customer lama (belum Deal) yang dikirimi pesan oleh agent dalam periode">Lead Lama</th>
-                  <th className="num" title="Dari Total Lead: statusnya masih Open/Aktif saat ini">Aktif</th>
-                  <th className="num" title="Dari Total Lead: statusnya sudah Resolved saat ini">Resolved</th>
+                  <th className="num" title={summary?.live ? 'Dari Total Lead: masih Open/Aktif saat ini' : 'Dari Total Lead: belum pernah di-resolve sejak periode ini'}>Aktif</th>
+                  <th className="num" title={summary?.live ? 'Dari Total Lead: sudah Resolved saat ini' : 'Dari Total Lead: sudah di-resolve setelah periode ini (walau kini aktif lagi)'}>Resolved</th>
                   <th className="num" title="Lead Baru + Lead Lama">Total Lead</th>
                   <th className="num" title="Dari Total Lead: sudah diberi tag Prospek sampai akhir periode (atau langsung Deal)">Prospek</th>
                   <th className="num" title="Dari Total Lead: diberi tag Deal dalam periode">Deal</th>
@@ -374,7 +374,7 @@ export default function AnalyticsPage() {
                     </td>
                     <td className="num"><span className="an-badge lead">{a.new_contacts || 0}</span></td>
                     <td className="num"><span className="an-badge old">{a.old_chats || 0}</span></td>
-                    <td className="num"><span className="an-badge active" title={a.awaiting ? `${a.awaiting} menunggu balasan` : undefined}>{a.active || 0}</span></td>
+                    <td className="num"><span className="an-badge active" title={summary?.live && a.awaiting ? `${a.awaiting} menunggu balasan` : undefined}>{a.active || 0}</span></td>
                     <td className="num"><span className="an-badge resolved">{a.resolved || 0}</span></td>
                     <td className="num"><span className="an-total">{a.total_leads || 0}</span></td>
                     <td className="num"><span className="an-badge prospek">{a.prospek || 0}</span></td>
@@ -408,7 +408,7 @@ export default function AnalyticsPage() {
               <span className="an-note-warn"><Info size={13} /> Riwayat tag belum aktif: tag yang sudah dilepas (mis. Prospek diganti Deal/Fail) belum ikut terhitung.</span>
             )}
             <span><Info size={13} /> Lead Baru = kontak pertama kali chat dalam periode · Lead Lama = customer lama (belum Deal) yang dihubungi agent dalam periode · Total Lead = Lead Baru + Lead Lama</span>
-            <span><Info size={13} /> Aktif & Resolved = status Total Lead saat ini · Prospek = sudah diberi tag Prospek sampai akhir periode (atau langsung Deal) · Deal = tag Deal dipasang dalam periode</span>
+            <span><Info size={13} /> Aktif & Resolved: hari ini = status saat ini; periode lampau = Resolved bila chat sudah di-resolve setelah periode itu, walau kini aktif lagi karena dihubungi lagi (aktivitas barunya masuk periode baru) · Prospek = sudah diberi tag Prospek sampai akhir periode (atau langsung Deal) · Deal = tag Deal dipasang dalam periode</span>
           </div>
         </div>
       )}
