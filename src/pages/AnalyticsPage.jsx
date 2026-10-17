@@ -74,6 +74,18 @@ function StatCard({ icon: Icon, label, value, sub, color, loading, title }) {
   )
 }
 
+// Satu tahap konversi: label + bar + persen (num/den). den 0 -> "—".
+function ConvStep({ label, num = 0, den = 0, title, tone = 'primary' }) {
+  const pct = den ? Math.round((num / den) * 100) : null
+  return (
+    <div className="an-conv-step" title={title}>
+      <span className="an-conv-lbl">{label}</span>
+      <div className="an-rate-bar"><div className={`an-rate-fill ${tone}`} style={{ width: `${pct ?? 0}%` }} /></div>
+      <span className="an-conv-pct">{pct == null ? '—' : `${pct}%`}</span>
+    </div>
+  )
+}
+
 // Judul bagian yang seragam (ikon + judul + keterangan kanan)
 function SectionHead({ icon: Icon, title, right }) {
   return (
@@ -330,10 +342,10 @@ export default function AnalyticsPage() {
           <div className="an-table-wrap">
             <table className="an-table an-agent-table">
               <colgroup>
-                <col style={{ width: '19%' }} />
-                {AGENT_NUM_COLS.map((c) => <col key={c} style={{ width: c === 'penawaran' ? '9.5%' : '7.5%' }} />)}
-                <col style={{ width: '9.5%' }} />
-                <col style={{ width: '10.5%' }} />
+                <col style={{ width: '17%' }} />
+                {AGENT_NUM_COLS.map((c) => <col key={c} style={{ width: c === 'penawaran' ? '8.5%' : '7%' }} />)}
+                <col style={{ width: '8.5%' }} />
+                <col style={{ width: '24%' }} />
               </colgroup>
               <thead>
                 <tr>
@@ -346,13 +358,12 @@ export default function AnalyticsPage() {
                   <th className="num" title="Chat yang diberi tag Survey dalam periode">Survey</th>
                   <th className="num" title="Chat yang diberi tag Deal dalam periode (termasuk customer lama)">Deal</th>
                   <th className="num" title={`Rata-rata waktu agent membalas pesan customer dalam periode${kpi?.workHours ? ' (dihitung dalam jam kerja)' : ''}`}>Avg Respons</th>
-                  <th title="Deal ÷ Lead Baru dalam periode">Deal Rate</th>
+                  <th title="Lead → P/S: lead baru periode ini yang sudah diberi tag Penawaran/Survey. P/S → Deal: chat yang masuk tahap Penawaran/Survey dalam periode lalu Deal.">Konversi</th>
                 </tr>
               </thead>
               <tbody>
                 {agents.map((a) => {
                   const lead = a.new_contacts || 0
-                  const rate = lead > 0 ? Math.round(((a.deal || 0) / lead) * 100) : null
                   const active = (a.open || 0) + (a.in_progress || 0)
                   return (
                     <tr key={a.id || a.name}>
@@ -380,12 +391,12 @@ export default function AnalyticsPage() {
                           : <span className="an-resp none" title="Belum ada balasan dalam periode">—</span>}
                       </td>
                       <td>
-                        {rate == null ? <span className="an-rate-none" title="Belum ada lead baru dalam periode">—</span> : (
-                          <div className="an-rate" title={`${a.deal || 0} deal ÷ ${lead} lead baru`}>
-                            <div className="an-rate-bar"><div className="an-rate-fill" style={{ width: `${Math.min(rate, 100)}%` }} /></div>
-                            <span>{rate}%</span>
-                          </div>
-                        )}
+                        <div className="an-conv">
+                          <ConvStep label="Lead → P/S" num={a.conv_lead_ps} den={a.conv_lead}
+                            title={`${a.conv_lead_ps || 0} dari ${a.conv_lead || 0} lead baru sudah Penawaran/Survey`} />
+                          <ConvStep label="P/S → Deal" num={a.conv_ps_deal} den={a.conv_ps} tone="deal"
+                            title={`${a.conv_ps_deal || 0} dari ${a.conv_ps || 0} chat Penawaran/Survey (masuk dalam periode) sudah Deal`} />
+                        </div>
                       </td>
                     </tr>
                   )
@@ -397,7 +408,14 @@ export default function AnalyticsPage() {
             {summary?.new_unassigned > 0 && (
               <span className="an-note-warn"><UserPlus size={13} /> {summary.new_unassigned} dari {summary.new_contacts} kontak baru belum di-assign</span>
             )}
+            {summary && !summary.tag_times && (
+              <span className="an-note-warn"><Info size={13} /> Waktu pemasangan tag belum tercatat, jadi tag & konversi masih perkiraan. Jalankan SQL migrasi tag di Supabase.</span>
+            )}
+            {summary?.tag_times && !summary.tag_history && (
+              <span className="an-note-warn"><Info size={13} /> Riwayat tag belum aktif: tag yang sudah dilepas (mis. Penawaran diganti Deal/Fail) belum ikut terhitung di konversi.</span>
+            )}
             <span><Info size={13} /> Lead Baru = kontak pertama kali chat dalam periode · Chat Lama = customer lama yang chat/di-follow-up dalam periode · Aktif = kondisi saat ini · tag & resolved dihitung saat terjadi dalam periode</span>
+            <span><Info size={13} /> Konversi: Lead → P/S = lead baru periode ini yang sudah diberi tag Penawaran/Survey · P/S → Deal = chat yang masuk Penawaran/Survey dalam periode lalu Deal (dihitung sampai hari ini)</span>
           </div>
         </div>
       )}
@@ -433,29 +451,39 @@ export default function AnalyticsPage() {
         </div>
 
         <div className="an-kpi-box">
-          <SectionHead icon={TrendingUp} title="Funnel Konversi" right="lead baru & tag dalam periode" />
+          <SectionHead icon={TrendingUp} title="Funnel Konversi" right="jumlah dalam periode" />
           {loading ? <div className="an-skel" style={{ height: 120 }} /> : !funnel || !funnel.stages?.length ? (
             <div className="an-chart-empty">Belum ada data funnel</div>
           ) : (
             <div className="an-funnel">
               {funnel.stages.map((s, i) => {
-                const base = funnel.stages[0]?.count || 0
-                const pct = base ? Math.round((s.count / base) * 100) : null
+                const max = Math.max(...funnel.stages.map(x => x.count), 0)
+                const w = max ? Math.round((s.count / max) * 100) : 0
                 const colors = ['#2563eb', '#6366f1', '#f59e0b', '#10b981', '#0ea5e9']
                 return (
                   <div key={s.stage} className="an-funnel-row">
                     <span className="an-funnel-lbl">{s.stage === 'Lead' ? 'Lead Baru' : s.stage}</span>
                     <div className="an-funnel-bar-wrap">
-                      <div className="an-funnel-bar" style={{ width: `${Math.min(100, Math.max(pct ?? (s.count ? 100 : 0), 3))}%`, background: colors[i % colors.length] }}>
+                      <div className="an-funnel-bar" style={{ width: `${Math.max(w, 3)}%`, background: colors[i % colors.length] }}>
                         <span className="an-funnel-count">{s.count}</span>
                       </div>
                     </div>
-                    <span className="an-funnel-pct" title={i ? 'Dibanding jumlah lead baru' : undefined}>{pct == null ? '—' : `${pct}%`}</span>
                   </div>
                 )
               })}
               {funnel.fail > 0 && (
                 <div className="an-funnel-fail">Gagal/Batal (Fail): <strong>{funnel.fail}</strong></div>
+              )}
+              {funnel.conversion && (
+                <div className="an-conv-total">
+                  <div className="an-conv-head">Tingkat konversi</div>
+                  <ConvStep label="Lead → Penawaran/Survey" num={funnel.conversion.lead_ps} den={funnel.conversion.lead}
+                    title={`${funnel.conversion.lead_ps} dari ${funnel.conversion.lead} lead baru sudah Penawaran/Survey`} />
+                  <ConvStep label="Penawaran/Survey → Deal" num={funnel.conversion.ps_deal} den={funnel.conversion.ps} tone="deal"
+                    title={`${funnel.conversion.ps_deal} dari ${funnel.conversion.ps} chat Penawaran/Survey (masuk dalam periode) sudah Deal`} />
+                  <ConvStep label="Lead → Deal" num={funnel.conversion.lead_deal} den={funnel.conversion.lead} tone="deal"
+                    title={`${funnel.conversion.lead_deal} dari ${funnel.conversion.lead} lead baru sudah Deal`} />
+                </div>
               )}
             </div>
           )}
@@ -625,13 +653,21 @@ export default function AnalyticsPage() {
         .an-table-box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px; margin-bottom: 16px; box-shadow: 0 1px 3px var(--shadow); }
         .an-table-wrap { overflow-x: auto; }
         .an-table { width: 100%; border-collapse: collapse; table-layout: fixed; min-width: 760px; }
-        .an-agent-table { min-width: 840px; }
+        .an-agent-table { min-width: 940px; }
         .an-agent-table th.num, .an-agent-table td.num { padding-left: 6px; padding-right: 6px; }
         .an-table-note { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border); font-size: 12px; color: var(--muted); line-height: 1.45; }
         .an-table-note > span { display: flex; align-items: flex-start; gap: 6px; }
         .an-table-note svg { flex-shrink: 0; margin-top: 2px; }
         .an-note-warn { color: #d97706; font-weight: 600; }
-        .an-rate-none { color: var(--muted); font-size: 12px; }
+        .an-conv { display: flex; flex-direction: column; gap: 5px; }
+        .an-conv-step { display: flex; align-items: center; gap: 8px; min-width: 0; }
+        .an-conv-lbl { width: 74px; flex-shrink: 0; font-size: 11.5px; color: var(--muted); white-space: nowrap; }
+        .an-conv-step .an-rate-bar { max-width: none; }
+        .an-conv-pct { min-width: 34px; text-align: right; font-size: 12px; font-weight: 700; color: var(--text2); font-variant-numeric: tabular-nums; }
+        .an-rate-fill.deal { background: #10b981; }
+        .an-conv-total { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; padding-top: 12px; border-top: 1px solid var(--border); }
+        .an-conv-head { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: var(--muted); }
+        .an-conv-total .an-conv-lbl { width: 160px; font-size: 12.5px; color: var(--text2); }
         .an-kpi-wait { color: #d97706; font-weight: 600; }
         .an-table th { text-align: left; padding: 9px 12px; font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; line-height: 1.3; border-bottom: 1px solid var(--border); vertical-align: bottom; }
         .an-table td { padding: 10px 12px; font-size: 13px; border-bottom: 1px solid var(--border); color: var(--text); overflow: hidden; }
