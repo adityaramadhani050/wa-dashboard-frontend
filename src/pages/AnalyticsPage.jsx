@@ -33,6 +33,8 @@ function fmtRange(from, to) {
   return `${left} – ${t.toLocaleDateString('id-ID', full)}`
 }
 
+const AGENT_NUM_COLS = ['new', 'old', 'active', 'resolved', 'total', 'penawaran', 'survey', 'deal']
+
 const PRESETS = [
   { days: 1, label: 'Hari ini' },
   { days: 7, label: '7 hari' },
@@ -72,40 +74,14 @@ function StatCard({ icon: Icon, label, value, sub, color, loading, title }) {
   )
 }
 
-const pctOf = (n, base) => (base ? Math.round(((n || 0) / base) * 100) : null)
-
-// Sel angka tabel agent: badge jumlah + persen konversi kecil di bawahnya.
-function StageCell({ n = 0, base, tone, title }) {
-  const pct = base === undefined ? undefined : pctOf(n, base)
+// Satu tahap konversi: label + bar + persen (num/den). den 0 -> "—".
+function ConvStep({ label, num = 0, den = 0, title, tone = 'primary' }) {
+  const pct = den ? Math.round((num / den) * 100) : null
   return (
-    <td className="num" title={title}>
-      <span className={`an-badge ${tone}`}>{n}</span>
-      {pct !== undefined && <span className="an-cell-pct">{pct == null ? '—' : `${pct}%`}</span>}
-    </td>
-  )
-}
-
-// Funnel satu kohort: Jumlah -> Penawaran/Survey -> Deal (+ Fail)
-function CohortFunnel({ title, c, color }) {
-  const rows = [
-    { lbl: title, n: c.total, pct: c.total ? 100 : null, tip: null, bg: color },
-    { lbl: 'Penawaran/Survey', n: c.ps, pct: pctOf(c.ps, c.total), tip: `dari ${title.toLowerCase()}`, bg: '#6366f1' },
-    { lbl: 'Deal', n: c.deal, pct: pctOf(c.deal, c.ps), tip: 'dari Penawaran/Survey', bg: '#10b981' },
-  ]
-  return (
-    <div className="an-cohort">
-      {rows.map(r => (
-        <div key={r.lbl} className="an-funnel-row" title={r.tip && r.pct != null ? `${r.pct}% ${r.tip}` : undefined}>
-          <span className="an-funnel-lbl">{r.lbl}</span>
-          <div className="an-funnel-bar-wrap">
-            <div className="an-funnel-bar" style={{ width: `${Math.max(c.total ? Math.round((r.n / c.total) * 100) : 0, 3)}%`, background: r.bg }}>
-              <span className="an-funnel-count">{r.n}</span>
-            </div>
-          </div>
-          <span className="an-funnel-pct">{r.pct == null ? '—' : `${r.pct}%`}</span>
-        </div>
-      ))}
-      {c.fail > 0 && <div className="an-cohort-fail">Fail: <strong>{c.fail}</strong></div>}
+    <div className="an-conv-step" title={title}>
+      <span className="an-conv-lbl">{label}</span>
+      <div className="an-rate-bar"><div className={`an-rate-fill ${tone}`} style={{ width: `${pct ?? 0}%` }} /></div>
+      <span className="an-conv-pct">{pct == null ? '—' : `${pct}%`}</span>
     </div>
   )
 }
@@ -247,15 +223,15 @@ export default function AnalyticsPage() {
     date: new Date(`${d.date}T00:00:00`).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }),
     Masuk: d.incoming || 0,
     Keluar: d.outgoing || 0,
-    'Chat Baru': d.new_contacts || 0,
+    'Lead Baru': d.new_contacts || 0,
   }))
 
   const agentChart = agents.map(a => ({
     name: a.name || 'Agent',
-    'Chat Baru': a.new_total || 0,
-    'Chat Lama': a.old_total || 0,
-    'Penawaran/Survey': (a.new_ps || 0) + (a.old_ps || 0),
-    Deal: (a.new_deal || 0) + (a.old_deal || 0),
+    'Total Lead': a.total_leads || 0,
+    Penawaran: a.penawaran || 0,
+    Survey: a.survey || 0,
+    Deal: a.deal || 0,
   }))
 
   return (
@@ -319,12 +295,12 @@ export default function AnalyticsPage() {
 
       {error && <div className="an-error">{error}</div>}
 
-      {/* Kartu ringkasan */}
+      {/* Kartu ringkasan (= total tabel agent + chat yang belum di-assign) */}
       <div className="an-cards">
         <StatCard
           loading={loading}
           icon={UserPlus}
-          label="Chat Baru"
+          label="Lead Baru"
           value={sumOr('new_contacts')}
           sub={summary ? `${summary.new_unassigned ? `${summary.new_unassigned} belum di-assign` : 'semua sudah di-assign'} · ${summary.total_contacts.toLocaleString('id-ID')} kontak total` : null}
           title="Kontak yang pertama kali chat dalam periode (tanpa grup & Non-Client)"
@@ -333,7 +309,7 @@ export default function AnalyticsPage() {
         <StatCard
           loading={loading}
           icon={UserCheck}
-          label="Chat Lama Di-follow-up"
+          label="Lead Lama"
           value={sumOr('old_chats')}
           sub="customer lama yang dihubungi agent"
           title="Customer lama (kontak sebelum periode, belum Deal) yang dikirimi pesan oleh agent dalam periode"
@@ -342,10 +318,10 @@ export default function AnalyticsPage() {
         <StatCard
           loading={loading}
           icon={Inbox}
-          label="Sedang Dihandle"
+          label="Aktif"
           value={sumOr('active')}
-          sub={summary ? `saat ini · ${summary.awaiting} menunggu balasan${summary.active_unassigned ? ` · ${summary.active_unassigned} belum di-assign` : ''}` : null}
-          title="Chat Open/Aktif yang di-assign SAAT INI (tidak tergantung periode)"
+          sub={summary ? (summary.live ? `masih aktif saat ini · ${summary.awaiting} menunggu balasan` : 'belum selesai di akhir periode') : null}
+          title="Dari Total Lead: yang belum Resolved di akhir periode (hari ini = saat ini)"
           color="#8b5cf6"
         />
         <StatCard
@@ -353,8 +329,8 @@ export default function AnalyticsPage() {
           icon={CheckCircle2}
           label="Resolved"
           value={sumOr('resolved')}
-          sub="di-resolve dalam periode"
-          title="Chat yang berstatus Resolved dan di-resolve dalam periode (tanpa Non-Client)"
+          sub={summary ? `dari ${summary.total_leads} total lead` : null}
+          title="Dari Total Lead: yang sudah Resolved di akhir periode"
           color="#10b981"
         />
       </div>
@@ -366,26 +342,24 @@ export default function AnalyticsPage() {
           <div className="an-table-wrap">
             <table className="an-table an-agent-table">
               <colgroup>
-                <col style={{ width: '20%' }} />
-                {[...Array(6)].map((_, i) => <col key={i} style={{ width: '9.5%' }} />)}
-                <col style={{ width: '10%' }} />
-                <col style={{ width: '13%' }} />
+                <col style={{ width: '17%' }} />
+                {AGENT_NUM_COLS.map((c) => <col key={c} style={{ width: c === 'penawaran' ? '8.5%' : '6.5%' }} />)}
+                <col style={{ width: '8%' }} />
+                <col style={{ width: '21%' }} />
               </colgroup>
               <thead>
-                <tr className="an-grp-row">
-                  <th rowSpan={2}>Agent</th>
-                  <th colSpan={3} className="an-grp gs" title="Kontak yang pertama kali chat dalam periode dan di-assign ke agent ini">Chat Baru</th>
-                  <th colSpan={3} className="an-grp gs" title="Customer lama (belum Deal) yang dikirimi pesan oleh agent dalam periode">Chat Lama di-follow-up</th>
-                  <th rowSpan={2} className="num gs" title="Chat yang di-resolve dalam periode">Resolved</th>
-                  <th rowSpan={2} className="num" title={`Rata-rata waktu agent membalas pesan customer dalam periode${kpi?.workHours ? ' (dihitung dalam jam kerja)' : ''}`}>Avg Respons</th>
-                </tr>
                 <tr>
-                  <th className="num gs">Jumlah</th>
-                  <th className="num" title="Sudah diberi tag Penawaran/Survey · % dari jumlah">Penawaran/ Survey</th>
-                  <th className="num" title="Deal sejak awal periode · % dari Penawaran/Survey">Deal</th>
-                  <th className="num gs">Jumlah</th>
-                  <th className="num" title="Sudah diberi tag Penawaran/Survey · % dari jumlah">Penawaran/ Survey</th>
-                  <th className="num" title="Deal sejak awal periode · % dari Penawaran/Survey">Deal</th>
+                  <th>Agent</th>
+                  <th className="num" title="Kontak yang pertama kali chat dalam periode">Lead Baru</th>
+                  <th className="num" title="Customer lama (belum Deal) yang dikirimi pesan oleh agent dalam periode">Lead Lama</th>
+                  <th className="num" title={summary?.live ? 'Dari Total Lead: masih aktif saat ini' : 'Dari Total Lead: belum Resolved di akhir periode'}>Aktif</th>
+                  <th className="num" title="Dari Total Lead: sudah Resolved di akhir periode">Resolved</th>
+                  <th className="num" title="Lead Baru + Lead Lama">Total Lead</th>
+                  <th className="num" title="Dari Total Lead: sudah diberi tag Penawaran sampai akhir periode">Penawaran</th>
+                  <th className="num" title="Dari Total Lead: sudah diberi tag Survey sampai akhir periode">Survey</th>
+                  <th className="num" title="Dari Total Lead: diberi tag Deal dalam periode">Deal</th>
+                  <th className="num" title={`Rata-rata waktu agent membalas pesan customer dalam periode${kpi?.workHours ? ' (dihitung dalam jam kerja)' : ''}`}>Avg. Respons</th>
+                  <th title="Lead → Prospek: Total Lead yang sudah Penawaran/Survey. Prospek → Deal: Prospek yang Deal.">Konversi</th>
                 </tr>
               </thead>
               <tbody>
@@ -400,21 +374,26 @@ export default function AnalyticsPage() {
                         </div>
                       </div>
                     </td>
-                    <td className="num gs"><span className="an-badge lead">{a.new_total || 0}</span></td>
-                    <StageCell n={a.new_ps} base={a.new_total} tone="penawaran"
-                      title={`${a.new_ps || 0} dari ${a.new_total || 0} chat baru sudah Penawaran/Survey`} />
-                    <StageCell n={a.new_deal} base={a.new_ps} tone="deal"
-                      title={`${a.new_deal || 0} dari ${a.new_ps || 0} chat baru Penawaran/Survey sudah Deal${a.new_fail ? ` · ${a.new_fail} Fail` : ''}`} />
-                    <td className="num gs"><span className="an-badge old">{a.old_total || 0}</span></td>
-                    <StageCell n={a.old_ps} base={a.old_total} tone="penawaran"
-                      title={`${a.old_ps || 0} dari ${a.old_total || 0} chat lama sudah Penawaran/Survey`} />
-                    <StageCell n={a.old_deal} base={a.old_ps} tone="deal"
-                      title={`${a.old_deal || 0} dari ${a.old_ps || 0} chat lama Penawaran/Survey jadi Deal${a.old_fail ? ` · ${a.old_fail} Fail` : ''}`} />
-                    <td className="num gs"><span className="an-badge resolved">{a.resolved || 0}</span></td>
+                    <td className="num"><span className="an-badge lead">{a.new_contacts || 0}</span></td>
+                    <td className="num"><span className="an-badge old">{a.old_chats || 0}</span></td>
+                    <td className="num"><span className="an-badge active" title={summary?.live && a.awaiting ? `${a.awaiting} menunggu balasan` : undefined}>{a.active || 0}</span></td>
+                    <td className="num"><span className="an-badge resolved">{a.resolved || 0}</span></td>
+                    <td className="num"><span className="an-total">{a.total_leads || 0}</span></td>
+                    <td className="num"><span className="an-badge penawaran">{a.penawaran || 0}</span></td>
+                    <td className="num"><span className="an-badge survey">{a.survey || 0}</span></td>
+                    <td className="num"><span className="an-badge deal" title={a.fail ? `${a.fail} Fail` : undefined}>{a.deal || 0}</span></td>
                     <td className="num">
                       {a.avgResponse != null
                         ? <span className={`an-resp${a.avgResponse > kpiMinutes ? ' slow' : ''}`} title={`Rata-rata ${formatDurLong(a.avgResponse)} dari ${a.replies} balasan`}>{formatDurShort(a.avgResponse)}</span>
                         : <span className="an-resp none" title="Belum ada balasan dalam periode">—</span>}
+                    </td>
+                    <td>
+                      <div className="an-conv">
+                        <ConvStep label="Lead → Prospek" num={a.prospek} den={a.total_leads}
+                          title={`${a.prospek || 0} dari ${a.total_leads || 0} lead sudah Penawaran/Survey`} />
+                        <ConvStep label="Prospek → Deal" num={a.deal} den={a.prospek} tone="deal"
+                          title={`${a.deal || 0} dari ${a.prospek || 0} prospek Deal`} />
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -423,16 +402,16 @@ export default function AnalyticsPage() {
           </div>
           <div className="an-table-note">
             {summary?.new_unassigned > 0 && (
-              <span className="an-note-warn"><UserPlus size={13} /> {summary.new_unassigned} dari {summary.new_contacts} chat baru belum di-assign</span>
+              <span className="an-note-warn"><UserPlus size={13} /> {summary.new_unassigned} dari {summary.new_contacts} lead baru belum di-assign</span>
             )}
             {summary && !summary.tag_times && (
-              <span className="an-note-warn"><Info size={13} /> Waktu pemasangan tag belum tercatat, jadi konversi masih perkiraan. Jalankan SQL migrasi tag di Supabase.</span>
+              <span className="an-note-warn"><Info size={13} /> Waktu pemasangan tag belum tercatat, jadi Penawaran/Survey/Deal masih perkiraan. Jalankan SQL migrasi tag di Supabase.</span>
             )}
             {summary?.tag_times && !summary.tag_history && (
               <span className="an-note-warn"><Info size={13} /> Riwayat tag belum aktif: tag yang sudah dilepas (mis. Penawaran diganti Deal/Fail) belum ikut terhitung.</span>
             )}
-            <span><Info size={13} /> Chat Baru = kontak pertama kali chat dalam periode · Chat Lama di-follow-up = customer lama (belum Deal) yang dikirimi pesan agent dalam periode</span>
-            <span><Info size={13} /> Penawaran/Survey & Deal = perkembangan chat tersebut sampai hari ini · % di bawah angka: Penawaran/Survey dari jumlah, Deal dari Penawaran/Survey</span>
+            <span><Info size={13} /> Lead Baru = kontak pertama kali chat dalam periode · Lead Lama = customer lama (belum Deal) yang dihubungi agent dalam periode · Total Lead = Lead Baru + Lead Lama</span>
+            <span><Info size={13} /> Aktif, Resolved, Penawaran, Survey, Deal = kondisi Total Lead di akhir periode{summary?.live ? ' (hari ini: saat ini)' : ''} · Prospek = Penawaran atau Survey</span>
           </div>
         </div>
       )}
@@ -468,13 +447,39 @@ export default function AnalyticsPage() {
         </div>
 
         <div className="an-kpi-box">
-          <SectionHead icon={TrendingUp} title="Funnel Konversi" right="perkembangan sampai hari ini" />
-          {loading ? <div className="an-skel" style={{ height: 120 }} /> : !funnel?.cohorts ? (
+          <SectionHead icon={TrendingUp} title="Funnel Konversi" right="dari Total Lead" />
+          {loading ? <div className="an-skel" style={{ height: 120 }} /> : !funnel?.conversion ? (
             <div className="an-chart-empty">Belum ada data funnel</div>
           ) : (
             <div className="an-funnel">
-              <CohortFunnel title="Chat Baru" c={funnel.cohorts.new} color="#2563eb" />
-              <CohortFunnel title="Chat Lama" c={funnel.cohorts.old} color="#64748b" />
+              {funnel.stages.map((s, i) => {
+                const base = funnel.stages[0]?.count || 0
+                const pct = base ? Math.round((s.count / base) * 100) : null
+                const colors = ['#2563eb', '#6366f1', '#f59e0b', '#10b981']
+                return (
+                  <div key={s.stage} className="an-funnel-row">
+                    <span className="an-funnel-lbl">{s.stage}</span>
+                    <div className="an-funnel-bar-wrap">
+                      <div className="an-funnel-bar" style={{ width: `${Math.max(pct ?? 0, 3)}%`, background: colors[i % colors.length] }}>
+                        <span className="an-funnel-count">{s.count}</span>
+                      </div>
+                    </div>
+                    <span className="an-funnel-pct">{pct == null ? '—' : `${pct}%`}</span>
+                  </div>
+                )
+              })}
+              {funnel.fail > 0 && (
+                <div className="an-funnel-fail">Gagal/Batal (Fail): <strong>{funnel.fail}</strong></div>
+              )}
+              <div className="an-conv-total">
+                <div className="an-conv-head">Tingkat konversi</div>
+                <ConvStep label="Lead → Prospek" num={funnel.conversion.prospek} den={funnel.conversion.lead}
+                  title={`${funnel.conversion.prospek} dari ${funnel.conversion.lead} lead sudah Penawaran/Survey`} />
+                <ConvStep label="Prospek → Deal" num={funnel.conversion.deal} den={funnel.conversion.prospek} tone="deal"
+                  title={`${funnel.conversion.deal} dari ${funnel.conversion.prospek} prospek Deal`} />
+                <ConvStep label="Lead → Deal" num={funnel.conversion.deal} den={funnel.conversion.lead} tone="deal"
+                  title={`${funnel.conversion.deal} dari ${funnel.conversion.lead} lead Deal`} />
+              </div>
             </div>
           )}
         </div>
@@ -487,7 +492,7 @@ export default function AnalyticsPage() {
       <div className="an-charts">
         <div className="an-chart-box">
           <SectionHead icon={Activity} title="Aktivitas Pesan" right={rangeLabel} />
-          {loading ? <div className="an-skel" /> : chartData.every(d => d.Masuk === 0 && d.Keluar === 0 && d['Chat Baru'] === 0) ? (
+          {loading ? <div className="an-skel" /> : chartData.every(d => d.Masuk === 0 && d.Keluar === 0 && d['Lead Baru'] === 0) ? (
             <div className="an-chart-empty">Belum ada data pesan</div>
           ) : (
             <ResponsiveContainer width="100%" height={220}>
@@ -499,14 +504,14 @@ export default function AnalyticsPage() {
                 <Legend wrapperStyle={{ fontSize: 12, color: 'var(--text2)' }} />
                 <Line type="monotone" dataKey="Masuk" stroke="#2563eb" strokeWidth={2} dot={false} />
                 <Line type="monotone" dataKey="Keluar" stroke="#f59e0b" strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="Chat Baru" stroke="#10b981" strokeWidth={2} dot={false} strokeDasharray="4 4" />
+                <Line type="monotone" dataKey="Lead Baru" stroke="#10b981" strokeWidth={2} dot={false} strokeDasharray="4 4" />
               </LineChart>
             </ResponsiveContainer>
           )}
         </div>
 
         <div className="an-chart-box">
-          <SectionHead icon={BarChart2} title="Performa Agent" right="Chat Baru · Chat Lama · Penawaran/Survey · Deal" />
+          <SectionHead icon={BarChart2} title="Performa Agent" right="Total Lead · Penawaran · Survey · Deal" />
           {loading ? <div className="an-skel" /> : agents.length === 0 ? (
             <div className="an-chart-empty">Belum ada percakapan yang di-assign</div>
           ) : (
@@ -517,9 +522,9 @@ export default function AnalyticsPage() {
                 <YAxis tick={{ fill: 'var(--muted)', fontSize: 11 }} allowDecimals={false} />
                 <Tooltip content={<Tip />} />
                 <Legend wrapperStyle={{ fontSize: 12, color: 'var(--text2)' }} />
-                <Bar dataKey="Chat Baru" fill="#2563eb" radius={[4,4,0,0]} />
-                <Bar dataKey="Chat Lama" fill="#64748b" radius={[4,4,0,0]} />
-                <Bar dataKey="Penawaran/Survey" fill="#6366f1" radius={[4,4,0,0]} />
+                <Bar dataKey="Total Lead" fill="#2563eb" radius={[4,4,0,0]} />
+                <Bar dataKey="Penawaran" fill="#6366f1" radius={[4,4,0,0]} />
+                <Bar dataKey="Survey" fill="#f59e0b" radius={[4,4,0,0]} />
                 <Bar dataKey="Deal" fill="#10b981" radius={[4,4,0,0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -642,20 +647,25 @@ export default function AnalyticsPage() {
         .an-table-box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px; margin-bottom: 16px; box-shadow: 0 1px 3px var(--shadow); }
         .an-table-wrap { overflow-x: auto; }
         .an-table { width: 100%; border-collapse: collapse; table-layout: fixed; min-width: 760px; }
-        .an-agent-table { min-width: 860px; }
+        .an-agent-table { min-width: 940px; }
         .an-agent-table th.num, .an-agent-table td.num { padding-left: 6px; padding-right: 6px; }
+        .an-agent-table th { letter-spacing: 0.2px; }
         .an-table-note { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border); font-size: 12px; color: var(--muted); line-height: 1.45; }
         .an-table-note > span { display: flex; align-items: flex-start; gap: 6px; }
         .an-table-note svg { flex-shrink: 0; margin-top: 2px; }
         .an-note-warn { color: #d97706; font-weight: 600; }
-        .an-cell-pct { display: block; margin-top: 3px; font-size: 11px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
-        .an-agent-table thead tr.an-grp-row th { border-bottom: none; padding-bottom: 2px; }
-        .an-agent-table th.an-grp { text-align: center; color: var(--text2); letter-spacing: 0.5px; }
-        .an-agent-table th.an-grp::after { content: ''; display: block; height: 2px; margin: 6px 8px 0; border-radius: 2px; background: var(--border2); }
-        .an-agent-table .gs { border-left: 1px solid var(--border); }
-        .an-cohort { display: flex; flex-direction: column; gap: 8px; }
-        .an-cohort + .an-cohort { margin-top: 6px; padding-top: 12px; border-top: 1px solid var(--border); }
-        .an-cohort-fail { font-size: 12px; color: var(--danger); }
+        .an-conv { display: flex; flex-direction: column; gap: 5px; }
+        .an-conv-step { display: flex; align-items: center; gap: 8px; min-width: 0; }
+        .an-conv-lbl { width: 92px; flex-shrink: 0; font-size: 11.5px; color: var(--muted); white-space: nowrap; }
+        .an-conv-pct { min-width: 34px; text-align: right; font-size: 12px; font-weight: 700; color: var(--text2); font-variant-numeric: tabular-nums; }
+        .an-rate-bar { flex: 1; height: 6px; background: var(--surface3); border-radius: 3px; overflow: hidden; }
+        .an-rate-fill { height: 100%; background: var(--primary); border-radius: 3px; }
+        .an-rate-fill.deal { background: #10b981; }
+        .an-total { font-size: 13.5px; font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; }
+        .an-funnel-fail { font-size: 12px; color: var(--danger); margin-top: 2px; }
+        .an-conv-total { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; padding-top: 12px; border-top: 1px solid var(--border); }
+        .an-conv-head { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: var(--muted); }
+        .an-conv-total .an-conv-lbl { width: 120px; font-size: 12.5px; color: var(--text2); }
         .an-kpi-wait { color: #d97706; font-weight: 600; }
         .an-table th { text-align: left; padding: 9px 12px; font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; line-height: 1.3; border-bottom: 1px solid var(--border); vertical-align: bottom; }
         .an-table td { padding: 10px 12px; font-size: 13px; border-bottom: 1px solid var(--border); color: var(--text); overflow: hidden; }
