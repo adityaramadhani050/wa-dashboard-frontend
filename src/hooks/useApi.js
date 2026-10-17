@@ -165,7 +165,7 @@ export const deleteMessage = (messageId) => api.delete(`/messages/${messageId}`)
 // Edit pesan (hanya pesan keluar, teks, <=15 menit)
 export const editMessage = (messageId, message) => api.patch(`/messages/${messageId}/edit`, { message }).then(r => r.data)
 
-// Auto-assign chat (round-robin / least-loaded)
+// Auto-assign chat (dibagi rata berdasarkan kontak baru hari ini per agent)
 export const getAutoAssign = () => api.get('/settings/auto-assign').then(r => r.data)
 export const setAutoAssign = (enabled) => api.put('/settings/auto-assign', { enabled }).then(r => r.data)
 

@@ -512,7 +512,7 @@ export default function AgentManagementPage() {
           <div className="aa-icon"><Shuffle size={18} /></div>
           <div>
             <div className="aa-title">Auto-assign Chat (Round-robin)</div>
-            <div className="aa-desc">Bagi chat masuk ke agent secara seimbang berdasarkan jumlah chat aktif yang sedang ditangani. Saat diaktifkan, chat yang belum ter-assign langsung dibagikan.</div>
+            <div className="aa-desc">Bagi chat masuk ke agent secara seimbang berdasarkan jumlah kontak baru yang sudah diterima tiap agent hari ini (bukan chat aktif, karena chat aktif bisa berasal dari follow-up customer lama). Bila sama, agent dengan chat aktif lebih sedikit didahulukan. Saat diaktifkan, chat yang belum ter-assign langsung dibagikan.</div>
           </div>
         </div>
         <button
