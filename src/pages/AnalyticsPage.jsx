@@ -213,6 +213,7 @@ export default function AnalyticsPage() {
   const totalOpen = agents.reduce((s, a) => s + (a.open || 0), 0)
   // Kontak baru dalam periode (dari data harian yang sudah difilter)
   const totalNewContacts = daily.reduce((s, d) => s + (d.new_contacts || 0), 0)
+  const unassignedNew = Math.max(0, totalNewContacts - agents.reduce((s, a) => s + (a.new_contacts || 0), 0))
 
   const responseTimes = agents.filter(a => a.avgResponse != null).map(a => a.avgResponse)
   const globalAvgResponse = responseTimes.length > 0
@@ -336,14 +337,15 @@ export default function AnalyticsPage() {
           <div className="an-table-wrap">
             <table className="an-table an-agent-table">
               <colgroup>
-                <col style={{ width: '24%' }} />
-                {[...Array(6)].map((_, i) => <col key={i} style={{ width: '8.5%' }} />)}
-                <col style={{ width: '11%' }} />
-                <col style={{ width: '14%' }} />
+                <col style={{ width: '20%' }} />
+                {[...Array(7)].map((_, i) => <col key={i} style={{ width: i === 4 ? '10%' : '8%' }} />)}
+                <col style={{ width: '10%' }} />
+                <col style={{ width: '12%' }} />
               </colgroup>
               <thead>
                 <tr>
                   <th>Agent</th>
+                  <th className="num" title="Kontak baru dalam periode yang di-assign ke agent ini">Kontak Baru</th>
                   <th className="num" title="Chat open + sedang dihandle">Aktif</th><th className="num">Resolved</th>
                   <th className="num">Lead</th><th className="num">Penawaran</th><th className="num">Survey</th><th className="num">Deal</th>
                   <th className="num" title="Rata-rata waktu balasan pertama agent">Avg Respons</th><th>Deal Rate</th>
@@ -365,6 +367,7 @@ export default function AnalyticsPage() {
                           </div>
                         </div>
                       </td>
+                      <td className="num"><span className="an-badge newc">{a.new_contacts || 0}</span></td>
                       <td className="num"><span className="an-badge active" title={`${a.open||0} open + ${a.in_progress||0} sedang dihandle`}>{active}</span></td>
                       <td className="num"><span className="an-badge resolved">{a.resolved || 0}</span></td>
                       <td className="num"><span className="an-badge lead">{lead}</span></td>
@@ -388,6 +391,11 @@ export default function AnalyticsPage() {
               </tbody>
             </table>
           </div>
+          {unassignedNew > 0 && (
+            <div className="an-table-note">
+              <UserPlus size={13} /> {unassignedNew} dari {totalNewContacts} kontak baru belum di-assign ke agent{region ? ' regional ini' : ''}
+            </div>
+          )}
         </div>
       )}
 
@@ -611,6 +619,9 @@ export default function AnalyticsPage() {
         .an-table-box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px; margin-bottom: 16px; box-shadow: 0 1px 3px var(--shadow); }
         .an-table-wrap { overflow-x: auto; }
         .an-table { width: 100%; border-collapse: collapse; table-layout: fixed; min-width: 760px; }
+        .an-agent-table { min-width: 840px; }
+        .an-agent-table th.num, .an-agent-table td.num { padding-left: 6px; padding-right: 6px; }
+        .an-table-note { display: flex; align-items: center; gap: 6px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border); font-size: 12px; color: var(--muted); }
         .an-table th { text-align: left; padding: 9px 12px; font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; line-height: 1.3; border-bottom: 1px solid var(--border); vertical-align: bottom; }
         .an-table td { padding: 10px 12px; font-size: 13px; border-bottom: 1px solid var(--border); color: var(--text); overflow: hidden; }
         .an-table th.num, .an-table td.num { text-align: center; }
@@ -624,6 +635,7 @@ export default function AnalyticsPage() {
         .an-agent-email { font-size: 11px; color: var(--muted); }
         .an-badge { display: inline-block; min-width: 28px; text-align: center; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; }
         /* Warna transparan agar nyaman di mode gelap & terang */
+        .an-badge.newc { background: rgba(139,92,246,0.14); color: #8b5cf6; }
         .an-badge.active { background: rgba(14,165,233,0.14); color: #0ea5e9; }
         .an-badge.open { background: rgba(37,99,235,0.14); color: #3b82f6; }
         .an-badge.progress { background: rgba(217,119,6,0.14); color: #d97706; }
@@ -632,7 +644,7 @@ export default function AnalyticsPage() {
         .an-badge.penawaran { background: rgba(99,102,241,0.15); color: #6366f1; }
         .an-badge.survey { background: rgba(217,119,6,0.14); color: #d97706; }
         .an-badge.deal { background: rgba(16,185,129,0.14); color: #10b981; }
-        @media (prefers-color-scheme: dark) { .an-badge.penawaran { color: #a5b4fc; } .an-badge.lead, .an-badge.open { color: #7aa7ff; } }
+        @media (prefers-color-scheme: dark) { .an-badge.penawaran { color: #a5b4fc; } .an-badge.lead, .an-badge.open { color: #7aa7ff; } .an-badge.newc { color: #b69cff; } }
         .an-resp { display: inline-block; min-width: 44px; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; color: var(--success); background: rgba(16,185,129,0.12); font-variant-numeric: tabular-nums; }
         .an-resp.slow { color: #d97706; background: rgba(217,119,6,0.13); }
         .an-resp.none { color: var(--muted); background: none; }
