@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getAgents, createAgent, updateAgent, deleteAgent, getAutoAssign, setAutoAssign, generateBotToken, getWorkHours, setWorkHours, setAgentAvailability, cleanupMedia, getRegionalRouting, setRegionalRouting, setAgentRegion, backfillRegional, getAiSales, saveAiSales } from '../hooks/useApi'
 import { refreshAiAgent } from '../hooks/useAiAgent'
+import AiKnowledgePanel from '../components/AiKnowledgePanel'
 import { Plus, Pencil, Trash2, X, Eye, EyeOff, Users, Shuffle, KeyRound, Copy, Check, Clock, HardDrive, MapPin, AlertTriangle, Settings2, Sparkles } from 'lucide-react'
 
 const REGION_OPTIONS = [
@@ -191,6 +192,8 @@ export default function AgentManagementPage() {
     } finally { setAiBusy(false) }
   }
   const aiAgent = agents.find(a => String(a.id) === String(ai?.agent_id))
+  const [aiSection, setAiSectionState] = useState(() => { try { return sessionStorage.getItem('am_ai_sec') || 'settings' } catch { return 'settings' } })
+  const setAiSection = (v) => { setAiSectionState(v); try { sessionStorage.setItem('am_ai_sec', v) } catch {} }
 
   const handleSaveWorkHours = async () => {
     if (!wh || whBusy) return
@@ -684,6 +687,14 @@ export default function AgentManagementPage() {
       )}
 
       {tab === 'ai' && (
+        <div className="ai-subnav" role="tablist">
+          {[['settings', 'Pengaturan'], ['skills', 'Skill / Playbook'], ['lessons', 'Koreksi']].map(([k, label]) => (
+            <button key={k} role="tab" aria-selected={aiSection === k} className={aiSection === k ? 'active' : ''} onClick={() => setAiSection(k)}>{label}</button>
+          ))}
+        </div>
+      )}
+      {tab === 'ai' && aiSection !== 'settings' && <AiKnowledgePanel section={aiSection} />}
+      {tab === 'ai' && aiSection === 'settings' && (
         <div className="aa-grid">
           <div className="aa-card rr-card">
             <div className="aa-info">
@@ -916,6 +927,10 @@ export default function AgentManagementPage() {
         .cm-label { font-size: 13px; color: var(--text2); display: inline-flex; align-items: center; gap: 8px; }
         .cm-label input { width: 74px; height: 36px; padding: 0 10px; border: 1px solid var(--border); border-radius: 9px; font-size: 13px; color: var(--text); background: var(--surface2); }
         .cm-result { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 600; color: var(--success); }
+        .ai-subnav { display: inline-flex; gap: 2px; padding: 3px; margin-bottom: 14px; border-radius: 10px; background: var(--surface2); border: 1px solid var(--border); max-width: 100%; overflow-x: auto; }
+        .ai-subnav button { height: 32px; padding: 0 14px; border-radius: 7px; font-size: 12.5px; font-weight: 600; color: var(--text2); white-space: nowrap; }
+        .ai-subnav button:hover:not(.active) { background: var(--surface3); }
+        .ai-subnav button.active { background: var(--primary); color: var(--on-primary); }
         .ai-badge { display: inline-flex; align-items: center; gap: 3px; margin-left: 6px; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 999px; color: #7c3aed; background: rgba(124,58,237,0.13); }
         .ai-rules { display: flex; flex-direction: column; gap: 5px; width: 100%; padding: 12px 14px; border-radius: 10px; background: var(--surface2); border: 1px solid var(--border); font-size: 12.5px; color: var(--text2); line-height: 1.5; }
         .ai-rules b { color: var(--text); }

@@ -7,7 +7,7 @@ import {
   forwardMessage, deleteMessage, editMessage, sendLocation, sendContact, setConversationRegion,
   getTemplates, getQuickMedia, sendQuickMedia, useTemplate,
   getTags, addTagToConversation, removeTagFromConversation,
-  getContactNotes, createContactNote, getContactConversations, getConversationFollowup, getConversationResponseStats,
+  getContactNotes, createContactNote, getContactConversations, getConversationFollowup, getConversationResponseStats, getAiMemory, saveAiMemory,
   generateAiSuggestion, suggestAiTags, suggestAiNote, updateContact,
 } from '../hooks/useApi'
 import { supabase } from '../lib/supabase'
@@ -16,7 +16,8 @@ import FollowupPanel from '../components/FollowupPanel'
 import { dueTone } from '../components/followupUi'
 import { formatDurShort, formatDurLong } from '../lib/duration'
 import { useAiAgentId } from '../hooks/useAiAgent'
-import { Send, ArrowLeft, ArrowDown, UserCheck, Paperclip, X, FileText, Play, Download, Check, Image, Film, Clock, Zap, Package, Tag as TagIcon, StickyNote, MoreVertical, Sparkles, Reply, Pencil, Forward, Search as SearchIcon, Trash2, Copy, MapPin, User, Bot, PanelRight, ExternalLink, Phone } from 'lucide-react'
+import AiCorrectionModal from '../components/AiCorrectionModal'
+import { Send, ArrowLeft, ArrowDown, UserCheck, Paperclip, X, FileText, Play, Download, Check, Image, Film, Clock, Zap, Package, Tag as TagIcon, StickyNote, MoreVertical, Sparkles, Reply, Pencil, Forward, Search as SearchIcon, Trash2, Copy, MapPin, User, Bot, PanelRight, ExternalLink, Phone, GraduationCap, Brain } from 'lucide-react'
 
 
 const MSG_PAGE = 60 // jumlah pesan per halaman (muat bertahap saat scroll ke atas)
@@ -383,7 +384,7 @@ function mergeMessage(prev, message) {
 }
 
 // Baris pesan dengan gesture geser-untuk-balas (recv: geser kanan, sent: geser kiri)
-function SwipeMessageRow({ msg, sent, isSending, hasMedia, hasReply, name, grpStart, onReply, onForward, onDelete, onEdit, canEdit, onMenu, onQuoteClick, onImageClick }) {
+function SwipeMessageRow({ msg, sent, isSending, hasMedia, hasReply, name, grpStart, onReply, onForward, onDelete, onEdit, canEdit, onMenu, onQuoteClick, onImageClick, onCorrect }) {
   const [dragX, setDragX] = useState(0)
   const start = useRef(null)
   const swiping = useRef(false)
@@ -450,6 +451,7 @@ function SwipeMessageRow({ msg, sent, isSending, hasMedia, hasReply, name, grpSt
         <div className="cv-hover-actions">
           <button className="cv-hover-btn" title="Balas" onClick={onReply}><Reply size={14} /></button>
           {canEdit && <button className="cv-hover-btn" title="Edit" onClick={onEdit}><Pencil size={14} /></button>}
+          {onCorrect && <button className="cv-hover-btn ai" title="Koreksi balasan AI" onClick={onCorrect}><GraduationCap size={14} /></button>}
           <button className="cv-hover-btn" title="Teruskan" onClick={onForward}><Forward size={14} /></button>
           <button className="cv-hover-btn danger" title="Hapus" onClick={onDelete}><Trash2 size={14} /></button>
         </div>
@@ -473,6 +475,7 @@ function SwipeMessageRow({ msg, sent, isSending, hasMedia, hasReply, name, grpSt
         }
         <div className="cv-meta">
           {msg.sent_by_bot && <span className="cv-bot-tag" title="Dikirim otomatis oleh bot"><Bot size={11} />Bot</span>}
+          {msg.sent_by_ai && <span className="cv-bot-tag ai" title="Dikirim oleh AI Sales"><Sparkles size={10} />AI</span>}
           {msg.edited && <span className="cv-edited">Diedit</span>}
           {isSending
             ? <Clock size={11} style={{ color: 'rgba(255,255,255,0.5)', flexShrink: 0 }} />
@@ -527,6 +530,7 @@ export default function ChatPage({ chatId }) {
 
   // Menu aksi pesan (long-press mobile)
   const [actionMsg, setActionMsg] = useState(null)
+  const [correctMsg, setCorrectMsg] = useState(null) // koreksi balasan AI (admin)
   const [toast, setToast] = useState('')
   const [deletingMsg, setDeletingMsg] = useState(false)
   const [editingMsg, setEditingMsg] = useState(null) // pesan yang sedang diedit
@@ -1202,6 +1206,23 @@ export default function ChatPage({ chatId }) {
   }, [id])
   useEffect(() => { setRespStats(null) }, [id])
   useEffect(() => { if (showNotesPanel) loadRespStats() }, [showNotesPanel, loadRespStats])
+
+  // Ingatan AI Sales tentang customer ini (dibuat otomatis dari percakapan dengan AI)
+  const [aiMemory, setAiMemory] = useState(null)
+  const [memEditing, setMemEditing] = useState(false)
+  const [memDraft, setMemDraft] = useState('')
+  const [memBusy, setMemBusy] = useState(false)
+  const contactIdForMem = conversation?.contact?.id
+  useEffect(() => { setAiMemory(null); setMemEditing(false) }, [id])
+  useEffect(() => {
+    if (!showNotesPanel || !contactIdForMem) return
+    getAiMemory(contactIdForMem).then(setAiMemory).catch(() => setAiMemory(null))
+  }, [showNotesPanel, contactIdForMem])
+  const saveMemory = async () => {
+    setMemBusy(true)
+    try { setAiMemory(await saveAiMemory(contactIdForMem, memDraft)); setMemEditing(false) } catch {}
+    finally { setMemBusy(false) }
+  }
   // Ada pesan baru (masuk/keluar) saat panel terbuka -> hitung ulang (ditunda
   // sebentar agar pesan keluar sudah tersimpan di server).
   const lastMsgKey = messages.length ? String(messages[messages.length - 1].id) : ''
@@ -1391,6 +1412,11 @@ export default function ChatPage({ chatId }) {
             <button className="cv-sheet-item" onClick={() => { const m = actionMsg; setActionMsg(null); openForward(m) }}>
               <Forward size={18} /> Teruskan
             </button>
+            {isAdmin && actionMsg.sent_by_ai && (
+              <button className="cv-sheet-item" onClick={() => { const m = actionMsg; setActionMsg(null); setCorrectMsg(m) }}>
+                <GraduationCap size={18} /> Koreksi balasan AI
+              </button>
+            )}
             <button className="cv-sheet-item danger" onClick={() => handleDeleteMessage(actionMsg)}>
               <Trash2 size={18} /> Hapus
             </button>
@@ -1398,6 +1424,8 @@ export default function ChatPage({ chatId }) {
           </div>
         </div>
       )}
+
+      {correctMsg && <AiCorrectionModal msg={correctMsg} onClose={() => setCorrectMsg(null)} />}
 
       {forwardMsg && (
         <Modal title="Teruskan pesan ke" onClose={() => setForwardMsg(null)}>
@@ -1535,6 +1563,7 @@ export default function ChatPage({ chatId }) {
                 onMenu={() => setActionMsg(msg)}
                 onQuoteClick={scrollToReplied}
                 onImageClick={setLightboxUrl}
+                onCorrect={isAdmin && msg.sent_by_ai ? () => setCorrectMsg(msg) : undefined}
               />
             )
           })
@@ -1733,7 +1762,7 @@ export default function ChatPage({ chatId }) {
                 <span className="cv-notes-contact-label">Agent</span>
                 <div>
                   {assignedAgent
-                    ? <span className="cv-assigned"><UserCheck size={10} />{assignedAgent.name}</span>
+                    ? <span className={`cv-assigned${isAiChat ? ' ai' : ''}`}>{isAiChat ? <Sparkles size={10} /> : <UserCheck size={10} />}{assignedAgent.name}{isAiChat ? ' · AI' : ''}</span>
                     : <span className="cv-unassigned">Unassigned</span>}
                 </div>
                 <span className="cv-notes-contact-label" title="Rata-rata waktu agent membalas pesan customer di chat ini">Respons</span>
@@ -1774,6 +1803,31 @@ export default function ChatPage({ chatId }) {
               }}
               onChanged={loadFollowup}
             />
+
+            {/* Ingatan AI: tampil untuk chat milik AI atau bila sudah ada ingatan */}
+            {(isAiChat || aiMemory?.summary) && (
+              <section className="cv-ns">
+                <div className="cv-ns-head">
+                  <span className="cv-ns-title"><Brain size={13} />Ingatan AI</span>
+                  {isAdmin && !memEditing && (
+                    <button className="cv-mem-edit" onClick={() => { setMemDraft(aiMemory?.summary || ''); setMemEditing(true) }}><Pencil size={12} />Ubah</button>
+                  )}
+                </div>
+                {memEditing ? (
+                  <div className="cv-mem-form">
+                    <textarea rows={6} value={memDraft} onChange={e => setMemDraft(e.target.value)} placeholder="- Nama, lokasi, tagihan listrik, kebutuhan, keberatan…" />
+                    <div className="cv-mem-actions">
+                      <button onClick={() => setMemEditing(false)}>Batal</button>
+                      <button className="primary" onClick={saveMemory} disabled={memBusy}>{memBusy ? 'Menyimpan…' : 'Simpan'}</button>
+                    </div>
+                  </div>
+                ) : aiMemory?.summary ? (
+                  <div className="cv-mem-text">{aiMemory.summary}</div>
+                ) : (
+                  <div className="cv-notes-empty">Belum ada. AI meringkas fakta penting customer otomatis setelah percakapan sepi ±10 menit.</div>
+                )}
+              </section>
+            )}
 
             {/* Catatan */}
             <section className="cv-ns">
@@ -2029,6 +2083,17 @@ export default function ChatPage({ chatId }) {
         .cv-row.grp-start .brecv { border-top-left-radius: 4px; }
         .cv-bubble p { font-size: 14.2px; line-height: 1.5; white-space: pre-wrap; }
         .cv-meta { display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: 3px; padding: 0 2px; }
+        .cv-bot-tag.ai { background: rgba(139,92,246,0.28); }
+        .brecv .cv-bot-tag.ai { background: rgba(139,92,246,0.14); color: #8b5cf6; }
+        .cv-hover-btn.ai:hover { color: #8b5cf6; }
+        .cv-mem-edit { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; font-weight: 600; color: var(--primary); }
+        .cv-mem-text { font-size: 12.5px; line-height: 1.55; color: var(--text2); white-space: pre-wrap; padding: 10px 12px; border-radius: 10px; background: rgba(139,92,246,0.07); border: 1px solid rgba(139,92,246,0.2); }
+        .cv-mem-form { display: flex; flex-direction: column; gap: 8px; }
+        .cv-mem-form textarea { width: 100%; padding: 9px 11px; border-radius: 10px; background: var(--surface2); border: 1px solid var(--border); color: var(--text); font-size: 12.5px; line-height: 1.5; font-family: inherit; resize: vertical; outline: none; }
+        .cv-mem-form textarea:focus { border-color: var(--primary); }
+        .cv-mem-actions { display: flex; justify-content: flex-end; gap: 6px; }
+        .cv-mem-actions button { height: 30px; padding: 0 12px; border-radius: 8px; font-size: 12px; font-weight: 600; background: var(--surface2); color: var(--text2); border: 1px solid var(--border); }
+        .cv-mem-actions button.primary { background: var(--primary); color: var(--on-primary); border-color: transparent; }
         .cv-bot-tag { display: inline-flex; align-items: center; gap: 2px; font-size: 10px; font-weight: 700; padding: 0 5px; border-radius: 6px; background: rgba(255,255,255,0.18); margin-right: 2px; }
         .brecv .cv-bot-tag { background: var(--surface3); color: var(--text2); }
         .cv-edited { font-size: 10px; font-style: italic; opacity: 0.7; margin-right: 2px; }
