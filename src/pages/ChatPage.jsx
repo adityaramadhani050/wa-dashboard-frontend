@@ -1201,6 +1201,14 @@ export default function ChatPage({ chatId }) {
   }, [id])
   useEffect(() => { setRespStats(null) }, [id])
   useEffect(() => { if (showNotesPanel) loadRespStats() }, [showNotesPanel, loadRespStats])
+  // Ada pesan baru (masuk/keluar) saat panel terbuka -> hitung ulang (ditunda
+  // sebentar agar pesan keluar sudah tersimpan di server).
+  const lastMsgKey = messages.length ? String(messages[messages.length - 1].id) : ''
+  useEffect(() => {
+    if (!showNotesPanel || !lastMsgKey) return
+    const t = setTimeout(loadRespStats, 1500)
+    return () => clearTimeout(t)
+  }, [lastMsgKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const name = conversation?.contact?.name || conversation?.contact?.phone || 'Unknown'
   const phone = conversation?.contact?.manual_wa_number || cleanPhone(conversation?.contact?.phone)
@@ -1735,7 +1743,6 @@ export default function ChatPage({ chatId }) {
                         title={`Rata-rata ${formatDurLong(respStats.avg)} dari ${respStats.replies} balasan${respStats.workHours ? ' (jam kerja)' : ''} · ${respStats.met} balasan ≤${respStats.kpiMinutes} menit`}
                       >{formatDurShort(respStats.avg)}</span>
                     )}
-                  {respStats?.avg != null && <span className="cv-resp-sub">{respStats.replies} balasan</span>}
                   {respStats?.waiting && <span className="cv-resp-wait">menunggu balasan</span>}
                 </div>
                 <span className="cv-notes-contact-label">Label</span>
@@ -1849,7 +1856,6 @@ export default function ChatPage({ chatId }) {
         .cv-resp-cell { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
         .cv-resp { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 11.5px; font-weight: 700; color: var(--success); background: rgba(16,185,129,0.12); font-variant-numeric: tabular-nums; }
         .cv-resp.slow { color: #d97706; background: rgba(217,119,6,0.13); }
-        .cv-resp-sub { font-size: 11px; color: var(--muted); }
         .cv-resp-wait { font-size: 11px; font-weight: 600; color: #d97706; }
         .cv-assigned { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 10px; background: rgba(39,168,122,0.1); color: var(--success); }
         .cv-region-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 10px; white-space: nowrap; }
