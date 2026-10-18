@@ -184,6 +184,7 @@ export default function AgentManagementPage() {
         enabled: payload.enabled, agent_id: payload.agent_id || null, persona_name: payload.persona_name,
         style: payload.style, instructions: payload.instructions, reply_delay_sec: Number(payload.reply_delay_sec) || 10,
         followup_enabled: !!payload.followup_enabled,
+        lowercase: payload.lowercase !== false,
       })
       setAi(saved)
       refreshAiAgent()
@@ -751,6 +752,11 @@ export default function AgentManagementPage() {
                         <small>AI menunggu pesan beruntun customer lalu membalas sekaligus, ditambah efek "sedang mengetik".</small>
                       </label>
                     </div>
+                    <label className="ai-check">
+                      <input type="checkbox" checked={ai.lowercase !== false} onChange={e => setAi({ ...ai, lowercase: e.target.checked })} />
+                      Tulis semua balasan dengan huruf kecil agar terlihat seperti chat santai (disarankan)
+                    </label>
+
                     <div className="ai-fu">
                       <div>
                         <b>Follow-up otomatis oleh AI</b>
@@ -775,6 +781,7 @@ export default function AgentManagementPage() {
                       <span>• Customer setuju survei & memberi alamat + waktu → dicatat di Catatan kontak & admin mendapat notifikasi.</span>
                       <span>• Komplain, garansi/servis, minta ditelepon, atau hal di luar kemampuan → AI membalas "dicek dulu" & admin mendapat notifikasi.</span>
                       <span>• Balasan ditulis seperti orang chat: dipecah 1–3 bubble pendek, pesan customer ditandai dibaca dulu, ada jeda membaca & "sedang mengetik"; ciri khas tulisan AI (tanda —, "Anda", "Semoga membantu", dll.) disaring otomatis.</span>
+                      <span>• Sapaan memakai "pak/bu + nama" (tidak memakai "kak"). Bila nama belum diketahui, AI menanyakannya secara natural di awal lalu menyimpannya di Ingatan AI.</span>
                       <span>• Pesan penutup customer ("ok", "makasih", stiker) dibalas sangat singkat atau tidak dibalas.</span>
                       <span>• AI berhenti di chat bertag Deal/Non-Client, dan diam bila admin baru membalas di chat tersebut (30 menit).</span>
                     </div>
@@ -945,6 +952,8 @@ export default function AgentManagementPage() {
         .ai-subnav button:hover:not(.active) { background: var(--surface3); }
         .ai-subnav button.active { background: var(--primary); color: var(--on-primary); }
         .ai-badge { display: inline-flex; align-items: center; gap: 3px; margin-left: 6px; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 999px; color: #7c3aed; background: rgba(124,58,237,0.13); }
+        .ai-check { display: flex; align-items: center; gap: 7px; margin-top: 4px; font-size: 12.5px; font-weight: 500; color: var(--text2); cursor: pointer; }
+        .ai-check input { width: 15px; height: 15px; accent-color: var(--primary); }
         .ai-fu { display: flex; align-items: center; justify-content: space-between; gap: 16px; width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface2); }
         .ai-fu > div { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
         .ai-fu b { font-size: 13.5px; color: var(--text); }
