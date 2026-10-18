@@ -135,6 +135,7 @@ export const getFollowupTasks = (view, filters = {}) =>
   api.get('/followup/tasks', { params: { view, ...filters } }).then(r => r.data)
 export const getFollowupDue = () => api.get('/followup/due').then(r => r.data)
 export const getFollowupSummary = (filters = {}) => api.get('/followup/summary', { params: filters }).then(r => r.data)
+export const getConversationResponseStats = (conversationId) => api.get(`/conversations/${conversationId}/response-stats`).then(r => r.data)
 export const getConversationFollowup = (conversationId) => api.get(`/followup/conversation/${conversationId}`).then(r => r.data)
 export const completeFollowupTask = (taskId, payload) => api.post(`/followup/tasks/${taskId}/complete`, payload).then(r => r.data)
 export const getFollowupSettings = () => api.get('/followup/settings').then(r => r.data)

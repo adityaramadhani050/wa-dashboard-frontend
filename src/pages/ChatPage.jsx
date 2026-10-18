@@ -7,13 +7,14 @@ import {
   forwardMessage, deleteMessage, editMessage, sendLocation, sendContact, setConversationRegion,
   getTemplates, getQuickMedia, sendQuickMedia, useTemplate,
   getTags, addTagToConversation, removeTagFromConversation,
-  getContactNotes, createContactNote, getContactConversations, getConversationFollowup,
+  getContactNotes, createContactNote, getContactConversations, getConversationFollowup, getConversationResponseStats,
   generateAiSuggestion, suggestAiTags, suggestAiNote, updateContact,
 } from '../hooks/useApi'
 import { supabase } from '../lib/supabase'
 import PdfThumb, { isPdf } from '../components/PdfThumb'
 import FollowupPanel from '../components/FollowupPanel'
 import { dueTone } from '../components/followupUi'
+import { formatDurShort, formatDurLong } from '../lib/duration'
 import { Send, ArrowLeft, ArrowDown, UserCheck, Paperclip, X, FileText, Play, Download, Check, Image, Film, Clock, Zap, Package, Tag as TagIcon, StickyNote, MoreVertical, Sparkles, Reply, Pencil, Forward, Search as SearchIcon, Trash2, Copy, MapPin, User, Bot, PanelRight, ExternalLink, Phone } from 'lucide-react'
 
 
@@ -1193,6 +1194,14 @@ export default function ChatPage({ chatId }) {
   }, [id])
   useEffect(() => { loadFollowup() }, [loadFollowup])
 
+  // Rata-rata waktu respons agent di chat ini (dimuat saat panel Detail dibuka)
+  const [respStats, setRespStats] = useState(null)
+  const loadRespStats = useCallback(() => {
+    getConversationResponseStats(id).then(setRespStats).catch(() => setRespStats(null))
+  }, [id])
+  useEffect(() => { setRespStats(null) }, [id])
+  useEffect(() => { if (showNotesPanel) loadRespStats() }, [showNotesPanel, loadRespStats])
+
   const name = conversation?.contact?.name || conversation?.contact?.phone || 'Unknown'
   const phone = conversation?.contact?.manual_wa_number || cleanPhone(conversation?.contact?.phone)
   const assignedAgent = conversation?.agents
@@ -1716,6 +1725,19 @@ export default function ChatPage({ chatId }) {
                     ? <span className="cv-assigned"><UserCheck size={10} />{assignedAgent.name}</span>
                     : <span className="cv-unassigned">Unassigned</span>}
                 </div>
+                <span className="cv-notes-contact-label" title="Rata-rata waktu agent membalas pesan customer di chat ini">Respons</span>
+                <div className="cv-resp-cell">
+                  {!respStats ? <span className="cv-notes-empty-inline">—</span>
+                    : respStats.avg == null ? <span className="cv-notes-empty-inline">Belum ada balasan</span>
+                    : (
+                      <span
+                        className={`cv-resp${respStats.avg > respStats.kpiMinutes ? ' slow' : ''}`}
+                        title={`Rata-rata ${formatDurLong(respStats.avg)} dari ${respStats.replies} balasan${respStats.workHours ? ' (jam kerja)' : ''} · ${respStats.met} balasan ≤${respStats.kpiMinutes} menit`}
+                      >{formatDurShort(respStats.avg)}</span>
+                    )}
+                  {respStats?.avg != null && <span className="cv-resp-sub">{respStats.replies} balasan</span>}
+                  {respStats?.waiting && <span className="cv-resp-wait">menunggu balasan</span>}
+                </div>
                 <span className="cv-notes-contact-label">Label</span>
                 <div className="cv-notes-contact-tags">
                   {conversationTags.length === 0
@@ -1824,6 +1846,11 @@ export default function ChatPage({ chatId }) {
         .cv-contact:hover { background: var(--surface3); }
         .cv-name { font-size: 15px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .cv-sub { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; margin-top: 3px; }
+        .cv-resp-cell { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+        .cv-resp { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 11.5px; font-weight: 700; color: var(--success); background: rgba(16,185,129,0.12); font-variant-numeric: tabular-nums; }
+        .cv-resp.slow { color: #d97706; background: rgba(217,119,6,0.13); }
+        .cv-resp-sub { font-size: 11px; color: var(--muted); }
+        .cv-resp-wait { font-size: 11px; font-weight: 600; color: #d97706; }
         .cv-assigned { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 10px; background: rgba(39,168,122,0.1); color: var(--success); }
         .cv-region-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 10px; white-space: nowrap; }
         .cv-region-badge.barat { color: #2563eb; background: rgba(37,99,235,0.12); }
