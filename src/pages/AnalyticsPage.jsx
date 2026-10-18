@@ -408,7 +408,7 @@ export default function AnalyticsPage() {
               <span className="an-note-warn"><Info size={13} /> Riwayat tag belum aktif: tag yang sudah dilepas (mis. Prospek diganti Deal/Fail) belum ikut terhitung.</span>
             )}
             <span><Info size={13} /> Lead Baru = kontak pertama kali chat dalam periode · Lead Lama = customer lama (belum Deal) yang dihubungi agent dalam periode · Total Lead = Lead Baru + Lead Lama</span>
-            <span><Info size={13} /> Aktif & Resolved: hari ini = status saat ini; periode lampau = Resolved bila chat sudah di-resolve setelah periode itu, walau kini aktif lagi karena dihubungi lagi (aktivitas barunya masuk periode baru) · Prospek = sudah diberi tag Prospek sampai akhir periode (atau langsung Deal) · Deal = tag Deal dipasang dalam periode</span>
+            <span><Info size={13} /> Aktif & Resolved: hari ini = status saat ini; periode lampau = Resolved bila setelah aktivitas terakhirnya di periode itu chat sempat di-resolve atau sepi ≥24 jam (auto-resolve), walau kini aktif lagi karena aktivitas baru · Prospek = sudah diberi tag Prospek sampai akhir periode (atau langsung Deal) · Deal = tag Deal dipasang dalam periode</span>
           </div>
         </div>
       )}
