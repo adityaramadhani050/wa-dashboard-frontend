@@ -183,6 +183,7 @@ export default function AgentManagementPage() {
       const saved = await saveAiSales({
         enabled: payload.enabled, agent_id: payload.agent_id || null, persona_name: payload.persona_name,
         style: payload.style, instructions: payload.instructions, reply_delay_sec: Number(payload.reply_delay_sec) || 10,
+        followup_enabled: !!payload.followup_enabled,
       })
       setAi(saved)
       refreshAiAgent()
@@ -750,6 +751,16 @@ export default function AgentManagementPage() {
                         <small>AI menunggu pesan beruntun customer lalu membalas sekaligus, ditambah efek "sedang mengetik".</small>
                       </label>
                     </div>
+                    <div className="ai-fu">
+                      <div>
+                        <b>Follow-up otomatis oleh AI</b>
+                        <span>AI mengirim sendiri tugas follow-up yang jatuh tempo pada chat miliknya (chat bertag Follow-Up yang sudah Resolved), pada jam kerja (atau 08.00–20.00 bila Jam Kerja nonaktif). Pesan disusun per tahap dari template follow-up & riwayat chat. Bila customer membalas, AI menilai hasilnya (pertimbangan, keberatan, tertarik, tidak jadi) untuk Laporan Follow-up.</span>
+                      </div>
+                      <button className={`aa-switch${ai.followup_enabled ? ' on' : ''}`} onClick={() => saveAi({ followup_enabled: !ai.followup_enabled })}
+                        disabled={aiBusy} role="switch" aria-checked={!!ai.followup_enabled}
+                        title={ai.followup_enabled ? 'Matikan follow-up otomatis AI' : 'Nyalakan follow-up otomatis AI'}><span className="aa-knob" /></button>
+                    </div>
+
                     <label className="rr-field" style={{ width: '100%' }}>
                       <span>Instruksi & info tambahan untuk AI</span>
                       <textarea rows={5} value={ai.instructions || ''} maxLength={3000}
@@ -763,6 +774,8 @@ export default function AgentManagementPage() {
                       <span>• Memasang tag <b>Prospek</b> saat penawaran sudah diberikan / customer jelas tertarik.</span>
                       <span>• Customer setuju survei & memberi alamat + waktu → dicatat di Catatan kontak & admin mendapat notifikasi.</span>
                       <span>• Komplain, garansi/servis, minta ditelepon, atau hal di luar kemampuan → AI membalas "dicek dulu" & admin mendapat notifikasi.</span>
+                      <span>• Balasan ditulis seperti orang chat: dipecah 1–3 bubble pendek, pesan customer ditandai dibaca dulu, ada jeda membaca & "sedang mengetik"; ciri khas tulisan AI (tanda —, "Anda", "Semoga membantu", dll.) disaring otomatis.</span>
+                      <span>• Pesan penutup customer ("ok", "makasih", stiker) dibalas sangat singkat atau tidak dibalas.</span>
                       <span>• AI berhenti di chat bertag Deal/Non-Client, dan diam bila admin baru membalas di chat tersebut (30 menit).</span>
                     </div>
 
@@ -932,6 +945,10 @@ export default function AgentManagementPage() {
         .ai-subnav button:hover:not(.active) { background: var(--surface3); }
         .ai-subnav button.active { background: var(--primary); color: var(--on-primary); }
         .ai-badge { display: inline-flex; align-items: center; gap: 3px; margin-left: 6px; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 999px; color: #7c3aed; background: rgba(124,58,237,0.13); }
+        .ai-fu { display: flex; align-items: center; justify-content: space-between; gap: 16px; width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface2); }
+        .ai-fu > div { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+        .ai-fu b { font-size: 13.5px; color: var(--text); }
+        .ai-fu span { font-size: 12px; line-height: 1.5; color: var(--muted); }
         .ai-rules { display: flex; flex-direction: column; gap: 5px; width: 100%; padding: 12px 14px; border-radius: 10px; background: var(--surface2); border: 1px solid var(--border); font-size: 12.5px; color: var(--text2); line-height: 1.5; }
         .ai-rules b { color: var(--text); }
         .rr-field select { height: 38px; border: 1px solid var(--border); border-radius: 9px; padding: 0 10px; font-size: 13px; color: var(--text); background: var(--surface2); font-family: inherit; }
