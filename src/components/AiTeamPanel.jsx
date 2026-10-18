@@ -106,7 +106,7 @@ export default function AiTeamPanel() {
       <div className="ak-head">
         <div>
           <div className="aa-title">Tanya Tim</div>
-          <div className="aa-desc">Bila customer menanyakan stok atau hal teknis, AI Sales mengabari customer bahwa sedang dicek, lalu menanyakannya lewat WA ke PIC divisi dengan gaya chat antar rekan kerja. PIC cukup <b>membalas (reply) pesan</b> itu; AI meneruskan jawabannya ke customer. Nomor PIC dianggap internal: tidak masuk Inbox & Analytics.</div>
+          <div className="aa-desc">Bila customer menanyakan stok atau hal teknis, AI Sales mengabari customer bahwa sedang dicek, lalu menanyakannya lewat WA ke PIC divisi dengan gaya chat antar rekan kerja. PIC cukup <b>membalas (reply) pesan</b> itu; AI meneruskan jawabannya ke customer. Chat dengan nomor PIC tetap tersimpan di Inbox (mis. bersama notifikasi ERP) tetapi tidak di-auto-assign & tidak dibalas AI; beri tag Non-Client agar tidak terhitung di Analytics.</div>
         </div>
         <div className="ak-head-actions">
           <button className={`aa-switch${cfg.enabled ? ' on' : ''}`} onClick={() => setCfg(c => ({ ...c, enabled: !c.enabled }))} role="switch" aria-checked={cfg.enabled} title={cfg.enabled ? 'Nonaktifkan' : 'Aktifkan'}><span className="aa-knob" /></button>
