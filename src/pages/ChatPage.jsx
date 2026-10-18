@@ -1239,6 +1239,11 @@ export default function ChatPage({ chatId }) {
     messageItems.push({ type: 'msg', msg, grpStart: prevSent !== sentNow })
     prevSent = sentNow
   }
+  const dayGroups = []
+  for (const item of messageItems) {
+    if (item.type === 'date' || !dayGroups.length) dayGroups.push({ key: item.type === 'date' ? item.key : 'day-0', label: item.type === 'date' ? item.label : null, items: [] })
+    if (item.type !== 'date') dayGroups[dayGroups.length - 1].items.push(item)
+  }
 
   return (
     <div className={`cv-root${showNotesPanel ? ' with-sidebar' : ''}${keyboardOpen ? ' kb-open' : ''}`} onClick={closeMenus}>
@@ -1514,8 +1519,12 @@ export default function ChatPage({ chatId }) {
         ) : messages.length === 0 ? (
           <div className="cv-empty">Belum ada pesan. Sapa dulu! 👋</div>
         ) : (
-          messageItems.map((item, i) => {
-            if (item.type === 'date') return <DateSeparator key={item.key} label={item.label} />
+          // Dikelompokkan per hari: badge tanggal (sticky) hanya menempel selama
+          // hari itu terlihat, lalu terdorong keluar (tidak menumpuk dengan hari lain)
+          dayGroups.map(group => (
+            <div key={group.key} className="cv-day">
+              {group.label && <DateSeparator label={group.label} />}
+              {group.items.map((item, i) => {
             const msg = item.msg
             const sent = isFromMe(msg)
             const isSending = String(msg.id).startsWith('tmp-')
@@ -1540,7 +1549,9 @@ export default function ChatPage({ chatId }) {
                 onCorrect={isAdmin && msg.sent_by_ai ? () => setCorrectMsg(msg) : undefined}
               />
             )
-          })
+              })}
+            </div>
+          ))
         )}
         <div ref={bottomRef} />
       </div>
@@ -1988,6 +1999,7 @@ export default function ChatPage({ chatId }) {
         .cv-skel.left { align-self: flex-start; }
         .cv-skel.right { align-self: flex-end; }
         .cv-empty { margin: auto; color: var(--muted); font-size: 14px; text-align: center; padding: 32px; }
+        .cv-day { display: flex; flex-direction: column; gap: 2px; }
         .cv-date-sep { position: sticky; top: 2px; z-index: 5; display: flex; align-items: center; justify-content: center; margin: 12px 0 6px; pointer-events: none; }
         .cv-date-sep span { background: var(--surface); color: var(--text2); border: 1px solid var(--border); box-shadow: 0 1px 3px var(--shadow); font-size: 11.5px; font-weight: 600; padding: 4px 12px; border-radius: 999px; }
         .cv-row { display: flex; align-items: center; gap: 6px; position: relative; touch-action: pan-y; }
