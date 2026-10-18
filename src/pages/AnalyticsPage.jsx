@@ -6,7 +6,7 @@ import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer
 } from 'recharts'
-import { RefreshCw, TrendingUp, Users, MessageSquare, UserCheck, Clock, UserPlus, Calendar, Download, Zap, MapPin, ChevronDown, Activity, BarChart2, Inbox, CheckCircle2, Info, UserX, Trophy } from 'lucide-react'
+import { RefreshCw, TrendingUp, Users, MessageSquare, UserCheck, Clock, UserPlus, Calendar, Download, Zap, MapPin, ChevronDown, Activity, BarChart2, Inbox, CheckCircle2, Info, UserX } from 'lucide-react'
 
 const REGION_OPTIONS = [
   { key: '', label: 'Semua' },
@@ -346,29 +346,29 @@ export default function AnalyticsPage() {
         <StatCard
           loading={loading}
           icon={UserCheck}
-          label="Lead Baru Di-assign"
+          label="Sudah Dibagikan"
           value={sumOr('new_assigned')}
           sub={summary ? `${summary.new_contacts ? Math.round((summary.new_assigned / summary.new_contacts) * 100) : 0}% dari ${summary.new_contacts} lead baru` : null}
-          title="Lead baru dalam periode yang sudah di-assign ke agent/admin"
+          title="Lead baru dalam periode yang sudah dibagikan (di-assign) ke agent/admin"
           color="#6366f1"
         />
         <StatCard
           loading={loading}
           icon={UserX}
-          label="Belum Di-assign"
+          label="Belum Dibagikan"
           value={sumOr('new_unassigned')}
-          sub={summary ? (summary.new_unassigned ? 'lead baru perlu di-assign' : 'semua lead baru sudah di-assign') : null}
-          title="Lead baru dalam periode yang belum di-assign ke siapa pun"
+          sub={summary ? (summary.new_unassigned ? 'lead baru perlu dibagikan ke agent' : 'semua lead baru sudah dibagikan') : null}
+          title="Lead baru dalam periode yang belum dibagikan (di-assign) ke siapa pun"
           color={summary?.new_unassigned ? '#ef4444' : '#64748b'}
         />
         <StatCard
           loading={loading}
-          icon={Trophy}
-          label="Deal"
-          value={sumOr('deal')}
-          sub={summary ? `${summary.total_leads ? Math.round((summary.deal / summary.total_leads) * 100) : 0}% dari total lead · ${summary.prospek} prospek` : null}
-          title="Total Lead yang diberi tag Deal dalam periode"
-          color="#10b981"
+          icon={Clock}
+          label={`KPI Respons ≤ ${kpiMinutes} menit`}
+          value={kpi ? (kpi.total ? `${kpi.percent}%` : '—') : null}
+          sub={kpi ? `${kpi.met} dari ${kpi.total} pesan dibalas tepat waktu` : null}
+          title={`Persentase pesan customer yang dibalas agent ≤ ${kpiMinutes} menit dalam periode${kpi?.workHours ? ' (dihitung dalam jam kerja)' : ''}`}
+          color={!kpi?.total ? '#64748b' : kpi.percent >= 80 ? '#10b981' : kpi.percent >= 50 ? '#f59e0b' : '#ef4444'}
         />
       </div>
 
