@@ -4,8 +4,9 @@ import { useAuth } from '../context/AuthContext'
 import { useSocket } from '../context/SocketContext'
 import { getFollowupDue } from '../hooks/useApi'
 import { STEP_INFO, dueLabel, dueTone } from './followupUi'
+import ChangePasswordModal from './ChangePasswordModal'
 import { enableWebPush, getNotificationStatus } from '../native/webpush'
-import { MessageSquare, BarChart2, QrCode, LogOut, Users, BookUser, Zap, Bell, BellRing, Megaphone, ListChecks, AlertTriangle, LayoutGrid, X, CheckCircle2 } from 'lucide-react'
+import { MessageSquare, BarChart2, QrCode, LogOut, Users, BookUser, Zap, Bell, BellRing, Megaphone, ListChecks, AlertTriangle, LayoutGrid, X, CheckCircle2, KeyRound } from 'lucide-react'
 
 // mobile: true -> tampil langsung di navbar bawah HP; sisanya masuk menu "Lainnya"
 const NAV_ITEMS = [
@@ -32,6 +33,15 @@ export default function IconBar() {
   const [lateAlert, setLateAlert] = useState(null)
   const [showReminders, setShowReminders] = useState(false)
   const [showMore, setShowMore] = useState(false)
+  const [showAccount, setShowAccount] = useState(false)
+  const [showPwd, setShowPwd] = useState(false)
+  const accountRef = useRef(null)
+  useEffect(() => {
+    if (!showAccount) return
+    const onDown = (e) => { if (accountRef.current && !accountRef.current.contains(e.target)) setShowAccount(false) }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [showAccount])
   const panelRef = useRef(null)
   const [notifStatus, setNotifStatus] = useState('granted') // sembunyikan tombol default
   const [enabling, setEnabling] = useState(false)
@@ -93,7 +103,6 @@ export default function IconBar() {
 
   const navItems = NAV_ITEMS.filter(item => !item.adminOnly || isAdmin)
   const moreItems = navItems.filter(i => !i.mobile)
-  const hasMore = moreItems.length > 0
   const needNotif = notifStatus !== 'granted' && notifStatus !== 'unsupported'
   const isActive = (path) => location.pathname === path || (path === '/inbox' && location.pathname.startsWith('/chat/'))
   const moreActive = moreItems.some(i => isActive(i.path))
@@ -114,7 +123,7 @@ export default function IconBar() {
 
       <div className="ib-bottom">
         {needNotif && (
-          <button className={`ib-btn ib-notif-enable${hasMore ? ' ib-desk-only' : ''}`} onClick={handleEnableNotif} disabled={enabling}
+          <button className={`ib-btn ib-notif-enable ib-desk-only`} onClick={handleEnableNotif} disabled={enabling}
             aria-label="Aktifkan notifikasi pesan baru" data-tip="Aktifkan notifikasi">
             <BellRing size={18} />
             <span className="ib-notif-dot" />
@@ -172,20 +181,32 @@ export default function IconBar() {
           )}
         </div>
         <div className={`ib-dot ${waConnected ? 'online' : 'offline'}`} title={waConnected ? 'WA Connected' : 'WA Disconnected'} />
-        <div className="ib-user-chip" title={`${user?.name || ''} (${isAdmin ? 'Admin' : 'Agent'})`}>
-          {user?.name?.[0]?.toUpperCase() || 'U'}
+        <div className="ib-account" ref={accountRef}>
+          <button className="ib-user-chip" onClick={() => { setShowAccount(v => !v); setShowReminders(false) }}
+            aria-label="Akun" aria-expanded={showAccount} title={showAccount ? undefined : `${user?.name || ''} (${isAdmin ? 'Admin' : 'Agent'})`}>
+            {user?.name?.[0]?.toUpperCase() || 'U'}
+          </button>
+          {showAccount && (
+            <div className="ib-account-menu">
+              <div className="ib-account-id">
+                <b>{user?.name || 'Pengguna'}</b>
+                <small>{user?.username ? `@${user.username} · ` : ''}{isAdmin ? 'Admin' : 'Agent'}</small>
+              </div>
+              <button onClick={() => { setShowAccount(false); setShowPwd(true) }}><KeyRound size={15} /> Ubah kata sandi</button>
+              <button className="danger" onClick={handleLogout}><LogOut size={15} /> Keluar</button>
+            </div>
+          )}
         </div>
-        <button className={`ib-btn logout${hasMore ? ' ib-desk-only' : ''}`} onClick={handleLogout} aria-label="Keluar" data-tip="Keluar">
+        <button className={`ib-btn logout ib-desk-only`} onClick={handleLogout} aria-label="Keluar" data-tip="Keluar">
           <LogOut size={17} />
           <span className="ib-label">Keluar</span>
         </button>
-        {hasMore && (
-          <button className={`ib-btn ib-more-btn${moreActive || showMore ? ' active' : ''}`} onClick={() => { setShowMore(true); setShowReminders(false) }} aria-label="Menu lainnya">
-            <LayoutGrid size={18} />
-            {needNotif && <span className="ib-notif-dot" />}
-            <span className="ib-label">Lainnya</span>
-          </button>
-        )}
+        {/* HP: menu Lainnya selalu ada (menu admin tambahan + akun) */}
+        <button className={`ib-btn ib-more-btn${moreActive || showMore ? ' active' : ''}`} onClick={() => { setShowMore(true); setShowReminders(false) }} aria-label="Menu lainnya">
+          <LayoutGrid size={18} />
+          {needNotif && <span className="ib-notif-dot" />}
+          <span className="ib-label">Lainnya</span>
+        </button>
       </div>
 
       {/* HP: menu lainnya (bottom sheet) */}
@@ -202,23 +223,39 @@ export default function IconBar() {
               </div>
               <button className="ib-panel-close" onClick={() => setShowMore(false)} aria-label="Tutup"><X size={18} /></button>
             </div>
-            <div className="ib-sheet-grid">
-              {moreItems.map(({ path, icon: Icon, label }) => (
-                <button key={path} className={`ib-sheet-item${isActive(path) ? ' active' : ''}`} onClick={() => navigate(path)}>
-                  <span className="ib-sheet-ico"><Icon size={20} /></span>
-                  <span>{label}</span>
-                </button>
-              ))}
-            </div>
+            {moreItems.length > 0 && (
+              <div className="ib-sheet-grid">
+                {moreItems.map(({ path, icon: Icon, label }) => (
+                  <button key={path} className={`ib-sheet-item${isActive(path) ? ' active' : ''}`} onClick={() => navigate(path)}>
+                    <span className="ib-sheet-ico"><Icon size={20} /></span>
+                    <span>{label}</span>
+                  </button>
+                ))}
+              </div>
+            )}
             {needNotif && (
               <button className="ib-sheet-row" onClick={handleEnableNotif} disabled={enabling}><BellRing size={17} /> Aktifkan notifikasi pesan baru</button>
             )}
+            <button className="ib-sheet-row" onClick={() => { setShowMore(false); setShowPwd(true) }}><KeyRound size={17} /> Ubah kata sandi</button>
             <button className="ib-sheet-row danger" onClick={handleLogout}><LogOut size={17} /> Keluar</button>
           </div>
         </div>
       )}
 
+      {showPwd && <ChangePasswordModal onClose={() => setShowPwd(false)} />}
+
       <style>{`
+        .ib-account { position: relative; }
+        .ib-account .ib-user-chip { cursor: pointer; transition: box-shadow 0.15s; }
+        .ib-account .ib-user-chip:hover, .ib-account .ib-user-chip[aria-expanded="true"] { box-shadow: 0 0 0 2px var(--primary); }
+        .ib-account-menu { position: absolute; left: calc(100% + 12px); bottom: -4px; width: 220px; padding: 6px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 16px 40px var(--shadow), 0 2px 8px var(--shadow); z-index: 300; animation: ibPop 0.14s ease-out; }
+        .ib-account-id { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px 10px; margin-bottom: 4px; border-bottom: 1px solid var(--border); }
+        .ib-account-id b { font-size: 13.5px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .ib-account-id small { font-size: 11.5px; color: var(--muted); }
+        .ib-account-menu button { width: 100%; display: flex; align-items: center; gap: 9px; padding: 9px 10px; border-radius: 8px; font-size: 13px; color: var(--text); text-align: left; }
+        .ib-account-menu button svg { color: var(--muted); }
+        .ib-account-menu button:hover { background: var(--surface3); }
+        .ib-account-menu button.danger, .ib-account-menu button.danger svg { color: var(--danger, #e53e3e); }
         .ib-logo { width: 34px; height: 34px; border-radius: 10px; background: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 800; color: var(--on-primary); margin-bottom: 16px; flex-shrink: 0; }
         .ib-label { display: none; }
         .ib-more-btn { display: none; }
