@@ -366,8 +366,8 @@ export default function AnalyticsPage() {
           icon={Clock}
           label={`KPI Respons ≤ ${kpiMinutes} menit`}
           value={kpi ? (kpi.total ? `${kpi.percent}%` : '—') : null}
-          sub={kpi ? `${kpi.met} dari ${kpi.total} chat dibalas tepat waktu` : null}
-          title={`Persentase chat yang balasan pertama agent-nya ≤ ${kpiMinutes} menit dalam periode${kpi?.workHours ? ' (dihitung dalam jam kerja)' : ''}`}
+          sub={kpi ? `${kpi.met} dari ${kpi.total} chat rata-rata dibalas tepat waktu` : null}
+          title={`Persentase chat yang rata-rata waktu balasan agent-nya ≤ ${kpiMinutes} menit dalam periode${kpi?.workHours ? ' (dihitung dalam jam kerja)' : ''}`}
           color={!kpi?.total ? '#64748b' : kpi.percent >= 80 ? '#10b981' : kpi.percent >= 50 ? '#f59e0b' : '#ef4444'}
         />
       </div>
@@ -394,7 +394,7 @@ export default function AnalyticsPage() {
                   <th className="num" title="Lead Baru + Lead Lama">Total Lead</th>
                   <th className="num" title="Dari Total Lead: sudah diberi tag Prospek sampai akhir periode (atau langsung Deal)">Prospek</th>
                   <th className="num" title="Dari Total Lead: diberi tag Deal dalam periode">Deal</th>
-                  <th className="num" title={`Rata-rata waktu balasan pertama agent per chat dalam periode${kpi?.workHours ? ' (dihitung dalam jam kerja)' : ''}`}>Avg. Respons</th>
+                  <th className="num" title={`Rata-rata waktu agent membalas seluruh pesan customer dalam periode${kpi?.workHours ? ' (dihitung dalam jam kerja)' : ''}`}>Avg. Respons</th>
                   <th title="Lead → Prospek: Prospek ÷ Total Lead. Prospek → Deal: Deal ÷ Prospek.">Konversi</th>
                 </tr>
               </thead>
@@ -419,7 +419,7 @@ export default function AnalyticsPage() {
                     <td className="num"><span className="an-badge deal" title={a.fail ? `${a.fail} Fail` : undefined}>{a.deal || 0}</span></td>
                     <td className="num">
                       {a.avgResponse != null
-                        ? <span className={`an-resp${a.avgResponse > kpiMinutes ? ' slow' : ''}`} title={`Rata-rata ${formatDurLong(a.avgResponse)} dari ${a.replies} chat`}>{formatDurShort(a.avgResponse)}</span>
+                        ? <span className={`an-resp${a.avgResponse > kpiMinutes ? ' slow' : ''}`} title={`Rata-rata ${formatDurLong(a.avgResponse)} dari ${a.reply_msgs ?? a.replies} balasan di ${a.replies} chat`}>{formatDurShort(a.avgResponse)}</span>
                         : <span className="an-resp none" title="Belum ada balasan dalam periode">—</span>}
                     </td>
                     <td>
@@ -459,8 +459,8 @@ export default function AnalyticsPage() {
                 {kpi.percent}%
               </div>
               <div className="an-kpi-sub">
-                {kpi.met} dari {kpi.total} chat dibalas pertama kali ≤{kpiMinutes} menit
-                {kpi.unreplied > 0 && <span className="an-kpi-wait"> · {kpi.unreplied} chat belum dibalas</span>}
+                {kpi.met} dari {kpi.total} chat rata-rata dibalas ≤{kpiMinutes} menit
+                {kpi.unreplied > 0 && <span className="an-kpi-wait"> · {kpi.unreplied} chat masih menunggu balasan</span>}
               </div>
               {kpi.agents?.length > 0 && (
                 <div className="an-kpi-agents">
