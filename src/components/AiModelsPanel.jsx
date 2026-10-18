@@ -12,6 +12,7 @@ const GROUPS = [
       ['ai_followup', 'AI Sales — follow-up otomatis', 'Pesan follow-up yang dikirim AI'],
       ['suggest_reply', 'Saran balasan (agent)', 'Tombol saran balasan di layar chat'],
       ['followup_draft', 'Draf follow-up (agent)', 'Draf pesan di menu Follow-up'],
+      ['ai_team_reply', 'AI Sales — teruskan jawaban tim', 'Menyampaikan jawaban Tanya Tim ke customer'],
     ],
   },
   {
@@ -21,6 +22,7 @@ const GROUPS = [
       ['memory_summary', 'Ringkasan Ingatan AI', 'Merangkum fakta customer'],
       ['skill_keywords', 'Saran kata kunci skill', 'Saat menyimpan skill tanpa kata kunci'],
       ['regional_city', 'Deteksi kota (bot regional)', 'Bila kota tidak ada di kamus'],
+      ['team_parse', 'Tanya Tim — membaca jawaban tim', 'Memahami balasan PIC (stok, pertanyaan balik)'],
     ],
   },
 ]

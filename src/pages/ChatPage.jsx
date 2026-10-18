@@ -7,7 +7,7 @@ import {
   forwardMessage, deleteMessage, editMessage, sendLocation, sendContact, setConversationRegion,
   getTemplates, getQuickMedia, sendQuickMedia, useTemplate,
   getTags, addTagToConversation, removeTagFromConversation,
-  getContactNotes, createContactNote, getContactConversations, getConversationFollowup, getConversationResponseStats, getAiMemory, saveAiMemory,
+  getContactNotes, createContactNote, getContactConversations, getConversationFollowup, getConversationResponseStats, getAiMemory, saveAiMemory, getTeamRequests,
   generateAiSuggestion, updateContact,
 } from '../hooks/useApi'
 import { supabase } from '../lib/supabase'
@@ -16,8 +16,9 @@ import FollowupPanel from '../components/FollowupPanel'
 import { dueTone } from '../components/followupUi'
 import { formatDurShort, formatDurLong } from '../lib/duration'
 import { useAiAgentId } from '../hooks/useAiAgent'
+import { teamStatus } from '../components/AiTeamPanel'
 import AiCorrectionModal from '../components/AiCorrectionModal'
-import { Send, ArrowLeft, ArrowDown, UserCheck, Paperclip, X, FileText, Play, Download, Check, Image, Film, Clock, Zap, Package, Tag as TagIcon, StickyNote, MoreVertical, Sparkles, Reply, Pencil, Forward, Search as SearchIcon, Trash2, Copy, MapPin, User, Bot, PanelRight, ExternalLink, Phone, GraduationCap, Brain } from 'lucide-react'
+import { Send, ArrowLeft, ArrowDown, UserCheck, Paperclip, X, FileText, Play, Download, Check, Image, Film, Clock, Zap, Package, Tag as TagIcon, StickyNote, MoreVertical, Sparkles, Reply, Pencil, Forward, Search as SearchIcon, Trash2, Copy, MapPin, User, Bot, PanelRight, ExternalLink, Phone, GraduationCap, Brain, Users } from 'lucide-react'
 
 
 const MSG_PAGE = 60 // jumlah pesan per halaman (muat bertahap saat scroll ke atas)
@@ -1196,12 +1197,20 @@ export default function ChatPage({ chatId }) {
     try { setAiMemory(await saveAiMemory(contactIdForMem, memDraft)); setMemEditing(false) } catch {}
     finally { setMemBusy(false) }
   }
+  // Tanya Tim: pertanyaan AI ke divisi internal untuk chat ini
+  const [teamReqs, setTeamReqs] = useState([])
+  const loadTeamReqs = useCallback(() => {
+    if (!id) return
+    getTeamRequests({ conversation_id: id, limit: 10 }).then(d => setTeamReqs(d?.requests || [])).catch(() => setTeamReqs([]))
+  }, [id])
+  useEffect(() => { setTeamReqs([]) }, [id])
+  useEffect(() => { if (showNotesPanel) loadTeamReqs() }, [showNotesPanel, loadTeamReqs])
   // Ada pesan baru (masuk/keluar) saat panel terbuka -> hitung ulang (ditunda
   // sebentar agar pesan keluar sudah tersimpan di server).
   const lastMsgKey = messages.length ? String(messages[messages.length - 1].id) : ''
   useEffect(() => {
     if (!showNotesPanel || !lastMsgKey) return
-    const t = setTimeout(loadRespStats, 1500)
+    const t = setTimeout(() => { loadRespStats(); loadTeamReqs() }, 1500)
     return () => clearTimeout(t)
   }, [lastMsgKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1794,6 +1803,28 @@ export default function ChatPage({ chatId }) {
               </section>
             )}
 
+            {teamReqs.length > 0 && (
+              <section className="cv-ns">
+                <div className="cv-ns-head"><span className="cv-ns-title"><Users size={13} />Tanya Tim</span></div>
+                <div className="cv-team">
+                  {teamReqs.map(r => {
+                    const [label, tone] = teamStatus(r.status)
+                    const team = (r.thread || []).filter(t => t.from === 'team')
+                    return (
+                      <div key={r.id} className="cv-team-item">
+                        <div className="cv-team-top">
+                          <span className={`cv-team-div ${r.division}`}>{r.division === 'teknis' ? 'Teknis' : r.division === 'procurement' ? 'Procurement' : 'Gudang'}</span>
+                          <span className={`cv-team-st ${tone}`}>{label}</span>
+                        </div>
+                        <div className="cv-team-topic">{r.topic || r.customer_question}</div>
+                        {team.length > 0 && <div className="cv-team-ans">{team[team.length - 1].pic ? <b>{team[team.length - 1].pic}: </b> : null}{team[team.length - 1].text}</div>}
+                      </div>
+                    )
+                  })}
+                </div>
+              </section>
+            )}
+
             {/* Catatan */}
             <section className="cv-ns">
               <div className="cv-ns-head">
@@ -2048,6 +2079,19 @@ export default function ChatPage({ chatId }) {
         .cv-bot-tag.ai { background: rgba(139,92,246,0.28); }
         .brecv .cv-bot-tag.ai { background: rgba(139,92,246,0.14); color: #8b5cf6; }
         .cv-hover-btn.ai:hover { color: #8b5cf6; }
+        .cv-team { display: flex; flex-direction: column; gap: 8px; }
+        .cv-team-item { display: flex; flex-direction: column; gap: 4px; padding: 9px 11px; border-radius: 10px; background: var(--surface2); border: 1px solid var(--border); }
+        .cv-team-top { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+        .cv-team-div { padding: 1px 7px; border-radius: 999px; font-size: 10.5px; font-weight: 700; background: rgba(139,92,246,0.12); color: #8b5cf6; }
+        .cv-team-div.teknis { background: rgba(49,130,206,0.12); color: #3182ce; }
+        .cv-team-div.procurement { background: rgba(214,158,46,0.14); color: #b7791f; }
+        .cv-team-st { padding: 1px 7px; border-radius: 999px; font-size: 10.5px; font-weight: 700; background: var(--surface3); color: var(--text2); }
+        .cv-team-st.wait { background: rgba(214,158,46,0.14); color: #b7791f; }
+        .cv-team-st.ask { background: rgba(49,130,206,0.12); color: #3182ce; }
+        .cv-team-st.ok { background: rgba(56,161,105,0.14); color: var(--success); }
+        .cv-team-st.bad { background: rgba(229,62,62,0.1); color: var(--danger); }
+        .cv-team-topic { font-size: 12.5px; font-weight: 600; color: var(--text); }
+        .cv-team-ans { font-size: 12px; color: var(--text2); line-height: 1.45; white-space: pre-wrap; }
         .cv-mem-edit { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; font-weight: 600; color: var(--primary); }
         .cv-mem-text { font-size: 12.5px; line-height: 1.55; color: var(--text2); white-space: pre-wrap; padding: 10px 12px; border-radius: 10px; background: rgba(139,92,246,0.07); border: 1px solid rgba(139,92,246,0.2); }
         .cv-mem-form { display: flex; flex-direction: column; gap: 8px; }
