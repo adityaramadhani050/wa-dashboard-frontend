@@ -15,7 +15,7 @@ const NAV_ITEMS = [
   { path: '/analytics', icon: BarChart2,     label: 'Analytics',         adminOnly: true,  mobile: true },
   { path: '/agents',    icon: Users,         label: 'Manajemen Agent',   short: 'Agent',     adminOnly: true },
   { path: '/contacts',  icon: BookUser,      label: 'Kontak',            adminOnly: false, mobile: true },
-  { path: '/templates', icon: Zap,           label: 'Template & Galeri', short: 'Template',  adminOnly: true },
+  { path: '/templates', icon: Zap,           label: 'Template & Galeri', short: 'Template',  adminOnly: false },
   { path: '/broadcast', icon: Megaphone,     label: 'Broadcast Promo',   short: 'Broadcast', adminOnly: true },
   { path: '/qr',        icon: QrCode,        label: 'QR Setup',          short: 'QR Setup',  adminOnly: true },
 ]
@@ -197,10 +197,6 @@ export default function IconBar() {
             </div>
           )}
         </div>
-        <button className={`ib-btn logout ib-desk-only`} onClick={handleLogout} aria-label="Keluar" data-tip="Keluar">
-          <LogOut size={17} />
-          <span className="ib-label">Keluar</span>
-        </button>
         {/* HP: menu Lainnya selalu ada (menu admin tambahan + akun) */}
         <button className={`ib-btn ib-more-btn${moreActive || showMore ? ' active' : ''}`} onClick={() => { setShowMore(true); setShowReminders(false) }} aria-label="Menu lainnya">
           <LayoutGrid size={18} />

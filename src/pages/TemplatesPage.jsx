@@ -8,6 +8,7 @@ import {
 } from '../hooks/useApi'
 import { Plus, Pencil, Trash2, X, MessageSquareText, Image as ImageIcon, FileText, Tag as TagIcon, Package, Megaphone, Zap, Search, Film } from 'lucide-react'
 import PdfThumb, { isPdf } from '../components/PdfThumb'
+import { useAuth } from '../context/AuthContext'
 
 const EMPTY_TEMPLATE = { title: '', body: '', shortcut: '', category: '' }
 const EMPTY_TAG = { name: '', color: '#3563e9' }
@@ -283,6 +284,10 @@ function ProductForm({ initial, onSave, onClose, loading, error }) {
 }
 
 export default function TemplatesPage() {
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin'
+  // Agent: hanya boleh mengubah/menghapus item buatannya sendiri (admin: semua)
+  const canEdit = (item) => isAdmin || (item?.created_by != null && String(item.created_by) === String(user?.id))
   const [tab, setTabState] = useState(() => { try { return sessionStorage.getItem('tp_tab') || 'templates' } catch { return 'templates' } }) // 'templates' | 'broadcast' | 'media' | 'tags' | 'products'
   const [q, setQ] = useState('')
   const setTab = (t) => { setTabState(t); setQ(''); try { sessionStorage.setItem('tp_tab', t) } catch {} }
@@ -362,7 +367,11 @@ export default function TemplatesPage() {
     finally { setLoadingBc(false) }
   }, [])
 
-  useEffect(() => { loadTemplates(); loadMedia(); loadTags(); loadProducts(); loadBc() }, [loadTemplates, loadMedia, loadTags, loadProducts, loadBc])
+  useEffect(() => {
+    loadTemplates(); loadMedia()
+    // Template broadcast, label & katalog hanya untuk admin
+    if (isAdmin) { loadTags(); loadProducts(); loadBc() }
+  }, [isAdmin, loadTemplates, loadMedia, loadTags, loadProducts, loadBc])
 
   const handleSaveBc = async ({ name, body, file, removeMedia }) => {
     setBcSaving(true); setBcError('')
@@ -506,14 +515,17 @@ export default function TemplatesPage() {
   const fTags = tags.filter(t => match(t.name))
   const fProducts = products.filter(p => match(p.name, p.category, p.capacity, p.specs))
 
-  const TABS = [
+  const ALL_TABS = [
     { key: 'templates', label: 'Template Pesan', short: 'Template', icon: MessageSquareText, count: templates.length, add: 'Tambah Template', onAdd: () => { setTplError(''); setTplModal('create') } },
     { key: 'broadcast', label: 'Template Broadcast', short: 'Broadcast', icon: Megaphone, count: bcTemplates.length, add: 'Tambah Template', onAdd: () => { setBcError(''); setBcModal('create') } },
     { key: 'media', label: 'Galeri Produk', short: 'Galeri', icon: ImageIcon, count: media.length, add: 'Tambah Media', onAdd: () => { setMediaError(''); setMediaModal(true) } },
     { key: 'tags', label: 'Label Percakapan', short: 'Label', icon: TagIcon, count: tags.length, add: 'Tambah Label', onAdd: () => { setTagError(''); setTagModal('create') } },
     { key: 'products', label: 'Katalog Produk', short: 'Katalog', icon: Package, count: products.length, add: 'Tambah Produk', onAdd: () => { setProdError(''); setProdModal('create') } },
   ]
+  // Agent hanya melihat Template Pesan & Galeri Produk
+  const TABS = isAdmin ? ALL_TABS : ALL_TABS.filter(t => t.key === 'templates' || t.key === 'media')
   const cur = TABS.find(t => t.key === tab) || TABS[0]
+  const tabKey = cur.key
 
   const loadingView = (
     <div className="tp-grid">{[...Array(4)].map((_, i) => <div key={i} className="am-skel tp-skel" style={{ animationDelay: `${i * 0.08}s` }} />)}</div>
@@ -537,7 +549,7 @@ export default function TemplatesPage() {
 
       <div className="am-tabs" role="tablist">
         {TABS.map(t => (
-          <button key={t.key} role="tab" aria-selected={tab === t.key} className={`am-tab${tab === t.key ? ' active' : ''}`} onClick={() => setTab(t.key)}>
+          <button key={t.key} role="tab" aria-selected={tabKey === t.key} className={`am-tab${tabKey === t.key ? ' active' : ''}`} onClick={() => setTab(t.key)}>
             <t.icon size={15} /><span className="tp-tab-full">{t.label}</span><span className="tp-tab-short">{t.short}</span>
             <span className="am-tab-count">{t.count}</span>
           </button>
@@ -550,11 +562,11 @@ export default function TemplatesPage() {
           <input value={q} onChange={e => setQ(e.target.value)} placeholder={`Cari di ${cur.label.toLowerCase()}…`} />
           {q && <button onClick={() => setQ('')} aria-label="Hapus pencarian"><X size={14} /></button>}
         </div>
-        {tab === 'templates' && <span className="tp-tip">Ketik <b>/shortcut</b> di kolom chat untuk memakai template.</span>}
-        {tab === 'products' && <span className="tp-tip">Produk aktif dipakai AI sebagai acuan harga & spesifikasi.</span>}
+        {tabKey === 'templates' && <span className="tp-tip">Ketik <b>/shortcut</b> di kolom chat untuk memakai template.</span>}
+        {tabKey === 'products' && <span className="tp-tip">Produk aktif dipakai AI sebagai acuan harga & spesifikasi.</span>}
       </div>
 
-      {tab === 'templates' && (
+      {tabKey === 'templates' && (
         loadingTemplates ? loadingView : fTemplates.length === 0 ? emptyView(MessageSquareText, "Belum ada template pesan.") : (
           <div className="tp-grid">
             {fTemplates.map(t => (
@@ -567,7 +579,7 @@ export default function TemplatesPage() {
                       {t.category && <span className="tp-pill">{t.category}</span>}
                     </span>
                   </div>
-                  <CardActions onEdit={() => { setTplError(''); setTplModal({ template: t }) }} onDelete={() => setTplDeleteTarget(t)} />
+                  {canEdit(t) && <CardActions onEdit={() => { setTplError(''); setTplModal({ template: t }) }} onDelete={() => setTplDeleteTarget(t)} />}
                 </div>
                 <div className="tp-card-body"><WithVars text={t.body} /></div>
               </div>
@@ -576,7 +588,7 @@ export default function TemplatesPage() {
         )
       )}
 
-      {tab === 'broadcast' && (
+      {tabKey === 'broadcast' && (
         loadingBc ? loadingView : fBc.length === 0 ? emptyView(Megaphone, "Belum ada template broadcast. Buat pesan promo siap-pakai di sini.") : (
           <div className="tp-grid">
             {fBc.map(t => (
@@ -598,7 +610,7 @@ export default function TemplatesPage() {
         )
       )}
 
-      {tab === 'media' && (
+      {tabKey === 'media' && (
         loadingMedia ? loadingView : fMedia.length === 0 ? emptyView(ImageIcon, "Belum ada media di galeri. Media di sini bisa dikirim cepat dari menu Produk / katalog di chat.") : (
           <div className="tp-media-grid">
             {fMedia.map(m => (
@@ -608,14 +620,14 @@ export default function TemplatesPage() {
                   <span className="tp-media-label" title={m.label}>{m.label}</span>
                   {m.category && <span className="tp-media-cat">{m.category}</span>}
                 </div>
-                <button className="tp-media-del" onClick={() => setMediaDeleteTarget(m)} title="Hapus" aria-label="Hapus"><Trash2 size={14} /></button>
+                {canEdit(m) && <button className="tp-media-del" onClick={() => setMediaDeleteTarget(m)} title="Hapus" aria-label="Hapus"><Trash2 size={14} /></button>}
               </div>
             ))}
           </div>
         )
       )}
 
-      {tab === 'tags' && (
+      {tabKey === 'tags' && (
         loadingTags ? loadingView : fTags.length === 0 ? emptyView(TagIcon, "Belum ada label percakapan.") : (
           <div className="tp-tag-grid">
             {fTags.map(t => (
@@ -630,7 +642,7 @@ export default function TemplatesPage() {
         )
       )}
 
-      {tab === 'products' && (
+      {tabKey === 'products' && (
         loadingProducts ? loadingView : fProducts.length === 0 ? emptyView(Package, "Belum ada produk. Isi katalog agar AI bisa menjawab harga & spesifikasi.") : (
           <div className="tp-grid">
             {fProducts.map(p => (
