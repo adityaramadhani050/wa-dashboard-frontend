@@ -6,7 +6,11 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
+      // Service worker baru langsung aktif; halaman dimuat ulang ke versi baru
+      // pada saat aman (buka app / pindah menu / app di belakang) oleh
+      // src/lib/pwaUpdate.js (pendaftaran manual, bukan script bawaan plugin).
       registerType: 'autoUpdate',
+      injectRegister: false,
       includeAssets: ['favicon.png', 'apple-touch-icon.png'],
       manifest: {
         name: 'RenusPro Chat',
@@ -24,6 +28,9 @@ export default defineConfig({
         ],
       },
       workbox: {
+        cleanupOutdatedCaches: true,
+        skipWaiting: true,
+        clientsClaim: true,
         // Impor handler Web Push ke service worker
         importScripts: ['push-sw.js'],
         // Jangan cache panggilan API/socket — biar data selalu realtime

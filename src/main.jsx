@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
 import './index.css'
+import './lib/pwaUpdate' // daftarkan service worker + pembaruan otomatis
 
 // iOS mengabaikan interactive-widget: keyboard tidak menyusutkan layout,
 // dokumen tergulir & header hilang. Ikat #root ke visual viewport (ikuti

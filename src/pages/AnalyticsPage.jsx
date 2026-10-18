@@ -301,7 +301,7 @@ export default function AnalyticsPage() {
           icon={UserPlus}
           label="Lead Baru"
           value={sumOr('new_contacts')}
-          sub={summary ? `${summary.total_contacts.toLocaleString('id-ID')} kontak total` : null}
+          sub={summary ? `${(summary.total_contacts || 0).toLocaleString('id-ID')} kontak total` : null}
           title="Kontak yang pertama kali chat dalam periode (tanpa grup & Non-Client)"
           color="#2563eb"
         />

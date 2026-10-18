@@ -1,4 +1,4 @@
-import { useEffect, lazy, Suspense } from 'react'
+import { useEffect, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useMatch, useNavigate, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { SocketProvider } from './context/SocketContext'
@@ -6,14 +6,18 @@ import IconBar from './components/Sidebar'
 import LoginPage from './pages/LoginPage'
 import InboxPage from './pages/InboxPage'
 import ChatPage from './pages/ChatPage'
-// Halaman berat/jarang dibuka -> dimuat saat dibutuhkan (kurangi bundle awal)
-const QRSetupPage = lazy(() => import('./pages/QRSetupPage'))
-const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage'))
-const AgentManagementPage = lazy(() => import('./pages/AgentManagementPage'))
-const ContactsPage = lazy(() => import('./pages/ContactsPage'))
-const TemplatesPage = lazy(() => import('./pages/TemplatesPage'))
-const BroadcastPage = lazy(() => import('./pages/BroadcastPage'))
-const FollowupPage = lazy(() => import('./pages/FollowupPage'))
+import ErrorBoundary from './components/ErrorBoundary'
+import { lazyPage } from './lib/lazyPage'
+import { onRouteChange } from './lib/pwaUpdate'
+// Halaman berat/jarang dibuka -> dimuat saat dibutuhkan (kurangi bundle awal).
+// lazyPage: bila file versi lama sudah hilang setelah deploy, muat ulang otomatis.
+const QRSetupPage = lazyPage(() => import('./pages/QRSetupPage'))
+const AnalyticsPage = lazyPage(() => import('./pages/AnalyticsPage'))
+const AgentManagementPage = lazyPage(() => import('./pages/AgentManagementPage'))
+const ContactsPage = lazyPage(() => import('./pages/ContactsPage'))
+const TemplatesPage = lazyPage(() => import('./pages/TemplatesPage'))
+const BroadcastPage = lazyPage(() => import('./pages/BroadcastPage'))
+const FollowupPage = lazyPage(() => import('./pages/FollowupPage'))
 
 function PageLoader() {
   return (
@@ -74,6 +78,7 @@ function ProtectedShell() {
         <IconBar />
         {isFullPage ? (
           <div className="wa-full-panel">
+            <ErrorBoundary key={window.location.pathname}>
             <Suspense fallback={<PageLoader />}>
               {matchQR       && <QRSetupPage />}
               {matchAnalytics && <AnalyticsPage />}
@@ -83,6 +88,7 @@ function ProtectedShell() {
               {matchBroadcast && <BroadcastPage />}
               {matchFollowup && <FollowupPage />}
             </Suspense>
+            </ErrorBoundary>
           </div>
         ) : (
           <>
@@ -122,11 +128,19 @@ function NativeBackHandler() {
   return null
 }
 
+// Pindah menu = saat aman memakai versi aplikasi terbaru (lihat lib/pwaUpdate)
+function UpdateOnNavigate() {
+  const location = useLocation()
+  useEffect(() => { onRouteChange() }, [location.pathname])
+  return null
+}
+
 function AppRoutes() {
   const { user } = useAuth()
   return (
     <>
       <NativeBackHandler />
+      <UpdateOnNavigate />
       <Routes>
         <Route path="/login" element={user ? <Navigate to="/inbox" replace /> : <LoginPage />} />
         <Route path="/*" element={<ProtectedShell />} />
@@ -137,10 +151,12 @@ function AppRoutes() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <AppRoutes />
-      </BrowserRouter>
-    </AuthProvider>
+    <ErrorBoundary fullScreen>
+      <AuthProvider>
+        <BrowserRouter>
+          <AppRoutes />
+        </BrowserRouter>
+      </AuthProvider>
+    </ErrorBoundary>
   )
 }
