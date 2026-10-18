@@ -6,7 +6,7 @@ import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer
 } from 'recharts'
-import { RefreshCw, TrendingUp, Users, MessageSquare, UserCheck, Clock, UserPlus, Calendar, Download, Zap, MapPin, ChevronDown, Activity, BarChart2, Inbox, CheckCircle2, Info } from 'lucide-react'
+import { RefreshCw, TrendingUp, Users, MessageSquare, UserCheck, Clock, UserPlus, Calendar, Download, Zap, MapPin, ChevronDown, Activity, BarChart2, Inbox, CheckCircle2, Info, UserX, Trophy } from 'lucide-react'
 
 const REGION_OPTIONS = [
   { key: '', label: 'Semua' },
@@ -301,7 +301,7 @@ export default function AnalyticsPage() {
           icon={UserPlus}
           label="Lead Baru"
           value={sumOr('new_contacts')}
-          sub={summary ? `${summary.new_unassigned ? `${summary.new_unassigned} belum di-assign` : 'semua sudah di-assign'} · ${summary.total_contacts.toLocaleString('id-ID')} kontak total` : null}
+          sub={summary ? `${summary.total_contacts.toLocaleString('id-ID')} kontak total` : null}
           title="Kontak yang pertama kali chat dalam periode (tanpa grup & Non-Client)"
           color="#2563eb"
         />
@@ -330,6 +330,44 @@ export default function AnalyticsPage() {
           value={sumOr('resolved')}
           sub={summary ? `dari ${summary.total_leads} total lead` : null}
           title="Dari Total Lead: hari ini = sudah Resolved saat ini; periode lampau = sudah di-resolve setelah periode itu (walau kini aktif lagi karena aktivitas baru)"
+          color="#10b981"
+        />
+      </div>
+      <div className="an-cards">
+        <StatCard
+          loading={loading}
+          icon={Users}
+          label="Total Lead"
+          value={sumOr('total_leads')}
+          sub={summary ? `${summary.new_contacts} baru · ${summary.old_chats} lama` : null}
+          title="Lead Baru + Lead Lama dalam periode"
+          color="#0ea5e9"
+        />
+        <StatCard
+          loading={loading}
+          icon={UserCheck}
+          label="Lead Baru Di-assign"
+          value={sumOr('new_assigned')}
+          sub={summary ? `${summary.new_contacts ? Math.round((summary.new_assigned / summary.new_contacts) * 100) : 0}% dari ${summary.new_contacts} lead baru` : null}
+          title="Lead baru dalam periode yang sudah di-assign ke agent/admin"
+          color="#6366f1"
+        />
+        <StatCard
+          loading={loading}
+          icon={UserX}
+          label="Belum Di-assign"
+          value={sumOr('new_unassigned')}
+          sub={summary ? (summary.new_unassigned ? 'lead baru perlu di-assign' : 'semua lead baru sudah di-assign') : null}
+          title="Lead baru dalam periode yang belum di-assign ke siapa pun"
+          color={summary?.new_unassigned ? '#ef4444' : '#64748b'}
+        />
+        <StatCard
+          loading={loading}
+          icon={Trophy}
+          label="Deal"
+          value={sumOr('deal')}
+          sub={summary ? `${summary.total_leads ? Math.round((summary.deal / summary.total_leads) * 100) : 0}% dari total lead · ${summary.prospek} prospek` : null}
+          title="Total Lead yang diberi tag Deal dalam periode"
           color="#10b981"
         />
       </div>
@@ -397,19 +435,15 @@ export default function AnalyticsPage() {
               </tbody>
             </table>
           </div>
-          <div className="an-table-note">
-            {summary?.new_unassigned > 0 && (
-              <span className="an-note-warn"><UserPlus size={13} /> {summary.new_unassigned} dari {summary.new_contacts} lead baru belum di-assign</span>
-            )}
-            {summary && !summary.tag_times && (
-              <span className="an-note-warn"><Info size={13} /> Waktu pemasangan tag belum tercatat, jadi Prospek/Deal masih perkiraan. Jalankan SQL migrasi tag di Supabase.</span>
-            )}
-            {summary?.tag_times && !summary.tag_history && (
-              <span className="an-note-warn"><Info size={13} /> Riwayat tag belum aktif: tag yang sudah dilepas (mis. Prospek diganti Deal/Fail) belum ikut terhitung.</span>
-            )}
-            <span><Info size={13} /> Lead Baru = kontak pertama kali chat dalam periode · Lead Lama = customer lama (belum Deal) yang dihubungi agent dalam periode · Total Lead = Lead Baru + Lead Lama</span>
-            <span><Info size={13} /> Aktif & Resolved: hari ini = status saat ini; periode lampau = Resolved bila setelah aktivitas terakhirnya di periode itu chat sempat di-resolve atau sepi ≥24 jam (auto-resolve), walau kini aktif lagi karena aktivitas baru · Prospek = sudah diberi tag Prospek sampai akhir periode (atau langsung Deal) · Deal = tag Deal dipasang dalam periode</span>
-          </div>
+          {summary && (!summary.tag_times || !summary.tag_history) && (
+            <div className="an-table-note">
+              {!summary.tag_times ? (
+                <span className="an-note-warn"><Info size={13} /> Waktu pemasangan tag belum tercatat, jadi Prospek/Deal masih perkiraan. Jalankan SQL migrasi tag di Supabase.</span>
+              ) : (
+                <span className="an-note-warn"><Info size={13} /> Riwayat tag belum aktif: tag yang sudah dilepas (mis. Prospek diganti Deal/Fail) belum ikut terhitung.</span>
+              )}
+            </div>
+          )}
         </div>
       )}
 
