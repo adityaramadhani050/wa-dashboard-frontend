@@ -183,7 +183,7 @@ export default function AgentManagementPage() {
     setAiBusy(true); setAiError('')
     try {
       const saved = await saveAiSales({
-        enabled: payload.enabled, agent_id: payload.agent_id || null, persona_name: payload.persona_name,
+        enabled: payload.enabled, agent_id: payload.agent_id || null, persona_name: payload.persona_name, company: payload.company,
         style: payload.style, instructions: payload.instructions, reply_delay_sec: Number(payload.reply_delay_sec) || 10,
         followup_enabled: !!payload.followup_enabled,
         lowercase: payload.lowercase !== false,
@@ -740,6 +740,12 @@ export default function AgentManagementPage() {
                         <input value={ai.persona_name || ''} maxLength={40} placeholder={aiAgent?.name || 'Nama akun agent'}
                           onChange={e => setAi({ ...ai, persona_name: e.target.value })} />
                         <small>Kosongkan untuk memakai nama akun agent.</small>
+                      </label>
+                      <label className="rr-field">
+                        <span>Nama perusahaan</span>
+                        <input value={ai.company ?? ''} maxLength={60} placeholder="Renus"
+                          onChange={e => setAi({ ...ai, company: e.target.value })} />
+                        <small>Nama yang disebut AI saat memperkenalkan diri, mis. "Renus" atau "PT Renus Global Indonesia".</small>
                       </label>
                       <label className="rr-field">
                         <span>Gaya bahasa</span>
