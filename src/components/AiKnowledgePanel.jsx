@@ -311,7 +311,7 @@ function LessonsSection() {
 export default function AiKnowledgePanel({ section }) {
   return (
     <>
-      {section === 'skills' ? <SkillsSection /> : <LessonsSection />}
+      {section === 'skills' ? <SkillsSection /> : section === 'lessons' ? <LessonsSection /> : null}
       <style>{`
         .ak-section { display: flex; flex-direction: column; gap: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; box-shadow: 0 1px 3px var(--shadow); }
         .ak-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }

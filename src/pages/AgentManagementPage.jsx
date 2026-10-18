@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { getAgents, createAgent, updateAgent, deleteAgent, getAutoAssign, setAutoAssign, generateBotToken, getWorkHours, setWorkHours, setAgentAvailability, cleanupMedia, getRegionalRouting, setRegionalRouting, setAgentRegion, backfillRegional, getAiSales, saveAiSales } from '../hooks/useApi'
 import { refreshAiAgent } from '../hooks/useAiAgent'
 import AiKnowledgePanel from '../components/AiKnowledgePanel'
+import AiUsagePanel from '../components/AiUsagePanel'
 import { Plus, Pencil, Trash2, X, Eye, EyeOff, Users, Shuffle, KeyRound, Copy, Check, Clock, HardDrive, MapPin, AlertTriangle, Settings2, Sparkles } from 'lucide-react'
 
 const REGION_OPTIONS = [
@@ -690,12 +691,13 @@ export default function AgentManagementPage() {
 
       {tab === 'ai' && (
         <div className="ai-subnav" role="tablist">
-          {[['settings', 'Pengaturan'], ['skills', 'Skill / Playbook'], ['lessons', 'Koreksi']].map(([k, label]) => (
+          {[['settings', 'Pengaturan'], ['skills', 'Skill / Playbook'], ['lessons', 'Koreksi'], ['usage', 'Pemakaian']].map(([k, label]) => (
             <button key={k} role="tab" aria-selected={aiSection === k} className={aiSection === k ? 'active' : ''} onClick={() => setAiSection(k)}>{label}</button>
           ))}
         </div>
       )}
-      {tab === 'ai' && aiSection !== 'settings' && <AiKnowledgePanel section={aiSection} />}
+      {tab === 'ai' && (aiSection === 'skills' || aiSection === 'lessons') && <AiKnowledgePanel section={aiSection} />}
+      {tab === 'ai' && aiSection === 'usage' && <><AiKnowledgePanel section="none" /><AiUsagePanel /></>}
       {tab === 'ai' && aiSection === 'settings' && (
         <div className="aa-grid">
           <div className="aa-card rr-card">

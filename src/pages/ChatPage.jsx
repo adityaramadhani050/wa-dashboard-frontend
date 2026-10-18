@@ -8,7 +8,7 @@ import {
   getTemplates, getQuickMedia, sendQuickMedia, useTemplate,
   getTags, addTagToConversation, removeTagFromConversation,
   getContactNotes, createContactNote, getContactConversations, getConversationFollowup, getConversationResponseStats, getAiMemory, saveAiMemory,
-  generateAiSuggestion, suggestAiTags, suggestAiNote, updateContact,
+  generateAiSuggestion, updateContact,
 } from '../hooks/useApi'
 import { supabase } from '../lib/supabase'
 import PdfThumb, { isPdf } from '../components/PdfThumb'
@@ -558,10 +558,6 @@ export default function ChatPage({ chatId }) {
   const [savingNote, setSavingNote] = useState(false)
   const [convHistory, setConvHistory] = useState([])
   const [loadingHistory, setLoadingHistory] = useState(false)
-  const [aiNoteLoading, setAiNoteLoading] = useState(false)
-  const [aiTagLoading, setAiTagLoading] = useState(false)
-  const [aiTagSuggested, setAiTagSuggested] = useState([]) // tag_ids yang disarankan AI
-  const [aiTagReason, setAiTagReason] = useState('')
 
   // Follow-up otomatis (menggantikan pengingat manual)
   const [fuData, setFuData] = useState(null)
@@ -1171,29 +1167,6 @@ export default function ChatPage({ chatId }) {
     finally { setSavingNote(false) }
   }
 
-  const handleAiSuggestNote = async () => {
-    if (aiNoteLoading) return
-    setAiNoteLoading(true)
-    try {
-      const { note } = await suggestAiNote(id)
-      if (note) setNoteText(note)
-    } catch (e) {
-      setError(e?.response?.status === 429 ? 'Kuota AI sedang penuh, coba lagi.' : 'Gagal membuat catatan AI.')
-    } finally { setAiNoteLoading(false) }
-  }
-
-  const handleAiSuggestTags = async () => {
-    if (aiTagLoading) return
-    setAiTagLoading(true); setAiTagReason('')
-    try {
-      const { tag_ids, reason } = await suggestAiTags(id)
-      setAiTagSuggested(Array.isArray(tag_ids) ? tag_ids : [])
-      setAiTagReason(reason || '')
-    } catch (e) {
-      setError(e?.response?.status === 429 ? 'Kuota AI sedang penuh, coba lagi.' : 'Gagal membuat saran tag AI.')
-    } finally { setAiTagLoading(false) }
-  }
-
   const loadFollowup = useCallback(() => {
     getConversationFollowup(id).then(setFuData).catch(() => {})
   }, [id])
@@ -1349,23 +1322,16 @@ export default function ChatPage({ chatId }) {
       </div>
 
       {showTagModal && (
-        <Modal title="Atur Label Percakapan" onClose={() => { setShowTagModal(false); setAiTagSuggested([]); setAiTagReason('') }}>
+        <Modal title="Atur Label Percakapan" onClose={() => setShowTagModal(false)}>
           <div className="cv-tag-modal-list">
-            {allTags.length > 0 && (
-              <button className="cv-ai-tag-btn" onClick={handleAiSuggestTags} disabled={aiTagLoading}>
-                <Sparkles size={14} />{aiTagLoading ? 'Menganalisa...' : 'Saran label dari AI'}
-              </button>
-            )}
-            {aiTagReason && <div className="cv-ai-tag-reason">{aiTagReason}</div>}
             {allTags.length === 0 ? (
               <div className="cv-mi muted">Belum ada tag. Buat di halaman Template & Galeri.</div>
             ) : allTags.map(t => {
               const checked = conversationTags.some(ct => ct.id === t.id)
-              const suggested = aiTagSuggested.includes(t.id) && !checked
               return (
                 <button
                   key={t.id}
-                  className={`cv-tag-option${checked ? ' checked' : ''}${suggested ? ' suggested' : ''}`}
+                  className={`cv-tag-option${checked ? ' checked' : ''}`}
                   disabled={!!tagToggling}
                   onClick={() => handleToggleTag(t)}
                 >
@@ -1373,7 +1339,6 @@ export default function ChatPage({ chatId }) {
                     {tagToggling === t.id ? <span className="cv-sending-dot dark" /> : checked && <Check size={12} strokeWidth={3} />}
                   </span>
                   <span className="tag-chip" style={{ background: t.color }}>{t.name}</span>
-                  {suggested && <span className="cv-ai-tag-badge"><Sparkles size={11} />disarankan</span>}
                 </button>
               )
             })}
@@ -1824,7 +1789,7 @@ export default function ChatPage({ chatId }) {
                 ) : aiMemory?.summary ? (
                   <div className="cv-mem-text">{aiMemory.summary}</div>
                 ) : (
-                  <div className="cv-notes-empty">Belum ada. AI meringkas fakta penting customer otomatis setelah percakapan sepi ±10 menit.</div>
+                  <div className="cv-notes-empty">Belum ada. AI meringkas fakta penting customer otomatis setelah percakapan sepi ±30 menit.</div>
                 )}
               </section>
             )}
@@ -1860,9 +1825,6 @@ export default function ChatPage({ chatId }) {
                   rows={2}
                 />
                 <div className="cv-notes-form-actions">
-                  <button className="cv-note-ai" onClick={handleAiSuggestNote} disabled={aiNoteLoading}>
-                    <Sparkles size={13} />{aiNoteLoading ? 'Membuat...' : 'Buat dari AI'}
-                  </button>
                   <button className="cv-note-save" onClick={handleSaveNote} disabled={!noteText.trim() || savingNote}>
                     {savingNote ? 'Menyimpan...' : 'Simpan'}
                   </button>
@@ -2271,19 +2233,10 @@ export default function ChatPage({ chatId }) {
         .cv-notes-form { display: flex; flex-direction: column; gap: 8px; }
         .cv-notes-form textarea { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; color: var(--text); padding: 9px 11px; font-size: 13px; line-height: 1.45; outline: none; resize: vertical; min-height: 64px; font-family: inherit; }
         .cv-notes-form textarea:focus { border-color: var(--primary); }
-        .cv-notes-form-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-        .cv-note-ai { display: inline-flex; align-items: center; gap: 5px; padding: 7px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; color: #7c5cd6; background: rgba(124,92,214,0.08); transition: all 0.15s; }
-        .cv-note-ai:hover { background: rgba(124,92,214,0.15); }
-        .cv-note-ai:disabled { opacity: 0.6; cursor: not-allowed; }
+        .cv-notes-form-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
         .cv-note-save { padding: 7px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; background: var(--primary); color: var(--on-primary); transition: all 0.15s; }
         .cv-note-save:hover { background: var(--primary-hover); }
         .cv-note-save:disabled { background: var(--surface3); color: var(--muted); cursor: not-allowed; }
-        .cv-ai-tag-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 9px 12px; border-radius: 8px; font-size: 13px; font-weight: 600; color: #7c5cd6; background: rgba(124,92,214,0.08); transition: all 0.15s; margin-bottom: 4px; }
-        .cv-ai-tag-btn:hover { background: rgba(124,92,214,0.15); }
-        .cv-ai-tag-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-        .cv-ai-tag-reason { font-size: 12px; color: var(--text2); background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; line-height: 1.4; margin-bottom: 4px; }
-        .cv-tag-option.suggested { background: rgba(124,92,214,0.06); box-shadow: inset 0 0 0 1px rgba(124,92,214,0.3); }
-        .cv-ai-tag-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 10px; font-weight: 600; color: #7c5cd6; margin-left: auto; }
         .cv-history-list { display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow-y: auto; }
         .cv-history-item { display: flex; flex-direction: column; gap: 4px; width: 100%; text-align: left; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; transition: all 0.15s; }
         .cv-history-item:hover { background: var(--surface3); border-color: var(--border2); }

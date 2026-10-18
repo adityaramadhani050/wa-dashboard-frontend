@@ -150,10 +150,6 @@ export const generateFollowupDraft = (conversationId, step) =>
 // Saran Balasan AI
 export const generateAiSuggestion = (conversationId) =>
   api.post('/ai/suggest', { conversation_id: conversationId }, { timeout: 30000 }).then(r => r.data)
-export const suggestAiTags = (conversationId) =>
-  api.post('/ai/suggest-tags', { conversation_id: conversationId }, { timeout: 30000 }).then(r => r.data)
-export const suggestAiNote = (conversationId) =>
-  api.post('/ai/suggest-note', { conversation_id: conversationId }, { timeout: 30000 }).then(r => r.data)
 
 // Token bot/service untuk integrasi mesin-ke-mesin (mis. WA Bot RenusPro)
 export const generateBotToken = (name) => api.post('/auth/bot-token', name ? { name } : {}).then(r => r.data)
@@ -189,6 +185,7 @@ export const getAiLessons = () => api.get('/ai-sales/lessons').then(r => r.data)
 export const createAiLesson = (payload) => api.post('/ai-sales/lessons', payload).then(r => r.data)
 export const updateAiLesson = (id, payload) => api.put(`/ai-sales/lessons/${id}`, payload).then(r => r.data)
 export const deleteAiLesson = (id) => api.delete(`/ai-sales/lessons/${id}`).then(r => r.data)
+export const getAiUsage = (days) => api.get('/ai-sales/usage', { params: { days } }).then(r => r.data)
 export const getAiMemory = (contactId) => api.get(`/ai-sales/memory/${contactId}`).then(r => r.data)
 export const saveAiMemory = (contactId, summary) => api.put(`/ai-sales/memory/${contactId}`, { summary }).then(r => r.data)
 export const getRegionalRouting = () => api.get('/settings/regional-routing').then(r => r.data)
