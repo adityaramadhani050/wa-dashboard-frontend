@@ -3,6 +3,7 @@ import { getAgents, createAgent, updateAgent, deleteAgent, getAutoAssign, setAut
 import { refreshAiAgent } from '../hooks/useAiAgent'
 import AiKnowledgePanel from '../components/AiKnowledgePanel'
 import AiUsagePanel from '../components/AiUsagePanel'
+import AiModelsPanel from '../components/AiModelsPanel'
 import { Plus, Pencil, Trash2, X, Eye, EyeOff, Users, Shuffle, KeyRound, Copy, Check, Clock, HardDrive, MapPin, AlertTriangle, Settings2, Sparkles } from 'lucide-react'
 
 const REGION_OPTIONS = [
@@ -691,13 +692,14 @@ export default function AgentManagementPage() {
 
       {tab === 'ai' && (
         <div className="ai-subnav" role="tablist">
-          {[['settings', 'Pengaturan'], ['skills', 'Skill / Playbook'], ['lessons', 'Koreksi'], ['usage', 'Pemakaian']].map(([k, label]) => (
+          {[['settings', 'Pengaturan'], ['models', 'Model AI'], ['skills', 'Skill / Playbook'], ['lessons', 'Koreksi'], ['usage', 'Pemakaian']].map(([k, label]) => (
             <button key={k} role="tab" aria-selected={aiSection === k} className={aiSection === k ? 'active' : ''} onClick={() => setAiSection(k)}>{label}</button>
           ))}
         </div>
       )}
       {tab === 'ai' && (aiSection === 'skills' || aiSection === 'lessons') && <AiKnowledgePanel section={aiSection} />}
       {tab === 'ai' && aiSection === 'usage' && <><AiKnowledgePanel section="none" /><AiUsagePanel /></>}
+      {tab === 'ai' && aiSection === 'models' && <><AiKnowledgePanel section="none" /><AiModelsPanel /></>}
       {tab === 'ai' && aiSection === 'settings' && (
         <div className="aa-grid">
           <div className="aa-card rr-card">
@@ -719,7 +721,7 @@ export default function AgentManagementPage() {
 
                 {ai && (
                   <div className="rr-body">
-                    {ai.gemini === false && <div className="rr-warn"><AlertTriangle size={14} /> GEMINI_API_KEY belum diset di server — AI tidak dapat membalas.</div>}
+                    {ai.ai_ready === false && <div className="rr-warn"><AlertTriangle size={14} /> OPENROUTER_API_KEY belum diset di server — AI tidak dapat membalas.</div>}
                     {ai.enabled && !autoAssign && <div className="rr-warn"><AlertTriangle size={14} /> Auto-assign sedang mati: AI hanya membalas chat yang di-assign manual ke akunnya.</div>}
                     {ai.enabled && aiAgent && aiAgent.available === false && <div className="rr-warn"><AlertTriangle size={14} /> Akun {aiAgent.name} sedang non-aktif, jadi tidak menerima chat baru dari auto-assign.</div>}
                     {ai.enabled && aiAgent && rr?.enabled && !aiAgent.region && <div className="rr-warn"><AlertTriangle size={14} /> Routing regional aktif: beri regional untuk akun {aiAgent.name} di Daftar Agent agar ikut menerima lead baru.</div>}
