@@ -176,6 +176,8 @@ export const setAutoAssign = (enabled) => api.put('/settings/auto-assign', { ena
 export const getWorkHours = () => api.get('/settings/work-hours').then(r => r.data)
 export const setWorkHours = (payload) => api.put('/settings/work-hours', payload).then(r => r.data)
 // Routing regional (bot tanya lokasi -> agent Barat/Timur)
+export const getAiSales = () => api.get('/settings/ai-sales').then(r => r.data)
+export const saveAiSales = (payload) => api.put('/settings/ai-sales', payload).then(r => r.data)
 export const getRegionalRouting = () => api.get('/settings/regional-routing').then(r => r.data)
 export const setRegionalRouting = (payload) => api.put('/settings/regional-routing', payload).then(r => r.data)
 // Isi regional kontak lama dari regional agent yang menanganinya (sekali jalan)

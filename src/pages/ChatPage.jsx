@@ -15,6 +15,7 @@ import PdfThumb, { isPdf } from '../components/PdfThumb'
 import FollowupPanel from '../components/FollowupPanel'
 import { dueTone } from '../components/followupUi'
 import { formatDurShort, formatDurLong } from '../lib/duration'
+import { useAiAgentId } from '../hooks/useAiAgent'
 import { Send, ArrowLeft, ArrowDown, UserCheck, Paperclip, X, FileText, Play, Download, Check, Image, Film, Clock, Zap, Package, Tag as TagIcon, StickyNote, MoreVertical, Sparkles, Reply, Pencil, Forward, Search as SearchIcon, Trash2, Copy, MapPin, User, Bot, PanelRight, ExternalLink, Phone } from 'lucide-react'
 
 
@@ -1213,6 +1214,8 @@ export default function ChatPage({ chatId }) {
   const name = conversation?.contact?.name || conversation?.contact?.phone || 'Unknown'
   const phone = conversation?.contact?.manual_wa_number || cleanPhone(conversation?.contact?.phone)
   const assignedAgent = conversation?.agents
+  const aiAgentId = useAiAgentId()
+  const isAiChat = !!(aiAgentId && assignedAgent && String(assignedAgent.id) === aiAgentId)
   const chatRegionVal = conversation?.region || conversation?.contact?.region || null
 
   const messageItems = []
@@ -1249,7 +1252,7 @@ export default function ChatPage({ chatId }) {
             {conversation?.status && (
               <span className={`cv-status-badge st-${conversation.status}`}>{statusLabel(conversation.status)}</span>
             )}
-            {isAdmin && assignedAgent && <span className="cv-assigned"><UserCheck size={10} />{assignedAgent.name}</span>}
+            {isAdmin && assignedAgent && <span className={`cv-assigned${isAiChat ? ' ai' : ''}`} title={isAiChat ? 'Dibalas otomatis oleh AI Sales. Assign ke agent lain untuk mengambil alih.' : undefined}>{isAiChat ? <Sparkles size={10} /> : <UserCheck size={10} />}{assignedAgent.name}{isAiChat ? ' · AI' : ''}</span>}
             {isAdmin && !assignedAgent && <span className="cv-unassigned">Unassigned</span>}
             {isAdmin && conversation?.bot_state === 'awaiting_location' && (
               <span className="cv-region-badge bot"><Bot size={10} />Bot bertanya lokasi</span>
@@ -1857,6 +1860,7 @@ export default function ChatPage({ chatId }) {
         .cv-resp { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 11.5px; font-weight: 700; color: var(--success); background: rgba(16,185,129,0.12); font-variant-numeric: tabular-nums; }
         .cv-resp.slow { color: #d97706; background: rgba(217,119,6,0.13); }
         .cv-resp-wait { font-size: 11px; font-weight: 600; color: #d97706; }
+        .cv-assigned.ai { background: rgba(124,58,237,0.13); color: #8b5cf6; }
         .cv-assigned { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 10px; background: rgba(39,168,122,0.1); color: var(--success); }
         .cv-region-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 10px; white-space: nowrap; }
         .cv-region-badge.barat { color: #2563eb; background: rgba(37,99,235,0.12); }

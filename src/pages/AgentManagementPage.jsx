@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
-import { getAgents, createAgent, updateAgent, deleteAgent, getAutoAssign, setAutoAssign, generateBotToken, getWorkHours, setWorkHours, setAgentAvailability, cleanupMedia, getRegionalRouting, setRegionalRouting, setAgentRegion, backfillRegional } from '../hooks/useApi'
-import { Plus, Pencil, Trash2, X, Eye, EyeOff, Users, Shuffle, KeyRound, Copy, Check, Clock, HardDrive, MapPin, AlertTriangle, Settings2 } from 'lucide-react'
+import { getAgents, createAgent, updateAgent, deleteAgent, getAutoAssign, setAutoAssign, generateBotToken, getWorkHours, setWorkHours, setAgentAvailability, cleanupMedia, getRegionalRouting, setRegionalRouting, setAgentRegion, backfillRegional, getAiSales, saveAiSales } from '../hooks/useApi'
+import { refreshAiAgent } from '../hooks/useAiAgent'
+import { Plus, Pencil, Trash2, X, Eye, EyeOff, Users, Shuffle, KeyRound, Copy, Check, Clock, HardDrive, MapPin, AlertTriangle, Settings2, Sparkles } from 'lucide-react'
 
 const REGION_OPTIONS = [
   { value: '', label: '— Belum diatur' },
@@ -26,6 +27,7 @@ const TABS = [
   { key: 'agents', label: 'Daftar Agent', icon: Users },
   { key: 'chat', label: 'Pembagian Chat', icon: Shuffle },
   { key: 'regional', label: 'Routing Regional', icon: MapPin },
+  { key: 'ai', label: 'AI Sales', icon: Sparkles },
   { key: 'system', label: 'Sistem', icon: Settings2 },
 ]
 
@@ -166,6 +168,29 @@ export default function AgentManagementPage() {
   useEffect(() => { load() }, [load])
   useEffect(() => { getAutoAssign().then(d => setAutoAssignState(!!d.enabled)).catch(() => {}) }, [])
   useEffect(() => { getWorkHours().then(setWh).catch(() => {}) }, [])
+
+  // AI Sales Agent
+  const [ai, setAi] = useState(null)
+  const [aiBusy, setAiBusy] = useState(false)
+  const [aiError, setAiError] = useState('')
+  const [aiSaved, setAiSaved] = useState(false)
+  useEffect(() => { getAiSales().then(setAi).catch(() => {}) }, [])
+  const saveAi = async (patch = {}) => {
+    const payload = { ...ai, ...patch }
+    setAiBusy(true); setAiError('')
+    try {
+      const saved = await saveAiSales({
+        enabled: payload.enabled, agent_id: payload.agent_id || null, persona_name: payload.persona_name,
+        style: payload.style, instructions: payload.instructions, reply_delay_sec: Number(payload.reply_delay_sec) || 10,
+      })
+      setAi(saved)
+      refreshAiAgent()
+      setAiSaved(true); setTimeout(() => setAiSaved(false), 2000)
+    } catch (e) {
+      setAiError(e?.response?.data?.error || 'Gagal menyimpan pengaturan AI Sales')
+    } finally { setAiBusy(false) }
+  }
+  const aiAgent = agents.find(a => String(a.id) === String(ai?.agent_id))
 
   const handleSaveWorkHours = async () => {
     if (!wh || whBusy) return
@@ -403,6 +428,7 @@ export default function AgentManagementPage() {
                       <div className="am-agent-cell">
                         <div className="am-avatar" style={avatarStyle(a.name)}>{(a.name || 'A')[0].toUpperCase()}</div>
                         <span>{a.name}</span>
+                        {ai?.enabled && String(ai.agent_id) === String(a.id) && <span className="ai-badge" title="Dikendalikan AI Sales"><Sparkles size={10} />AI</span>}
                       </div>
                     </td>
                     <td><span className="am-username">@{a.username || '—'}</span></td>
@@ -474,7 +500,7 @@ export default function AgentManagementPage() {
               <div className="am-card-top">
                 <div className="am-avatar" style={avatarStyle(a.name)}>{(a.name || 'A')[0].toUpperCase()}</div>
                 <div className="am-card-id">
-                  <span className="am-card-name">{a.name}</span>
+                  <span className="am-card-name">{a.name}{ai?.enabled && String(ai.agent_id) === String(a.id) && <span className="ai-badge"><Sparkles size={10} />AI</span>}</span>
                   <span className="am-card-sub">@{a.username || '—'} · {roleBadge(a.role)}</span>
                 </div>
                 <div className="am-actions">
@@ -657,6 +683,92 @@ export default function AgentManagementPage() {
         </div>
       )}
 
+      {tab === 'ai' && (
+        <div className="aa-grid">
+          <div className="aa-card rr-card">
+            <div className="aa-info">
+              <div className="aa-icon"><Sparkles size={18} /></div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="rr-head">
+                  <div>
+                    <div className="aa-title">AI Sales Agent</div>
+                    <div className="aa-desc">Akun agent yang dikendalikan AI: ikut auto-assign, membalas customer otomatis layaknya sales (menggali kebutuhan, penawaran dari Katalog Produk, sampai mengumpulkan data & usulan jadwal survei). Konfirmasi survei & Deal tetap oleh admin. Ambil alih chat kapan saja dengan meng-assign ke agent lain.</div>
+                  </div>
+                  {ai && (
+                    <button className={`aa-switch${ai.enabled ? ' on' : ''}`} onClick={() => saveAi({ enabled: !ai.enabled })}
+                      disabled={aiBusy || (!ai.enabled && !ai.agent_id)} role="switch" aria-checked={!!ai.enabled}
+                      title={!ai.agent_id ? 'Pilih akun agent dulu' : ai.enabled ? 'Nonaktifkan AI Sales' : 'Aktifkan AI Sales'}
+                    ><span className="aa-knob" /></button>
+                  )}
+                </div>
+
+                {ai && (
+                  <div className="rr-body">
+                    {ai.gemini === false && <div className="rr-warn"><AlertTriangle size={14} /> GEMINI_API_KEY belum diset di server — AI tidak dapat membalas.</div>}
+                    {ai.enabled && !autoAssign && <div className="rr-warn"><AlertTriangle size={14} /> Auto-assign sedang mati: AI hanya membalas chat yang di-assign manual ke akunnya.</div>}
+                    {ai.enabled && aiAgent && aiAgent.available === false && <div className="rr-warn"><AlertTriangle size={14} /> Akun {aiAgent.name} sedang non-aktif, jadi tidak menerima chat baru dari auto-assign.</div>}
+                    {ai.enabled && aiAgent && rr?.enabled && !aiAgent.region && <div className="rr-warn"><AlertTriangle size={14} /> Routing regional aktif: beri regional untuk akun {aiAgent.name} di Daftar Agent agar ikut menerima lead baru.</div>}
+
+                    <div className="rr-grid">
+                      <label className="rr-field">
+                        <span>Akun agent untuk AI</span>
+                        <select value={ai.agent_id || ''} onChange={e => setAi({ ...ai, agent_id: e.target.value || null })}>
+                          <option value="">— Pilih akun agent —</option>
+                          {agents.filter(a => a.role === 'agent').map(a => <option key={a.id} value={a.id}>{a.name} (@{a.username})</option>)}
+                        </select>
+                        <small>Buat akun agent khusus di Daftar Agent (mis. "Rina"), lalu pilih di sini. Chat yang di-assign ke akun ini dibalas AI.</small>
+                      </label>
+                      <label className="rr-field">
+                        <span>Nama sales yang dipakai AI</span>
+                        <input value={ai.persona_name || ''} maxLength={40} placeholder={aiAgent?.name || 'Nama akun agent'}
+                          onChange={e => setAi({ ...ai, persona_name: e.target.value })} />
+                        <small>Kosongkan untuk memakai nama akun agent.</small>
+                      </label>
+                      <label className="rr-field">
+                        <span>Gaya bahasa</span>
+                        <select value={ai.style || 'santai'} onChange={e => setAi({ ...ai, style: e.target.value })}>
+                          <option value="santai">Santai (khas chat WA)</option>
+                          <option value="sopan">Sopan & profesional</option>
+                        </select>
+                        <small>Contoh gaya juga dipelajari dari balasan sales asli yang berhasil closing.</small>
+                      </label>
+                      <label className="rr-field">
+                        <span>Jeda sebelum membalas (detik)</span>
+                        <input type="number" min="3" max="120" value={ai.reply_delay_sec ?? 10}
+                          onChange={e => setAi({ ...ai, reply_delay_sec: e.target.value })} />
+                        <small>AI menunggu pesan beruntun customer lalu membalas sekaligus, ditambah efek "sedang mengetik".</small>
+                      </label>
+                    </div>
+                    <label className="rr-field" style={{ width: '100%' }}>
+                      <span>Instruksi & info tambahan untuk AI</span>
+                      <textarea rows={5} value={ai.instructions || ''} maxLength={3000}
+                        placeholder={'Contoh:\n- Area layanan: Jawa Timur & Bali\n- Promo Oktober: gratis maintenance 1 tahun\n- Survei hanya Senin–Sabtu jam 08.00–16.00\n- Jangan menjanjikan cicilan'}
+                        onChange={e => setAi({ ...ai, instructions: e.target.value })} />
+                      <small>Harga & spesifikasi diambil dari Katalog Produk (Template & Galeri). AI tidak memberi diskon di luar yang tertulis di sini.</small>
+                    </label>
+
+                    <div className="ai-rules">
+                      <b>Yang dilakukan AI otomatis</b>
+                      <span>• Memasang tag <b>Prospek</b> saat penawaran sudah diberikan / customer jelas tertarik.</span>
+                      <span>• Customer setuju survei & memberi alamat + waktu → dicatat di Catatan kontak & admin mendapat notifikasi.</span>
+                      <span>• Komplain, garansi/servis, minta ditelepon, atau hal di luar kemampuan → AI membalas "dicek dulu" & admin mendapat notifikasi.</span>
+                      <span>• AI berhenti di chat bertag Deal/Non-Client, dan diam bila admin baru membalas di chat tersebut (30 menit).</span>
+                    </div>
+
+                    {aiError && <div className="am-form-err">{aiError}</div>}
+                    <div className="rr-actions">
+                      <button className="am-btn primary" onClick={() => saveAi()} disabled={aiBusy}>
+                        {aiSaved ? <><Check size={15} /> Tersimpan</> : aiBusy ? 'Menyimpan...' : 'Simpan Pengaturan AI'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {tab === 'system' && (
         <div className="aa-grid">
           <div className="aa-stack">
@@ -804,6 +916,10 @@ export default function AgentManagementPage() {
         .cm-label { font-size: 13px; color: var(--text2); display: inline-flex; align-items: center; gap: 8px; }
         .cm-label input { width: 74px; height: 36px; padding: 0 10px; border: 1px solid var(--border); border-radius: 9px; font-size: 13px; color: var(--text); background: var(--surface2); }
         .cm-result { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 600; color: var(--success); }
+        .ai-badge { display: inline-flex; align-items: center; gap: 3px; margin-left: 6px; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 999px; color: #7c3aed; background: rgba(124,58,237,0.13); }
+        .ai-rules { display: flex; flex-direction: column; gap: 5px; width: 100%; padding: 12px 14px; border-radius: 10px; background: var(--surface2); border: 1px solid var(--border); font-size: 12.5px; color: var(--text2); line-height: 1.5; }
+        .ai-rules b { color: var(--text); }
+        .rr-field select { height: 38px; border: 1px solid var(--border); border-radius: 9px; padding: 0 10px; font-size: 13px; color: var(--text); background: var(--surface2); font-family: inherit; }
         .rr-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
         .rr-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
         .rr-body { display: flex; flex-direction: column; gap: 14px; margin-top: 14px; align-items: flex-start; }

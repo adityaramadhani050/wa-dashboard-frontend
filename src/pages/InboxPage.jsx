@@ -3,8 +3,9 @@ import { useNavigate, useMatch } from 'react-router-dom'
 import { useSocket } from '../context/SocketContext'
 import { useAuth } from '../context/AuthContext'
 import { formatDurShort as formatWaitShort, formatDurLong as formatWaitLong } from '../lib/duration'
+import { useAiAgentId } from '../hooks/useAiAgent'
 import { getConversations, getTags, getAgents, syncMessages, getWorkHours, getMyAvailability, setMyAvailability } from '../hooks/useApi'
-import { Search, RefreshCw, UserCheck, Tag as TagIcon, ChevronDown, Clock, RotateCw, X, MapPin, Bot, CheckCheck, SearchX, MessagesSquare, ListFilter } from 'lucide-react'
+import { Search, RefreshCw, UserCheck, Tag as TagIcon, ChevronDown, Clock, RotateCw, X, MapPin, Bot, CheckCheck, SearchX, MessagesSquare, ListFilter, Sparkles } from 'lucide-react'
 
 // Regional chat: dari percakapan, atau dari kontak (customer lama)
 const chatRegion = (c) => c.region || c.contact?.region || null
@@ -64,6 +65,7 @@ function timeStr(dateStr) {
 }
 
 export default function InboxPage() {
+  const aiAgentId = useAiAgentId()
   const [conversations, setConversations] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -523,8 +525,8 @@ export default function InboxPage() {
                       <span className="cl-preview-text">{preview}</span>
                     </span>
                     {isAdmin && assignedAgent && (
-                      <span className="cl-agent-badge" title={assignedAgent.name}>
-                        <UserCheck size={9} />{agentLabel}
+                      <span className={`cl-agent-badge${aiAgentId && String(assignedAgent.id) === aiAgentId ? ' ai' : ''}`} title={aiAgentId && String(assignedAgent.id) === aiAgentId ? `${assignedAgent.name} (AI Sales)` : assignedAgent.name}>
+                        {aiAgentId && String(assignedAgent.id) === aiAgentId ? <Sparkles size={9} /> : <UserCheck size={9} />}{agentLabel}
                       </span>
                     )}
                   </div>
@@ -622,6 +624,7 @@ export default function InboxPage() {
         .cl-preview { flex: 1; min-width: 0; display: flex; align-items: center; gap: 4px; font-size: 13px; color: var(--muted); }
         .cl-preview-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .cl-tick { flex-shrink: 0; color: var(--primary); opacity: 0.85; }
+        .cl-agent-badge.ai { background: rgba(124,58,237,0.13); color: #8b5cf6; }
         .cl-agent-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 10.5px; font-weight: 600; padding: 2px 7px; border-radius: 999px; background: rgba(39,168,122,0.12); color: var(--success); white-space: nowrap; flex-shrink: 0; max-width: 120px; overflow: hidden; text-overflow: ellipsis; }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
         @media (max-width: 768px) { .cl-root { width: 100vw; } }
