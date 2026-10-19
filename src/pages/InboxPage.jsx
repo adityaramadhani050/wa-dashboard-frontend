@@ -82,7 +82,7 @@ export default function InboxPage() {
   const [showRegionFilter, setShowRegionFilter] = useState(false)
   const [now, setNow] = useState(() => Date.now())
   const [workHours, setWorkHours] = useState(null)
-  const { newMessages, assignmentUpdates, conversationUpdates, socketConnected, waConnected, syncing } = useSocket()
+  const { newMessages, assignmentUpdates, conversationUpdates, socketConnected, waConnected, syncing, resyncTick } = useSocket()
   const [refreshing, setRefreshing] = useState(false)
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
@@ -103,6 +103,8 @@ export default function InboxPage() {
   }, [user, agentFilter])
 
   useEffect(() => { fetch() }, [fetch])
+  // Sinkron ulang (tersambung lagi / tab aktif lagi / polling saat terputus)
+  useEffect(() => { if (resyncTick) fetch() }, [resyncTick, fetch])
 
   // Refetch saat socket reconnect (menyusul update yang terlewat saat offline)
   const wasConnectedRef = useRef(socketConnected)

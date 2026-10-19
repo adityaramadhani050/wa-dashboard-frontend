@@ -573,7 +573,7 @@ export default function ChatPage({ chatId }) {
   const hasMoreRef = useRef(false)
   const prependingRef = useRef(false)
   const setHasMoreBoth = (v) => { hasMoreRef.current = v; setHasMore(v) }
-  const { newMessages, statusUpdates, messageUpdates, assignmentUpdates, conversationUpdates, deletedMessages } = useSocket()
+  const { newMessages, statusUpdates, messageUpdates, assignmentUpdates, conversationUpdates, deletedMessages, resyncTick } = useSocket()
   const [showScrollBtn, setShowScrollBtn] = useState(false)
 
   const fetchData = useCallback(async () => {
@@ -587,6 +587,23 @@ export default function ChatPage({ chatId }) {
     } catch { setError('Gagal memuat pesan.') }
     finally { setLoading(false) }
   }, [id])
+
+  // Sinkron ulang tanpa mengganggu: gabungkan halaman pesan terbaru dari server
+  // (pesan yang terlewat saat koneksi realtime putus) ke daftar yang ada.
+  useEffect(() => {
+    if (!resyncTick || !id) return
+    Promise.all([getMessages(id, { limit: MSG_PAGE }), getConversation(id)]).then(([msgs, conv]) => {
+      const fresh = Array.isArray(msgs) ? msgs : []
+      setMessages(prev => {
+        const byId = new Map(fresh.map(m => [String(m.id), m]))
+        const merged = prev.map(m => byId.has(String(m.id)) ? { ...m, ...byId.get(String(m.id)) } : m)
+        const have = new Set(prev.map(m => String(m.id)))
+        const added = fresh.filter(m => !have.has(String(m.id)))
+        return added.length ? [...merged, ...added] : merged
+      })
+      if (conv) setConversation(c => ({ ...(c || {}), ...conv }))
+    }).catch(() => {})
+  }, [resyncTick, id])
 
   // Muat satu halaman pesan lebih lama. Return Promise<boolean> (true jika ada
   // pesan baru dimuat). Dipakai oleh scroll otomatis & auto-load saat klik quote.

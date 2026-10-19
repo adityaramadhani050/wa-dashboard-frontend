@@ -72,3 +72,14 @@ export async function teardownWebPush() {
     /* abaikan */
   }
 }
+
+// Perbarui pendaftaran langganan push secara berkala (saat app dibuka/aktif lagi),
+// berjaga bila langganan lama diganti/kedaluwarsa oleh browser. Maks tiap 6 jam.
+let lastRefresh = Date.now() // pendaftaran awal sudah dilakukan initWebPush saat login/buka app
+export async function refreshWebPush() {
+  if (!supported() || Notification.permission !== 'granted') return
+  if (Date.now() - lastRefresh < 6 * 3600 * 1000) return
+  lastRefresh = Date.now()
+  subscribed = false
+  await enableWebPush().catch(() => {})
+}

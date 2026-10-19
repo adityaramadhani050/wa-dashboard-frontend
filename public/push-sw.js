@@ -16,10 +16,15 @@ self.addEventListener('push', (event) => {
     data: { conversationId: convId, url },
   }
   event.waitUntil((async () => {
-    // Kalau app sedang dibuka & fokus, biarkan notifikasi in-app (socket) yang tampil
+    // App sedang dibuka & fokus: notifikasi in-app (socket) yang tampil. Push tetap
+    // diteruskan ke halaman sebagai cadangan — bila socket melewatkan pesan ini,
+    // halaman yang membunyikan notifikasi & menyinkronkan ulang.
     const clientsArr = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
-    const focused = clientsArr.some((c) => c.visibilityState === 'visible' && c.focused)
-    if (focused) return
+    const focusedClients = clientsArr.filter((c) => c.visibilityState === 'visible' && c.focused)
+    if (focusedClients.length) {
+      focusedClients.forEach((c) => { try { c.postMessage({ type: 'push', payload: data }) } catch (e) {} })
+      return
+    }
     await self.registration.showNotification(title, options)
   })())
 })
