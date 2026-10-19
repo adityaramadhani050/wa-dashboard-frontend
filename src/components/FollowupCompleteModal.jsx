@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { X, Check, Tag as TagIcon } from 'lucide-react'
 import { completeFollowupTask, getTags, addTagToConversation } from '../hooks/useApi'
 import { STEP_INFO, OBJECTION_LABEL } from './followupUi'
+import { useAuth } from '../context/AuthContext'
 
 const OUTCOMES = [
   { key: 'no_reply', label: 'Tidak dibalas', hint: 'Lanjut ke tahap berikutnya' },
@@ -19,6 +20,8 @@ const tomorrow = () => {
 
 // Modal "Sudah follow-up": hasil wajib dipilih.
 export default function FollowupCompleteModal({ task, conversationId, contactName, onClose, onDone }) {
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin'
   const [outcome, setOutcome] = useState('')
   const [objection, setObjection] = useState('')
   const [nextDate, setNextDate] = useState(tomorrow())
@@ -39,8 +42,8 @@ export default function FollowupCompleteModal({ task, conversationId, contactNam
       if (outcome === 'objection') payload.objection_category = objection
       if (outcome === 'later') payload.next_contact_at = new Date(`${nextDate}T09:00:00+07:00`).toISOString()
       const res = await completeFollowupTask(task.id, payload)
-      if (res?.stopped) {
-        // Tawarkan memasang tag yang sesuai (Deal atau Fail)
+      if (res?.stopped && isAdmin) {
+        // Tawarkan memasang tag yang sesuai (Deal atau Fail) — label hanya diatur admin
         const all = await getTags().catch(() => [])
         const re = res.stopped === 'interested' ? /surv|\bdeal\b/i : /fail|gagal|batal|lost/i
         const tags = (Array.isArray(all) ? all : []).filter(t => re.test(t.name || ''))

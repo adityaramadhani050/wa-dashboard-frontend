@@ -1310,9 +1310,11 @@ export default function ChatPage({ chatId }) {
             {conversationTags.map(t => (
               <span key={t.id} className="tag-chip" style={{ background: t.color }}>{t.name}</span>
             ))}
+{isAdmin && (
             <button className="cv-tag-edit-btn" title="Atur tag" onClick={e => { e.stopPropagation(); setShowTagModal(true) }}>
               <TagIcon size={12} />
             </button>
+            )}
           </div>
         </div>
         <div className="cv-actions" onClick={e => e.stopPropagation()}>
@@ -1369,7 +1371,7 @@ export default function ChatPage({ chatId }) {
         </div>
       </div>
 
-      {showTagModal && (
+      {showTagModal && isAdmin && (
         <Modal title="Atur Label Percakapan" onClose={() => setShowTagModal(false)}>
           <div className="cv-tag-modal-list">
             {allTags.length === 0 ? (
@@ -1803,9 +1805,11 @@ export default function ChatPage({ chatId }) {
                     : conversationTags.map(t => (
                       <span key={t.id} className="tag-chip" style={{ background: t.color }}>{t.name}</span>
                     ))}
+{isAdmin && (
                   <button className="cv-tag-edit-btn" title="Atur label" onClick={() => setShowTagModal(true)}>
                     <TagIcon size={12} />
                   </button>
+                  )}
                 </div>
               </div>
             </section>
