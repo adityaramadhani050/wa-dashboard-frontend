@@ -7,7 +7,7 @@ import {
   forwardMessage, deleteMessage, editMessage, sendLocation, sendContact, setConversationRegion,
   getTemplates, getQuickMedia, sendQuickMedia, useTemplate,
   getTags, addTagToConversation, removeTagFromConversation,
-  getContactNotes, createContactNote, getContactConversations, getConversationFollowup, getConversationResponseStats, getAiMemory, saveAiMemory, getTeamRequests,
+  getContactNotes, createContactNote, getContactConversations, getConversationFollowup, getConversationResponseStats, getAiMemory, saveAiMemory, getTeamRequests, deleteConversation,
   generateAiSuggestion, updateContact,
 } from '../hooks/useApi'
 import { supabase } from '../lib/supabase'
@@ -704,6 +704,8 @@ export default function ChatPage({ chatId }) {
   useEffect(() => {
     const relevant = (conversationUpdates || []).filter(u => String(u.conversationId) === String(id))
     if (!relevant.length) return
+    // Chat dihapus (oleh admin lain) -> kembali ke daftar chat
+    if (relevant.some(u => u.deleted)) { navigate('/inbox', { replace: true }); return }
     setConversation(prev => {
       if (!prev) return prev
       let next = { ...prev, contact: prev.contact ? { ...prev.contact } : prev.contact }
@@ -715,7 +717,7 @@ export default function ChatPage({ chatId }) {
       }
       return next
     })
-  }, [conversationUpdates, id])
+  }, [conversationUpdates, id, navigate])
 
   const scrolledForRef = useRef(null)
 
@@ -1197,6 +1199,21 @@ export default function ChatPage({ chatId }) {
     try { setAiMemory(await saveAiMemory(contactIdForMem, memDraft)); setMemEditing(false) } catch {}
     finally { setMemBusy(false) }
   }
+  // Hapus chat (admin): semua pesan & file media di chat ini
+  const [showDeleteChat, setShowDeleteChat] = useState(false)
+  const [deletingChat, setDeletingChat] = useState(false)
+  const [deleteChatError, setDeleteChatError] = useState('')
+  const handleDeleteChat = async () => {
+    setDeletingChat(true); setDeleteChatError('')
+    try {
+      await deleteConversation(id)
+      setShowDeleteChat(false)
+      navigate('/inbox', { replace: true })
+    } catch (e) {
+      setDeleteChatError(e?.response?.data?.error || 'Gagal menghapus chat')
+    } finally { setDeletingChat(false) }
+  }
+
   // Tanya Tim: pertanyaan AI ke divisi internal untuk chat ini
   const [teamReqs, setTeamReqs] = useState([])
   const loadTeamReqs = useCallback(() => {
@@ -1898,11 +1915,51 @@ export default function ChatPage({ chatId }) {
                 </div>
               )}
             </section>
+
+            {isAdmin && (
+              <section className="cv-ns cv-danger-zone">
+                <button className="cv-delete-chat" onClick={() => { setDeleteChatError(''); setShowDeleteChat(true) }}>
+                  <Trash2 size={14} />Hapus chat
+                </button>
+                <div className="cv-notes-empty">Menghapus seluruh pesan & file media chat ini dari dashboard.</div>
+              </section>
+            )}
           </div>
         </div>
       )}
 
+      {showDeleteChat && (
+        <Modal title="Hapus chat?" onClose={() => !deletingChat && setShowDeleteChat(false)}>
+          <div className="cv-del-body">
+            <p>Semua pesan dan file media di chat dengan <b>{name}</b> akan dihapus <b>permanen</b> dari dashboard, termasuk label, follow-up, dan riwayat Tanya Tim chat ini. Tindakan ini tidak bisa dibatalkan.</p>
+            <ul>
+              <li>Kontak, catatan kontak, dan Ingatan AI tetap tersimpan.</li>
+              <li>Chat di WhatsApp (HP & customer) tidak ikut terhapus.</li>
+              <li>Bila customer mengirim pesan lagi, chat baru akan muncul.</li>
+              <li>Data chat ini tidak lagi terhitung di Analytics.</li>
+            </ul>
+            {deleteChatError && <div className="cv-del-error">{deleteChatError}</div>}
+            <div className="cv-del-actions">
+              <button className="cv-del-cancel" onClick={() => setShowDeleteChat(false)} disabled={deletingChat}>Batal</button>
+              <button className="cv-del-confirm" onClick={handleDeleteChat} disabled={deletingChat}><Trash2 size={14} />{deletingChat ? 'Menghapus…' : 'Hapus chat'}</button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
       <style>{`
+        .cv-danger-zone { display: flex; flex-direction: column; gap: 6px; }
+        .cv-delete-chat { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 36px; border-radius: 9px; font-size: 13px; font-weight: 600; color: var(--danger); background: rgba(229,62,62,0.08); border: 1px solid rgba(229,62,62,0.3); }
+        .cv-delete-chat:hover { background: rgba(229,62,62,0.14); }
+        .cv-del-body { display: flex; flex-direction: column; gap: 10px; padding: 4px 20px 20px; font-size: 13.5px; color: var(--text2); line-height: 1.5; }
+        .cv-del-body b { color: var(--text); }
+        .cv-del-body ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 3px; font-size: 12.5px; color: var(--muted); }
+        .cv-del-error { padding: 8px 12px; border-radius: 9px; background: rgba(229,62,62,0.1); color: var(--danger); font-size: 13px; }
+        .cv-del-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+        .cv-del-actions button { display: inline-flex; align-items: center; gap: 6px; height: 38px; padding: 0 16px; border-radius: 10px; font-size: 13.5px; font-weight: 600; }
+        .cv-del-cancel { background: var(--surface2); color: var(--text2); border: 1px solid var(--border); }
+        .cv-del-confirm { background: var(--danger); color: #fff; }
+        .cv-del-actions button:disabled { opacity: 0.6; }
         .cv-root { flex: 1; display: flex; flex-direction: row; min-height: 0; min-width: 0; background: var(--bg); overflow: hidden; }
         .cv-chat-col { flex: 1; display: flex; flex-direction: column; min-height: 0; min-width: 0; overflow: hidden; }
         .cv-header { display: flex; align-items: center; gap: 12px; padding: 10px 16px 10px 20px; background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0; min-height: 64px; }

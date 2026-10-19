@@ -216,7 +216,9 @@ export default function InboxPage() {
     const fresh = conversationUpdates.slice(processedConvUpdRef.current)
     processedConvUpdRef.current = conversationUpdates.length
     if (!fresh.length) return
-    setConversations(prev => prev.map(c => {
+    // Chat dihapus -> hilangkan dari daftar
+    const deleted = new Set(fresh.filter(e => e.deleted).map(e => String(e.conversationId)))
+    setConversations(prev => prev.filter(c => !deleted.has(String(c.id))).map(c => {
       const evts = fresh.filter(e => String(e.conversationId) === String(c.id))
       if (!evts.length) return c
       let next = { ...c, contact: c.contact ? { ...c.contact } : c.contact }
