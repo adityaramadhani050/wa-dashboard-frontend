@@ -52,6 +52,7 @@ export const sendLocation = (conversationId, { latitude, longitude, name, addres
 export const sendContact = (conversationId, { name, phone }) =>
   api.post('/messages/send-contact', { conversation_id: conversationId, name, phone }).then(r => r.data)
 export const assignAgent = (id, agent_id) => api.post(`/conversations/${id}/assign`, { agent_id }).then(r => r.data)
+export const resumeAiChat = (id) => api.post(`/conversations/${id}/ai-resume`).then(r => r.data)
 export const unassignAgent = (id) => api.post(`/conversations/${id}/unassign`).then(r => r.data)
 export const updateStatus = (id, status) => api.patch(`/conversations/${id}/status`, { status }).then(r => r.data)
 // Regional chat (admin): 'barat' | 'timur' -> diarahkan ke agent regional tsb bila belum ada agent

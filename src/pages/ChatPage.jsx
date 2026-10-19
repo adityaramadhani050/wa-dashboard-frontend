@@ -7,7 +7,7 @@ import {
   forwardMessage, deleteMessage, editMessage, sendLocation, sendContact, setConversationRegion,
   getTemplates, getQuickMedia, sendQuickMedia, useTemplate,
   getTags, addTagToConversation, removeTagFromConversation,
-  getContactNotes, createContactNote, getContactConversations, getConversationFollowup, getConversationResponseStats, getAiMemory, saveAiMemory, getTeamRequests, deleteConversation,
+  getContactNotes, createContactNote, getContactConversations, getConversationFollowup, getConversationResponseStats, getAiMemory, saveAiMemory, getTeamRequests, deleteConversation, resumeAiChat,
   generateAiSuggestion, updateContact,
 } from '../hooks/useApi'
 import { supabase } from '../lib/supabase'
@@ -1216,6 +1216,18 @@ export default function ChatPage({ chatId }) {
     try { setAiMemory(await saveAiMemory(contactIdForMem, memDraft)); setMemEditing(false) } catch {}
     finally { setMemBusy(false) }
   }
+  // Tombol "Lanjutkan AI": AI Sales kembali membalas chat ini sekarang
+  const [resumeBusy, setResumeBusy] = useState(false)
+  const [resumeNote, setResumeNote] = useState('')
+  const [aiResumedAt, setAiResumedAt] = useState(0) // balasan manual sebelum ini tidak lagi menjeda AI
+  useEffect(() => { setResumeNote(''); setAiResumedAt(0) }, [id])
+  const handleResumeAi = async () => {
+    setResumeBusy(true); setResumeNote('')
+    try { await resumeAiChat(id); setAiResumedAt(Date.now()); setResumeNote('AI aktif kembali, balasan sedang disiapkan…') }
+    catch (e) { setResumeNote(e?.response?.data?.error || 'Gagal melanjutkan AI') }
+    finally { setResumeBusy(false); setTimeout(() => setResumeNote(''), 8000) }
+  }
+
   // Hapus chat (admin): semua pesan & file media di chat ini
   const [showDeleteChat, setShowDeleteChat] = useState(false)
   const [deletingChat, setDeletingChat] = useState(false)
@@ -1273,6 +1285,24 @@ export default function ChatPage({ chatId }) {
     messageItems.push({ type: 'msg', msg, grpStart: prevSent !== sentNow })
     prevSent = sentNow
   }
+  // Status AI Sales di chat ini: dijeda karena balasan manual (30 menit sejak
+  // balasan manusia terakhir setelah balasan AI), atau customer masih menunggu.
+  let aiPausedUntil = null
+  let aiWaiting = false
+  if (isAiChat && orderedMessages.length) {
+    let lastAi = -1
+    orderedMessages.forEach((m, i) => { if (m.sent_by_ai) lastAi = i })
+    const human = orderedMessages.slice(lastAi + 1).filter(m => isFromMe(m) && !m.sent_by_bot && !m.sent_by_ai && !String(m.id).startsWith('tmp-')
+      && new Date(m.timestamp || m.createdAt).getTime() > aiResumedAt)
+    const lastHuman = human[human.length - 1]
+    const until = lastHuman ? new Date(lastHuman.timestamp || lastHuman.createdAt).getTime() + 30 * 60000 : 0
+    if (until > Date.now()) aiPausedUntil = until
+    const nonBot = orderedMessages.filter(m => !(isFromMe(m) && m.sent_by_bot))
+    const lastMsg = nonBot[nonBot.length - 1]
+    aiWaiting = !!(lastMsg && !isFromMe(lastMsg) && Date.now() - new Date(lastMsg.timestamp || lastMsg.createdAt).getTime() > 60000)
+  }
+  const showAiBar = isAiChat && (aiPausedUntil || aiWaiting || resumeNote)
+
   const dayGroups = []
   for (const item of messageItems) {
     if (item.type === 'date' || !dayGroups.length) dayGroups.push({ key: item.type === 'date' ? item.key : 'day-0', label: item.type === 'date' ? item.label : null, items: [] })
@@ -1631,6 +1661,18 @@ export default function ChatPage({ chatId }) {
         </div>
       )}
 
+      {showAiBar && (
+        <div className="cv-ai-bar" onClick={e => e.stopPropagation()}>
+          <Sparkles size={14} />
+          <span>
+            {resumeNote ? <em>{resumeNote}</em> : aiPausedUntil
+              ? <>AI dijeda sampai <b>{new Date(aiPausedUntil).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</b> karena ada balasan manual.</>
+              : 'Customer menunggu balasan AI.'}
+          </span>
+          {!resumeNote && <button onClick={handleResumeAi} disabled={resumeBusy}>{resumeBusy ? 'Memproses…' : 'Lanjutkan AI'}</button>}
+        </div>
+      )}
+
       <div className="cv-input-bar" onClick={e => e.stopPropagation()}>
         <input type="file" ref={fileInputRef} style={{ display: 'none' }}
           accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.rar,.txt"
@@ -1969,6 +2011,12 @@ export default function ChatPage({ chatId }) {
       )}
 
       <style>{`
+        .cv-ai-bar { display: flex; align-items: center; gap: 8px; padding: 7px 12px 7px 16px; background: rgba(139,92,246,0.1); border-top: 1px solid rgba(139,92,246,0.25); color: #8b5cf6; font-size: 12.5px; flex-shrink: 0; }
+        .cv-ai-bar span { flex: 1; min-width: 0; color: var(--text2); line-height: 1.4; }
+        .cv-ai-bar b { color: var(--text); }
+        .cv-ai-bar em { font-style: normal; color: #8b5cf6; }
+        .cv-ai-bar button { flex-shrink: 0; height: 30px; padding: 0 12px; border-radius: 8px; background: #8b5cf6; color: #fff; font-size: 12.5px; font-weight: 600; }
+        .cv-ai-bar button:disabled { opacity: 0.6; }
         .cv-danger-zone { display: flex; flex-direction: column; gap: 6px; }
         .cv-delete-chat { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 36px; border-radius: 9px; font-size: 13px; font-weight: 600; color: var(--danger); background: rgba(229,62,62,0.08); border: 1px solid rgba(229,62,62,0.3); }
         .cv-delete-chat:hover { background: rgba(229,62,62,0.14); }
