@@ -125,6 +125,9 @@ export function SocketProvider({ children }) {
 
   useEffect(() => {
     const s = io(BACKEND_URL, {
+      // Token login: server memasukkan socket ke room admin / agent sehingga
+      // hanya menerima event chat yang berhak (fungsi -> token terbaru tiap sambung ulang)
+      auth: (cb) => { let token = ''; try { token = localStorage.getItem('wa_token') || '' } catch {} cb({ token }) },
       transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionAttempts: Infinity, // jangan pernah menyerah (dulu berhenti setelah 10x)
@@ -232,6 +235,13 @@ export function SocketProvider({ children }) {
       pendingUnassigned.current.delete(convId)
       if (pending && Date.now() - pending.at < 120000 && data?.agent && isMine(data.agent.id)) {
         notifyNewMessage({ ...pending.data, assignedTo: data.agent.id })
+      } else if (data?.agent && userRef.current?.role !== 'admin' && isMine(data.agent.id) && data.lastFromMe === false) {
+        // Agent hanya menerima event chat miliknya: chat baru/dipindahkan ke agent ini
+        // diberi tahu dari event assign (berisi nama kontak & pesan terakhir).
+        notifyNewMessage({
+          conversationId: convId, contactName: data.contactName, assignedTo: data.agent.id,
+          message: { id: `assign-${convId}-${Date.now()}`, body: data.lastMessage || 'Chat baru untuk Anda', from_me: false, conversation_id: convId },
+        })
       }
     })
     // Regional / status bot lokasi berubah — update badge regional realtime

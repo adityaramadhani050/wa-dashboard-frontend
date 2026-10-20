@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useNavigate, useMatch } from 'react-router-dom'
+import { useNavigate, useMatch, useLocation } from 'react-router-dom'
 import { useSocket } from '../context/SocketContext'
 import { useAuth } from '../context/AuthContext'
 import { formatDurShort as formatWaitShort, formatDurLong as formatWaitLong } from '../lib/duration'
@@ -90,6 +90,17 @@ export default function InboxPage() {
   const [availBusy, setAvailBusy] = useState(false)
   const navigate = useNavigate()
   const matchChat = useMatch('/chat/:id')
+  // Pemberitahuan dari halaman lain (mis. "Chat ini sudah dipindahkan ke agent lain")
+  const location = useLocation()
+  const [notice, setNotice] = useState('')
+  useEffect(() => {
+    const n = location.state?.notice
+    if (!n) return
+    setNotice(n)
+    navigate(location.pathname, { replace: true, state: null })
+    const t = setTimeout(() => setNotice(''), 6000)
+    return () => clearTimeout(t)
+  }, [location.state, location.pathname, navigate])
   const activeChatId = matchChat?.params?.id
 
   const fetch = useCallback(async () => {
@@ -197,10 +208,16 @@ export default function InboxPage() {
     processedAssignRef.current = assignmentUpdates.length
     if (!fresh.length) return
     let needFetch = false
+    const isAgent = user?.role === 'agent'
     setConversations(prev => {
       let list = prev
       for (const evt of fresh) {
         const cid = String(evt.conversationId ?? '')
+        // Agent: chat dipindah ke agent lain / dilepas -> langsung hilang dari daftarnya
+        if (isAgent && String(evt.agent?.id ?? '') !== String(user.id)) {
+          list = list.filter(c => String(c.id) !== cid)
+          continue
+        }
         const idx = list.findIndex(c => String(c.id) === cid)
         if (idx === -1) { needFetch = true; continue }
         list = list.map((c, i) => {
@@ -384,6 +401,9 @@ export default function InboxPage() {
             </button>
           </div>
         </div>
+        {notice && (
+          <div className="cl-notice" role="status" onClick={() => setNotice('')}>{notice}</div>
+        )}
         {syncing && (
           <div className="cl-sync-banner">
             <RotateCw size={13} className="cl-spin" />
@@ -606,6 +626,7 @@ export default function InboxPage() {
         .cl-spin { animation: spin 0.8s linear infinite; }
         .cl-spin-wrap { display: inline-flex; }
         .cl-more { height: 1px; }
+        .cl-notice { margin: 0 14px 8px; padding: 9px 12px; border-radius: 10px; background: rgba(208,139,40,0.12); border: 1px solid rgba(208,139,40,0.35); color: var(--text); font-size: 12.5px; line-height: 1.4; cursor: pointer; }
         .cl-spin-wrap.on { animation: spin 0.8s linear infinite; will-change: transform; }
         /* Ratusan chat: browser hanya menggambar baris yang terlihat di layar */
         .cl-item { content-visibility: auto; contain-intrinsic-size: auto 84px; }

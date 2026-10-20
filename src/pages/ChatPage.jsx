@@ -584,9 +584,16 @@ export default function ChatPage({ chatId }) {
       setHasMoreBoth(arr.length >= MSG_PAGE) // kemungkinan masih ada pesan lebih lama
       setConversation(conv || null)
       setError('')
-    } catch { setError('Gagal memuat pesan.') }
+    } catch (e) {
+      // Agent membuka chat yang sudah dipindah ke agent lain -> kembali ke daftar
+      if (e?.response?.status === 403 && e?.response?.data?.code === 'NOT_ASSIGNED') {
+        navigate('/inbox', { replace: true, state: { notice: 'Chat ini sudah dipindahkan ke agent lain.' } })
+        return
+      }
+      setError('Gagal memuat pesan.')
+    }
     finally { setLoading(false) }
-  }, [id])
+  }, [id, navigate])
 
   // Sinkron ulang tanpa mengganggu: gabungkan halaman pesan terbaru dari server
   // (pesan yang terlewat saat koneksi realtime putus) ke daftar yang ada.
@@ -706,16 +713,22 @@ export default function ChatPage({ chatId }) {
   }, [deletedMessages, id])
 
   // Auto-assign realtime: update badge agent di header chat yang sedang dibuka
+  const assignSeenRef = useRef(assignmentUpdates.length) // abaikan event sebelum chat dibuka
   useEffect(() => {
-    const relevant = assignmentUpdates.filter(a => String(a.conversationId) === String(id))
+    const relevant = assignmentUpdates.slice(assignSeenRef.current).filter(a => String(a.conversationId) === String(id))
     if (!relevant.length) return
     const last = relevant[relevant.length - 1]
+    // Agent: chat dipindah ke agent lain / dilepas -> tidak boleh dibuka lagi
+    if (!isAdmin && user && String(last.agent?.id ?? '') !== String(user.id)) {
+      navigate('/inbox', { replace: true, state: { notice: `Chat ini sudah dipindahkan ke ${last.agent?.name || 'agent lain'}.` } })
+      return
+    }
     setConversation(prev => {
       if (!prev) return prev
       if (last.agent) return { ...prev, agents: last.agent, status: 'in_progress' }
       return { ...prev, agents: null, status: prev.status === 'in_progress' ? 'open' : prev.status }
     })
-  }, [assignmentUpdates, id])
+  }, [assignmentUpdates, id, isAdmin, user, navigate])
 
   // Regional / status bot lokasi berubah (bot menjawab, admin mengganti regional)
   useEffect(() => {
