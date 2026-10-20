@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useSocket } from '../context/SocketContext'
 import { useAuth } from '../context/AuthContext'
 import {
-  getMessages, sendMessage, sendMedia, assignAgent, unassignAgent, getConversation, getConversations, getAgents,
+  getMessages, sendMessage, sendMedia, assignAgent, unassignAgent, getConversation, getConversations, getConversationsPage, getAgents,
   forwardMessage, deleteMessage, editMessage, sendLocation, sendContact, setConversationRegion,
   getTemplates, getQuickMedia, sendQuickMedia, useTemplate,
   getTags, addTagToConversation, removeTagFromConversation,
@@ -1103,11 +1103,23 @@ export default function ChatPage({ chatId }) {
     setForwardList([])
     setForwardLoading(true)
     try {
-      const list = await getConversations(isAdmin ? undefined : user?.id)
-      setForwardList(Array.isArray(list) ? list.filter(c => String(c.id) !== String(id)) : [])
+      const d = await getConversationsPage({ limit: 200 })
+      setForwardList((d?.items || []).filter(c => String(c.id) !== String(id)))
     } catch { setForwardList([]) }
     finally { setForwardLoading(false) }
   }
+
+  // Cari tujuan forward di server (agar chat lama juga ketemu)
+  useEffect(() => {
+    if (!forwardMsg) return
+    const q = forwardSearch.trim()
+    const t = setTimeout(() => {
+      getConversationsPage({ limit: 200, ...(q ? { q } : {}) })
+        .then(d => setForwardList((d?.items || []).filter(c => String(c.id) !== String(id))))
+        .catch(() => {})
+    }, 300)
+    return () => clearTimeout(t)
+  }, [forwardSearch, forwardMsg, id])
 
   const handleForwardTo = async (targetId) => {
     if (!forwardMsg || forwardingId) return

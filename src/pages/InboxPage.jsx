@@ -4,7 +4,7 @@ import { useSocket } from '../context/SocketContext'
 import { useAuth } from '../context/AuthContext'
 import { formatDurShort as formatWaitShort, formatDurLong as formatWaitLong } from '../lib/duration'
 import { useAiAgentId } from '../hooks/useAiAgent'
-import { getConversations, getTags, getAgents, syncMessages, getWorkHours, getMyAvailability, setMyAvailability } from '../hooks/useApi'
+import { getConversationsPage, getTags, getAgents, syncMessages, getWorkHours, getMyAvailability, setMyAvailability } from '../hooks/useApi'
 import { Search, RefreshCw, UserCheck, Tag as TagIcon, ChevronDown, Clock, RotateCw, X, MapPin, Bot, CheckCheck, SearchX, MessagesSquare, ListFilter, Sparkles } from 'lucide-react'
 
 // Regional chat: dari percakapan, atau dari kontak (customer lama)
@@ -67,6 +67,8 @@ function timeStr(dateStr) {
 export default function InboxPage() {
   const aiAgentId = useAiAgentId()
   const [conversations, setConversations] = useState([])
+  const convRef = useRef(conversations)
+  convRef.current = conversations
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [tags, setTags] = useState([])
@@ -103,15 +105,70 @@ export default function InboxPage() {
   }, [location.state, location.pathname, navigate])
   const activeChatId = matchChat?.params?.id
 
+  // Daftar dimuat per halaman dari server (100 chat), filter & pencarian dijalankan
+  // di server agar tetap ringan & menemukan chat lama. Chat yang menunggu balasan
+  // > 5 menit ikut dimuat di halaman pertama (disematkan di atas).
+  const PAGE = 100
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  useEffect(() => { const t = setTimeout(() => setDebouncedSearch(search.trim()), 300); return () => clearTimeout(t) }, [search])
+  const [total, setTotal] = useState(null)
+  const [hasMore, setHasMore] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const pageRef = useRef({ cursor: null, skip: [], hasMore: false, reqId: 0, loadingMore: false })
+  const queryParams = useCallback(() => {
+    const p = { limit: PAGE }
+    // agent biasa hanya lihat chat miliknya (server juga membatasi); admin bisa filter per agent
+    if (user?.role === 'agent') p.agent_id = user.id
+    else if (agentFilter) p.agent_id = agentFilter
+    if (debouncedSearch) p.q = debouncedSearch
+    if (activeTagFilter) p.tag = activeTagFilter
+    if (statusFilter !== 'all') p.reply = statusFilter
+    if (lifecycleFilter !== 'all') p.status = lifecycleFilter
+    if (regionFilter !== 'all') p.region = regionFilter
+    return p
+  }, [user, agentFilter, debouncedSearch, activeTagFilter, statusFilter, lifecycleFilter, regionFilter])
+  const mergeUnique = (...lists) => {
+    const seen = new Set(); const out = []
+    for (const l of lists) for (const c of l || []) { const k = String(c.id); if (!seen.has(k)) { seen.add(k); out.push(c) } }
+    return out
+  }
+
   const fetch = useCallback(async () => {
+    const reqId = ++pageRef.current.reqId
     try {
-      // agent biasa hanya lihat chat miliknya; admin bisa filter per agent
-      const agentId = user?.role === 'agent' ? user.id : agentFilter
-      const data = await getConversations(agentId)
-      setConversations(Array.isArray(data) ? data : [])
+      const d = await getConversationsPage(queryParams())
+      if (reqId !== pageRef.current.reqId) return // sudah ada permintaan yang lebih baru
+      setConversations(mergeUnique(d?.pinned, d?.items))
+      pageRef.current = { ...pageRef.current, cursor: d?.nextCursor || null, skip: d?.nextSkip || [], hasMore: !!d?.hasMore }
+      setHasMore(!!d?.hasMore)
+      setTotal(typeof d?.total === 'number' ? d.total : null)
     } catch {}
-    finally { setLoading(false) }
-  }, [user, agentFilter])
+    finally { if (reqId === pageRef.current.reqId) setLoading(false) }
+  }, [queryParams])
+
+  const loadMore = useCallback(async () => {
+    const pg = pageRef.current
+    if (!pg.hasMore || pg.loadingMore || !pg.cursor) return
+    pg.loadingMore = true; setLoadingMore(true)
+    const reqId = pg.reqId
+    try {
+      const d = await getConversationsPage({ ...queryParams(), cursor: pg.cursor, skip: (pg.skip || []).join(',') || undefined })
+      if (reqId !== pageRef.current.reqId) return
+      setConversations(prev => mergeUnique(prev, d?.items))
+      pageRef.current = { ...pageRef.current, cursor: d?.nextCursor || null, skip: d?.nextSkip || [], hasMore: !!d?.hasMore }
+      setHasMore(!!d?.hasMore)
+    } catch {}
+    finally { pageRef.current.loadingMore = false; setLoadingMore(false) }
+  }, [queryParams])
+
+  // Chat yang belum ada di daftar (pesan baru / baru di-assign): ambil chat itu saja
+  const fetchByIds = useCallback(async (ids) => {
+    if (!ids.length) return
+    try {
+      const d = await getConversationsPage({ ids: ids.slice(0, 50).join(',') })
+      if (d?.items?.length) setConversations(prev => mergeUnique(d.items, prev))
+    } catch {}
+  }, [])
 
   useEffect(() => { fetch() }, [fetch])
   // Sinkron ulang (tersambung lagi / tab aktif lagi / polling saat terputus)
@@ -170,14 +227,16 @@ export default function InboxPage() {
     processedRef.current = newMessages.length
     if (!fresh.length) return
 
-    let needFetch = false
+    // Chat yang belum ada di daftar -> ambil chat itu saja (bukan seluruh daftar)
+    const have = new Set(convRef.current.map(c => String(c.id)))
+    const missing = [...new Set(fresh.map(e => String(e.conversationId ?? e.message?.conversation_id ?? '')).filter(id => id && !have.has(id)))]
     setConversations(prev => {
       let list = prev
       for (const evt of fresh) {
         const cid = String(evt.conversationId ?? evt.message?.conversation_id ?? '')
         if (!cid) continue
         const idx = list.findIndex(c => String(c.id) === cid)
-        if (idx === -1) { needFetch = true; continue }
+        if (idx === -1) continue
         const msg = evt.message || {}
         const fromMe = !!msg.from_me
         const ts = msg.timestamp || new Date().toISOString()
@@ -197,8 +256,8 @@ export default function InboxPage() {
       }
       return list
     })
-    if (needFetch) fetch()
-  }, [newMessages, fetch, activeChatId])
+    fetchByIds(missing)
+  }, [newMessages, fetchByIds, activeChatId])
 
   // Auto-assign realtime: update badge agent tanpa refresh
   const processedAssignRef = useRef(null)
@@ -207,8 +266,10 @@ export default function InboxPage() {
     const fresh = assignmentUpdates.slice(processedAssignRef.current)
     processedAssignRef.current = assignmentUpdates.length
     if (!fresh.length) return
-    let needFetch = false
     const isAgent = user?.role === 'agent'
+    const have = new Set(convRef.current.map(c => String(c.id)))
+    // Agent: chat yang baru di-assign ke dirinya belum ada di daftar -> ambil chat itu
+    const newlyMine = isAgent ? [...new Set(fresh.filter(e => String(e.agent?.id ?? '') === String(user.id)).map(e => String(e.conversationId)))].filter(id => !have.has(id)) : []
     setConversations(prev => {
       let list = prev
       for (const evt of fresh) {
@@ -219,7 +280,7 @@ export default function InboxPage() {
           continue
         }
         const idx = list.findIndex(c => String(c.id) === cid)
-        if (idx === -1) { needFetch = true; continue }
+        if (idx === -1) continue
         list = list.map((c, i) => {
           if (i !== idx) return c
           if (evt.agent) return { ...c, agents: evt.agent, assigned_to: evt.agent.id, status: 'in_progress' }
@@ -229,9 +290,8 @@ export default function InboxPage() {
       }
       return list
     })
-    // Agent: chat yang baru di-assign ke dirinya mungkin belum ada di daftar
-    if (needFetch && user?.role === 'agent') fetch()
-  }, [assignmentUpdates, fetch, user])
+    fetchByIds(newlyMine)
+  }, [assignmentUpdates, fetchByIds, user])
 
   // Regional / status bot lokasi berubah: update badge tanpa refetch
   const processedConvUpdRef = useRef(null)
@@ -336,18 +396,13 @@ export default function InboxPage() {
     return new Date(b.lastMessageAt || b.updated_at || 0) - new Date(a.lastMessageAt || a.updated_at || 0)
   })
 
-  // Render bertahap: ratusan chat tidak digambar sekaligus (berat & membuat UI
-  // membeku). 60 dulu, sisanya bertambah otomatis saat daftar digulir.
-  const PAGE = 60
-  const [renderCount, setRenderCount] = useState(PAGE)
+  // Gulir ke bawah -> muat halaman berikutnya dari server
   const moreRef = useRef(null)
-  const filterKey = [search, statusFilter, activeTagFilter, lifecycleFilter, agentFilter, regionFilter].join('|')
-  useEffect(() => { setRenderCount(PAGE) }, [filterKey])
   useEffect(() => {
     const el = moreRef.current
     if (!el) return
     const io = new IntersectionObserver((entries) => {
-      if (entries.some(e => e.isIntersecting)) setRenderCount(c => c + PAGE)
+      if (entries.some(e => e.isIntersecting)) loadMore()
     }, { root: el.closest('.cl-list'), rootMargin: '600px 0px' })
     io.observe(el)
     return () => io.disconnect()
@@ -376,7 +431,7 @@ export default function InboxPage() {
       {/* Header */}
       <div className="cl-header">
         <div className="cl-header-top">
-          <h2>Chats{!loading && <span className="cl-count">{sorted.length}</span>}</h2>
+          <h2>Chats{!loading && <span className="cl-count">{total != null && regionFilter !== 'barat' && regionFilter !== 'timur' && regionFilter !== 'unknown' && statusFilter !== 'unread' ? total : `${sorted.length}${hasMore ? '+' : ''}`}</span>}</h2>
           <div className="cl-header-actions">
             {/* Toggle ketersediaan hanya untuk agent — auto-assign tidak berlaku ke admin */}
             {!isAdmin && (
@@ -533,7 +588,7 @@ export default function InboxPage() {
             {hasFilter && <button className="cl-empty-reset" onClick={resetFilters}>Reset filter</button>}
           </div>
         ) : (
-          <>{sorted.slice(0, renderCount).map(conv => {
+          <>{sorted.map(conv => {
             const isActive = String(conv.id) === String(activeChatId)
             const name = conv.contact?.name || conv.contact?.phone || 'Unknown'
             const initial = name[0].toUpperCase()
@@ -602,7 +657,7 @@ export default function InboxPage() {
               </div>
             )
           })}
-          {sorted.length > renderCount && <div ref={moreRef} className="cl-more" aria-hidden="true" />}</>
+          {hasMore && <div ref={moreRef} className="cl-more" aria-hidden="true">{loadingMore && <span className="cl-more-spin"><RotateCw size={14} /></span>}</div>}</>
         )}
       </div>
 
@@ -625,7 +680,8 @@ export default function InboxPage() {
         .cl-sync-banner { display: flex; align-items: center; gap: 8px; padding: 7px 12px; border-radius: 9px; background: var(--primary-light); color: var(--primary); font-size: 12px; font-weight: 600; }
         .cl-spin { animation: spin 0.8s linear infinite; }
         .cl-spin-wrap { display: inline-flex; }
-        .cl-more { height: 1px; }
+        .cl-more { min-height: 1px; display: flex; justify-content: center; padding: 6px 0; color: var(--muted); }
+        .cl-more-spin { display: inline-flex; animation: spin 0.8s linear infinite; }
         .cl-notice { margin: 0 14px 8px; padding: 9px 12px; border-radius: 10px; background: rgba(208,139,40,0.12); border: 1px solid rgba(208,139,40,0.35); color: var(--text); font-size: 12.5px; line-height: 1.4; cursor: pointer; }
         .cl-spin-wrap.on { animation: spin 0.8s linear infinite; will-change: transform; }
         /* Ratusan chat: browser hanya menggambar baris yang terlihat di layar */
