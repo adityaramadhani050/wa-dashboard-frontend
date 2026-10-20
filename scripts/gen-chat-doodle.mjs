@@ -59,6 +59,6 @@ for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
 }
 const make = (color, op) => `<svg xmlns="http://www.w3.org/2000/svg" width="${TILE}" height="${TILE}" viewBox="0 0 ${TILE} ${TILE}"><g fill="none" stroke="${color}" stroke-opacity="${op}" fill-opacity="${op}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${body.replace(/COLOR/g, color)}</g></svg>\n`
 const out = ROOT + 'public/'
-fs.writeFileSync(out + 'chat-doodle-light.svg', make('#1a2540', 0.075))
+fs.writeFileSync(out + 'chat-doodle-light.svg', make('#5b4a36', 0.1)) // coklat hangat di atas latar krem
 fs.writeFileSync(out + 'chat-doodle-dark.svg', make('#ffffff', 0.055))
 console.log('ok', fs.statSync(out + 'chat-doodle-dark.svg').size, 'bytes')

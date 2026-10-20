@@ -1,34 +1,46 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg: #f0f3fa;
+  /* Palet terang ala WhatsApp Web (panel putih, latar abu lembut, chat krem
+     berpola, bubble keluar pastel) — aksen tetap biru */
+  --bg: #f0f2f5;
   --surface: #ffffff;
-  --surface2: #f7f9fd;
-  --surface3: #eef2f9;      /* hover row / chip bg */
+  --surface2: #f0f2f5;
+  --surface3: #e9edef;      /* hover row / chip bg / item aktif */
   --primary: #3563e9;
   --primary-hover: #2850cc;
   --primary-light: rgba(53,99,233,0.09);
-  --border: #e4eaf5;
-  --border2: #c8d4ec;
-  --text: #1a2540;
-  --text2: #4f607a;
-  --muted: #8a9bb8;
-  --sent: #3563e9;
-  --sent-text: #ffffff;
+  --border: #e9edef;
+  --border2: #d1d7db;
+  --text: #111b21;
+  --text2: #3b4a54;
+  --muted: #667781;
+  --sent: #d9e7ff;          /* bubble keluar pastel biru (ala hijau muda WhatsApp) */
+  --sent-text: #111b21;
   --recv: #ffffff;
-  --recv-text: #1a2540;
-  --sidebar-bg: #ffffff;
+  --recv-text: #111b21;
+  --sidebar-bg: #f7f8fa;
   --sidebar-active: #3563e9;
-  --sidebar-muted: #a8b8d0;
+  --sidebar-muted: #54656f;
   --danger: #e53e3e;
-  --success: #27a87a;
+  --success: #1fa855;
   --warning: #d08b28;
+  --chat-bg: #efeae2;       /* latar percakapan krem seperti WhatsApp */
+  --chip-active-bg: #dbe6ff;
+  --chip-active-text: #1d4ed8;
+  /* Isi bubble keluar (waktu, centang, kutipan, kartu media) */
+  --sent-meta: #667781;
+  --sent-overlay: rgba(11,20,26,0.05);
+  --sent-overlay-strong: rgba(11,20,26,0.08);
+  --sent-quote-bar: #3563e9;
+  --sent-quote-who: #1d4ed8;
+  --tick: #8696a0;
+  --tick-read: #2d8cf0;      /* centang biru (dibaca) */
   /* Warna yang TETAP sama di light & dark */
   --on-primary: #ffffff;    /* teks/ikon di atas warna solid (biru, badge, dsb.) */
   --scrim: rgba(15,23,42,0.5);   /* overlay modal */
-  --skeleton: #e6ecf5;      /* placeholder loading */
-  --shadow: rgba(20,40,80,0.06);
-  --tick-read: #a0c8f0;      /* centang biru (dibaca) di bubble keluar */
+  --skeleton: #e9edef;      /* placeholder loading */
+  --shadow: rgba(11,20,26,0.08);
 }
 
 /* Palet gelap — mengikuti tema device (prefers-color-scheme). Latar & panel meniru
@@ -59,19 +71,32 @@
     --warning: #ffb02e;
     --on-primary: #ffffff;
     --tick-read: #8ad8ff;
+    --tick: rgba(255,255,255,0.55);
+    --chat-bg: #161717;
+    --chip-active-bg: rgba(91,140,255,0.2);
+    --chip-active-text: #d6e3ff;
+    --sent-meta: rgba(255,255,255,0.7);
+    --sent-overlay: rgba(255,255,255,0.14);
+    --sent-overlay-strong: rgba(255,255,255,0.2);
+    --sent-quote-bar: rgba(255,255,255,0.7);
+    --sent-quote-who: rgba(255,255,255,0.95);
     --scrim: rgba(0,0,0,0.65);
     --skeleton: #242626;
     --shadow: rgba(0,0,0,0.45);
     color-scheme: dark;
   }
-  /* Detail ala WhatsApp Web */
-  .ib-btn.active { background: var(--surface3) !important; color: var(--text) !important; }
-  .cl-item.active { background: var(--surface3) !important; box-shadow: none !important; }
-  .cl-item:hover:not(.active) { background: var(--surface2); }
-  .cl-seg button.active { background: rgba(91,140,255,0.2) !important; color: #d6e3ff !important; box-shadow: none !important; }
-  .brecv { border-color: transparent !important; }
-  .cv-bubble { box-shadow: 0 1px 0.5px rgba(0,0,0,0.25) !important; }
 }
+
+/* Detail ala WhatsApp Web (terang & gelap) */
+@media (min-width: 769px) {
+  /* Menu kiri desktop: item aktif abu. (Di HP penandanya pil di ikon — lihat Sidebar.) */
+  .ib-btn.active { background: var(--surface3) !important; color: var(--text) !important; }
+}
+.cl-item.active { background: var(--surface3) !important; box-shadow: none !important; }
+.cl-item:hover:not(.active) { background: var(--surface2); }
+.cl-seg button.active { background: var(--chip-active-bg) !important; color: var(--chip-active-text) !important; box-shadow: none !important; }
+.brecv { border-color: transparent !important; }
+.cv-bubble { box-shadow: 0 1px 0.5px rgba(11,20,26,0.13) !important; }
 
 html, body, #root {
   height: 100%;

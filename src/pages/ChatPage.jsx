@@ -69,7 +69,7 @@ function isFromMe(msg) {
 function MessageTick({ status }) {
   const isRead = status === 'read'
   const isDelivered = status === 'delivered' || isRead
-  const color = isRead ? 'var(--tick-read, #a0c8f0)' : 'rgba(255,255,255,0.55)'
+  const color = isRead ? 'var(--tick-read)' : 'var(--tick)'
   if (isDelivered) {
     return (
       <svg width="18" height="12" viewBox="0 0 18 12" fill="none" style={{flexShrink:0, color}}>
@@ -479,7 +479,7 @@ function SwipeMessageRow({ msg, sent, isSending, hasMedia, hasReply, name, grpSt
           {msg.sent_by_ai && <span className="cv-bot-tag ai" title="Dikirim oleh AI Sales"><Sparkles size={10} />AI</span>}
           {msg.edited && <span className="cv-edited">Diedit</span>}
           {isSending
-            ? <Clock size={11} style={{ color: 'rgba(255,255,255,0.5)', flexShrink: 0 }} />
+            ? <Clock size={11} style={{ color: 'var(--tick)', flexShrink: 0 }} />
             : <span className="cv-time">{formatTime(msg.timestamp || msg.createdAt)}</span>
           }
           {sent && !isSending && <MessageTick status={msg.status} />}
@@ -2101,7 +2101,7 @@ export default function ChatPage({ chatId }) {
         .cv-mi-sub { font-size: 11px; color: var(--muted); margin-top: 1px; text-align: left; }
         .cv-error { background: rgba(229,62,62,0.05); border-bottom: 1px solid rgba(229,62,62,0.12); color: var(--danger); padding: 8px 16px; font-size: 13px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
         .cv-messages-wrap { position: relative; flex: 1; min-height: 0; display: flex; }
-        .cv-messages { flex: 1; min-height: 0; overflow-y: auto; padding: 20px clamp(24px, 6%, 84px); display: flex; flex-direction: column; gap: 2px; background-color: var(--bg); background-image: url('/chat-doodle-light.svg'); background-size: 420px 420px; background-repeat: repeat; }
+        .cv-messages { flex: 1; min-height: 0; overflow-y: auto; padding: 20px clamp(24px, 6%, 84px); display: flex; flex-direction: column; gap: 2px; background-color: var(--chat-bg, var(--bg)); background-image: url('/chat-doodle-light.svg'); background-size: 420px 420px; background-repeat: repeat; }
         @media (prefers-color-scheme: dark) {
           .cv-messages { background-image: url('/chat-doodle-dark.svg'); }
         }
@@ -2189,13 +2189,13 @@ export default function ChatPage({ chatId }) {
         /* Sorot pesan tujuan saat diklik dari kutipan */
         .cv-row.flash .cv-bubble { animation: cvFlash 1.4s ease; }
         @keyframes cvFlash { 0%, 100% { box-shadow: 0 0 0 0 transparent; } 25% { box-shadow: 0 0 0 3px var(--primary); } }
-        .cv-quote.on-sent { border-color: rgba(255,255,255,0.7); background: rgba(255,255,255,0.14); }
+        .cv-quote.on-sent { border-color: var(--sent-quote-bar); background: var(--sent-overlay); }
         .cv-quote.on-recv { border-color: var(--primary); background: var(--surface3); }
         .cv-quote-who { font-size: 11px; font-weight: 700; }
-        .cv-quote.on-sent .cv-quote-who { color: rgba(255,255,255,0.95); }
+        .cv-quote.on-sent .cv-quote-who { color: var(--sent-quote-who); }
         .cv-quote.on-recv .cv-quote-who { color: var(--primary); }
         .cv-quote-text { font-size: 12px; opacity: 0.85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 240px; }
-        .cv-quote.on-sent .cv-quote-text { color: rgba(255,255,255,0.85); }
+        .cv-quote.on-sent .cv-quote-text { color: var(--sent-text); opacity: 0.8; }
         .cv-quote.on-recv .cv-quote-text { color: var(--text2); }
         .cv-reply-preview { display: flex; align-items: center; gap: 10px; padding: 8px 14px; background: var(--surface3); border-top: 1px solid var(--border2); }
         .cv-reply-preview-bar { width: 3px; align-self: stretch; background: var(--primary); border-radius: 2px; flex-shrink: 0; }
@@ -2238,10 +2238,10 @@ export default function ChatPage({ chatId }) {
         .cv-mem-actions { display: flex; justify-content: flex-end; gap: 6px; }
         .cv-mem-actions button { height: 30px; padding: 0 12px; border-radius: 8px; font-size: 12px; font-weight: 600; background: var(--surface2); color: var(--text2); border: 1px solid var(--border); }
         .cv-mem-actions button.primary { background: var(--primary); color: var(--on-primary); border-color: transparent; }
-        .cv-bot-tag { display: inline-flex; align-items: center; gap: 2px; font-size: 10px; font-weight: 700; padding: 0 5px; border-radius: 6px; background: rgba(255,255,255,0.18); margin-right: 2px; }
+        .cv-bot-tag { display: inline-flex; align-items: center; gap: 2px; font-size: 10px; font-weight: 700; padding: 0 5px; border-radius: 6px; background: var(--sent-overlay-strong); margin-right: 2px; }
         .brecv .cv-bot-tag { background: var(--surface3); color: var(--text2); }
         .cv-edited { font-size: 10px; font-style: italic; opacity: 0.7; margin-right: 2px; }
-        .cv-time { font-size: 10.5px; color: rgba(255,255,255,0.7); white-space: nowrap; }
+        .cv-time { font-size: 10.5px; color: var(--sent-meta); white-space: nowrap; }
         .brecv .cv-time { color: var(--muted); }
         .cv-media-wrap { min-width: 180px; }
         .cv-media-skeleton { width: 240px; height: 160px; border-radius: 8px; background: var(--skeleton); overflow: hidden; }
@@ -2252,7 +2252,7 @@ export default function ChatPage({ chatId }) {
         .cv-media-audio { width: 220px; height: 36px; }
         .cv-media-caption { font-size: 13px; padding: 6px 4px 0; line-height: 1.4; }
         .cv-media-broken { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 10px; text-decoration: none; min-width: 180px; }
-        .cv-media-broken.sent { background: rgba(255,255,255,0.15); color: rgba(255,255,255,0.9); }
+        .cv-media-broken.sent { background: var(--sent-overlay); color: var(--sent-text); }
         .cv-media-broken.recv { background: var(--surface3); color: var(--text2); border: 1px solid var(--border); }
         .cv-media-broken-info { flex: 1; display: flex; flex-direction: column; gap: 2px; }
         .cv-media-broken-info span { font-size: 13px; font-weight: 600; }
@@ -2261,27 +2261,27 @@ export default function ChatPage({ chatId }) {
         .cv-sticker { width: 130px; height: 130px; object-fit: contain; }
         .cv-special-link { text-decoration: none; }
         .cv-special-card { display: flex; align-items: flex-start; gap: 11px; padding: 10px 12px; border-radius: 10px; min-width: 230px; max-width: 320px; }
-        .cv-special-card.sent { background: rgba(255,255,255,0.15); color: var(--on-primary); }
+        .cv-special-card.sent { background: var(--sent-overlay); color: var(--sent-text); }
         .cv-special-card.recv { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
         .cv-special-icon { width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
         .cv-special-icon.loc { background: rgba(220,38,38,0.13); color: #ef4444; }
         .cv-special-icon.contact { background: rgba(37,99,235,0.13); color: #3b82f6; }
-        .cv-special-card.sent .cv-special-icon { background: rgba(255,255,255,0.2); color: var(--on-primary); }
+        .cv-special-card.sent .cv-special-icon { background: var(--sent-overlay-strong); color: var(--sent-text); }
         .cv-special-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
         .cv-special-title { font-size: 14px; font-weight: 700; line-height: 1.3; }
         .cv-special-detail { font-size: 12px; opacity: 0.8; line-height: 1.35; }
         .cv-special-action { display: inline-flex; align-items: center; gap: 4px; margin-top: 3px; font-size: 11.5px; font-weight: 600; color: var(--primary); }
-        .cv-special-card.sent .cv-special-action { color: var(--on-primary); opacity: 0.9; }
+        .cv-special-card.sent .cv-special-action { color: var(--sent-text); opacity: 0.9; }
         .cv-media-doc { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 10px; text-decoration: none; min-width: 200px; cursor: pointer; }
-        .cv-media-doc.sent { background: rgba(255,255,255,0.15); color: var(--on-primary); }
+        .cv-media-doc.sent { background: var(--sent-overlay); color: var(--sent-text); }
         .cv-media-doc.recv { background: var(--surface3); color: var(--text); border: 1px solid var(--border); }
         .cv-media-doc-icon { width: 42px; height: 42px; border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; position: relative; }
-        .bsent .cv-media-doc-icon { background: rgba(255,255,255,0.18); color: var(--on-primary); }
+        .bsent .cv-media-doc-icon { background: var(--sent-overlay-strong); color: var(--sent-text); }
         .brecv .cv-media-doc-icon { background: var(--surface3); color: var(--primary); }
         .cv-media-doc-ext { font-size: 8px; font-weight: 800; letter-spacing: 0.3px; text-transform: uppercase; }
         .cv-dl-ring { position: absolute; inset: 3px; border-radius: 50%; border: 2.5px solid transparent; border-top-color: currentColor; animation: spin 0.8s linear infinite; }
         .cv-dl-icon { position: relative; z-index: 1; }
-        .bsent .cv-media-doc-icon.dl-done { background: rgba(39,168,122,0.25); color: #6ee7c7; }
+        .bsent .cv-media-doc-icon.dl-done { background: rgba(39,168,122,0.25); color: var(--success); }
         .brecv .cv-media-doc-icon.dl-done { background: rgba(39,168,122,0.12); color: var(--success); }
         .cv-media-doc-info { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
         .cv-media-doc-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
