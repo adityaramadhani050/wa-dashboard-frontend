@@ -1,12 +1,13 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
-import { getDailyStats, getAgentStats, getAnalyticsSummary, getContacts, getConversations, getTopTemplates, getResponseKpi, getFunnel, getFollowupReport } from '../hooks/useApi'
+import { useState, useEffect, useCallback, useRef, Fragment } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { getDailyStats, getAgentStats, getAnalyticsSummary, getContacts, getConversations, getTopTemplates, getResponseKpi, getFunnel, getFollowupReport, getAgentChats } from '../hooks/useApi'
 import FollowupReport from '../components/FollowupReport'
 import { formatDurShort, formatDurLong } from '../lib/duration'
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer
 } from 'recharts'
-import { RefreshCw, TrendingUp, Users, MessageSquare, UserCheck, Clock, UserPlus, Calendar, Download, Zap, MapPin, ChevronDown, Activity, BarChart2, Inbox, CheckCircle2, Info, UserX } from 'lucide-react'
+import { RefreshCw, TrendingUp, Users, MessageSquare, UserCheck, Clock, UserPlus, Calendar, Download, Zap, MapPin, ChevronDown, Activity, BarChart2, Inbox, CheckCircle2, Info, UserX, ChevronRight, MessageCircle } from 'lucide-react'
 
 const REGION_OPTIONS = [
   { key: '', label: 'Semua' },
@@ -110,12 +111,90 @@ const Tip = ({ active, payload, label }) => {
   )
 }
 
-export default function AnalyticsPage() {
-  const defaultTo = fmtDate(new Date())
-  const defaultFrom = fmtDate(new Date()) // default: hari ini
+// Format tanggal & jam singkat (WIB lokal browser), mis. "12 Okt 2026, 14.05"
+const fmtDateTime = (iso) => {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return '—'
+  return d.toLocaleString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
 
-  const [from, setFrom] = useState(defaultFrom)
-  const [to, setTo] = useState(defaultTo)
+// Rincian chat (Total Lead) seorang agent: dibuka dari accordion "Detail per Agent"
+function AgentChats({ state, kpiMinutes, live, onOpen, onMore }) {
+  if (!state || state.loading) return <div className="an-ac-msg">Memuat daftar chat…</div>
+  if (state.error) return <div className="an-ac-msg err">{state.error}</div>
+  const chats = state.chats || []
+  if (!chats.length) return <div className="an-ac-msg">Tidak ada lead pada periode ini.</div>
+  const shown = chats.slice(0, state.shown || 20)
+  return (
+    <div className="an-ac">
+      <table className="an-ac-table">
+        <thead>
+          <tr>
+            <th>Kontak</th><th>Jenis</th><th>Status</th><th>Label</th>
+            <th className="num">Avg. Respons</th><th>First chat</th><th>Last chat</th><th />
+          </tr>
+        </thead>
+        <tbody>
+          {shown.map(c => {
+            const stageTags = [c.stages?.deal && 'Deal', c.stages?.prospek && !c.stages?.deal && 'Prospek', c.stages?.fail && 'Fail'].filter(Boolean)
+            const otherTags = (c.tags || []).filter(t => !stageTags.some(st => st.toLowerCase() === String(t.name || '').toLowerCase()))
+            return (
+              <tr key={c.id}>
+                <td>
+                  <div className="an-ac-name" title={c.name || ''}>{c.name || c.phone || 'Tanpa nama'}</div>
+                  {c.phone && c.name !== c.phone && <div className="an-ac-sub">{c.phone}</div>}
+                </td>
+                <td><span className={`an-badge ${c.kind === 'new' ? 'lead' : 'old'}`}>{c.kind === 'new' ? 'Lead Baru' : 'Lead Lama'}</span></td>
+                <td>
+                  <span className={`an-badge ${c.status === 'resolved' ? 'resolved' : 'active'}`}>{c.status === 'resolved' ? 'Resolved' : 'Aktif'}</span>
+                  {live && c.awaiting && <div className="an-ac-sub warn">menunggu balasan</div>}
+                </td>
+                <td>
+                  <div className="an-ac-tags">
+                    {stageTags.map(st => <span key={st} className={`an-badge ${st === 'Deal' ? 'deal' : st === 'Prospek' ? 'prospek' : 'fail'}`} title="Tahap yang dicapai dalam periode">{st}</span>)}
+                    {otherTags.map(t => <span key={t.id} className="tag-chip" style={{ background: t.color }}>{t.name}</span>)}
+                    {!stageTags.length && !otherTags.length && <span className="an-ac-sub">—</span>}
+                  </div>
+                </td>
+                <td className="num">
+                  {c.avgResponse != null
+                    ? <span className={`an-resp${c.avgResponse > kpiMinutes ? ' slow' : ''}`} title={`${formatDurLong(c.avgResponse)} dari ${c.replies} balasan`}>{formatDurShort(c.avgResponse)}</span>
+                    : <span className="an-resp none" title="Belum ada balasan dalam periode">—</span>}
+                </td>
+                <td className="an-ac-time">{fmtDateTime(c.firstChat)}</td>
+                <td className="an-ac-time">{fmtDateTime(c.lastChat)}</td>
+                <td className="an-ac-act"><button className="an-ac-open" onClick={() => onOpen(c.id)}><MessageCircle size={13} />Buka chat</button></td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+      {chats.length > shown.length && (
+        <button className="an-ac-more" onClick={onMore}>Tampilkan lebih ({chats.length - shown.length} lagi)</button>
+      )}
+    </div>
+  )
+}
+
+// Tampilan Analytics (periode, regional, accordion terbuka, posisi gulir) disimpan
+// selama sesi agar tetap sama saat kembali dari membuka chat.
+const VIEW_KEY = 'an_view'
+const loadView = () => { try { return JSON.parse(sessionStorage.getItem(VIEW_KEY) || 'null') || {} } catch { return {} } }
+const saveView = (patch) => { try { sessionStorage.setItem(VIEW_KEY, JSON.stringify({ ...loadView(), ...patch })) } catch {} }
+
+export default function AnalyticsPage() {
+  const saved = useRef(loadView()).current
+  // Preset (1/7/14/30 hari) dihitung ulang dari hari ini; rentang manual dipakai apa adanya
+  const initRange = (() => {
+    if (saved.preset) return { f: fmtDate(new Date(Date.now() - (saved.preset - 1) * 86400000)), t: fmtDate(new Date()) }
+    if (saved.from && saved.to) return { f: saved.from, t: saved.to }
+    return { f: fmtDate(new Date()), t: fmtDate(new Date()) } // default: hari ini
+  })()
+  const navigate = useNavigate()
+
+  const [from, setFrom] = useState(initRange.f)
+  const [to, setTo] = useState(initRange.t)
   const [daily, setDaily] = useState([])
   const [agents, setAgents] = useState([])
   const [summary, setSummary] = useState(null)
@@ -127,9 +206,13 @@ export default function AnalyticsPage() {
   const [error, setError] = useState('')
   const [exporting, setExporting] = useState('')
   // Filter regional ('' = semua). Disimpan juga di ref agar semua pemanggilan load() ikut.
-  const [region, setRegion] = useState('')
-  const regionRef = useRef('')
-  const [preset, setPreset] = useState(1) // 1/7/14/30 hari; null = rentang manual
+  const [region, setRegion] = useState(saved.region || '')
+  const regionRef = useRef(saved.region || '')
+  const [preset, setPreset] = useState(saved.preset !== undefined ? saved.preset : 1) // 1/7/14/30 hari; null = rentang manual
+  // Accordion "Detail per Agent": agent yang terbuka & daftar chat per agent (per periode/regional)
+  const [openAgent, setOpenAgent] = useState(saved.openAgent || null)
+  const [agentChats, setAgentChats] = useState({}) // agentId -> { loading, chats, error, shown, key }
+  const loadedRange = useRef({ from: initRange.f, to: initRange.t, region: saved.region || '' })
   const [showExport, setShowExport] = useState(false)
   const exportRef = useRef(null)
   useEffect(() => {
@@ -143,6 +226,8 @@ export default function AnalyticsPage() {
     setLoading(true)
     setError('')
     const r = regionRef.current || undefined
+    loadedRange.current = { from: f, to: t, region: regionRef.current || '' }
+    setAgentChats({}) // periode/regional berubah -> rincian chat dimuat ulang saat dibuka
     try {
       const [d, a, sm, tpl, k, fn, fr] = await Promise.all([
         getDailyStats(f, t, r), getAgentStats(f, t, r), getAnalyticsSummary(f, t, r).catch(() => null),
@@ -216,6 +301,40 @@ export default function AnalyticsPage() {
     load(f, t)
   }
   const rangeLabel = fmtRange(from, to)
+
+  // Simpan tampilan (periode, regional, accordion)
+  useEffect(() => { saveView({ from, to, preset, region, openAgent }) }, [from, to, preset, region, openAgent])
+
+  const fetchAgentChats = useCallback((agentId) => {
+    const { from: f, to: t, region: r } = loadedRange.current
+    const key = `${f}|${t}|${r}`
+    setAgentChats(prev => ({ ...prev, [agentId]: { loading: true, key, shown: prev[agentId]?.shown || 20 } }))
+    getAgentChats(agentId, f, t, r)
+      .then(d => setAgentChats(prev => prev[agentId]?.key === key ? { ...prev, [agentId]: { ...prev[agentId], loading: false, chats: d?.chats || [] } } : prev))
+      .catch(e => setAgentChats(prev => ({ ...prev, [agentId]: { ...prev[agentId], loading: false, error: e?.response?.data?.error || 'Gagal memuat daftar chat' } })))
+  }, [])
+  const toggleAgent = (agentId) => {
+    if (openAgent === agentId) { setOpenAgent(null); return }
+    setOpenAgent(agentId)
+    if (!agentChats[agentId] || agentChats[agentId].error) fetchAgentChats(agentId)
+  }
+  // Accordion yang terbuka (mis. setelah kembali dari chat / ganti periode) -> muat datanya
+  useEffect(() => {
+    if (!loading && openAgent && !agentChats[openAgent]) fetchAgentChats(openAgent)
+  }, [loading, openAgent, agentChats, fetchAgentChats])
+  // Kembali dari chat: pulihkan posisi gulir setelah data tampil
+  const restoredScroll = useRef(false)
+  useEffect(() => {
+    if (loading || restoredScroll.current) return
+    restoredScroll.current = true
+    const y = saved.scrollY
+    if (y) requestAnimationFrame(() => { const el = document.querySelector('.wa-full-panel'); if (el) el.scrollTop = y })
+    saveView({ scrollY: 0 })
+  }, [loading]) // eslint-disable-line
+  const openChat = (convId) => {
+    saveView({ scrollY: document.querySelector('.wa-full-panel')?.scrollTop || 0 })
+    navigate(`/chat/${convId}`)
+  }
 
   const kpiMinutes = kpi?.kpiMinutes ?? 5
   const sumOr = (key) => summary?.[key] ?? null
@@ -400,9 +519,11 @@ export default function AnalyticsPage() {
               </thead>
               <tbody>
                 {agents.map((a) => (
-                  <tr key={a.id || a.name}>
+                  <Fragment key={a.id || a.name}>
+                  <tr className={`an-agent-row${openAgent === a.id ? ' open' : ''}`} onClick={() => toggleAgent(a.id)} title="Klik untuk melihat daftar chat/lead">
                     <td>
                       <div className="an-agent-cell">
+                        <ChevronRight size={15} className="an-agent-chev" />
                         <div className="an-avatar">{(a.name || 'A')[0].toUpperCase()}</div>
                         <div className="an-agent-id">
                           <div className="an-agent-name" title={a.name}>{a.name}</div>
@@ -431,6 +552,18 @@ export default function AnalyticsPage() {
                       </div>
                     </td>
                   </tr>
+                  {openAgent === a.id && (
+                    <tr className="an-ac-row">
+                      <td colSpan={10}>
+                        <AgentChats
+                          state={agentChats[a.id]} kpiMinutes={kpiMinutes} live={!!summary?.live}
+                          onOpen={openChat}
+                          onMore={() => setAgentChats(prev => ({ ...prev, [a.id]: { ...prev[a.id], shown: (prev[a.id]?.shown || 20) + 20 } }))}
+                        />
+                      </td>
+                    </tr>
+                  )}
+                  </Fragment>
                 ))}
               </tbody>
             </table>
@@ -703,6 +836,32 @@ export default function AnalyticsPage() {
         .an-table tr:last-child td { border-bottom: none; }
         .an-table tr:hover td { background: var(--surface2); }
         .an-agent-cell { display: flex; align-items: center; gap: 10px; min-width: 0; }
+        .an-agent-row { cursor: pointer; }
+        .an-agent-row:hover td { background: var(--surface2); }
+        .an-agent-row.open td { background: var(--surface2); }
+        .an-agent-chev { flex-shrink: 0; color: var(--muted); transition: transform 0.15s; margin-right: -4px; }
+        .an-agent-row.open .an-agent-chev { transform: rotate(90deg); color: var(--primary); }
+        .an-ac-row > td { padding: 0 !important; background: var(--surface2); }
+        .an-ac { padding: 6px 12px 12px 40px; }
+        .an-ac-msg { padding: 14px 40px; font-size: 12.5px; color: var(--muted); }
+        .an-ac-msg.err { color: var(--danger); }
+        .an-ac-table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+        .an-ac-table th { text-align: left; font-size: 10.5px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; padding: 8px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+        .an-ac-table td { font-size: 12.5px; color: var(--text); padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+        .an-ac-table tr:last-child td { border-bottom: none; }
+        .an-ac-table .num { text-align: right; }
+        .an-ac-table .an-badge { white-space: nowrap; }
+        .an-ac-name { font-weight: 600; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .an-ac-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+        .an-ac-sub.warn { color: var(--warning); }
+        .an-ac-tags { display: flex; flex-wrap: wrap; gap: 4px; max-width: 260px; }
+        .an-ac-tags .tag-chip { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 10.5px; font-weight: 600; color: var(--on-primary); white-space: nowrap; }
+        .an-ac-time { white-space: nowrap; color: var(--text2); font-variant-numeric: tabular-nums; }
+        .an-ac-act { text-align: right; }
+        .an-ac-open { display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 10px; border-radius: 8px; font-size: 12px; font-weight: 600; color: var(--primary); background: var(--primary-light); white-space: nowrap; }
+        .an-ac-open:hover { filter: brightness(0.95); }
+        .an-ac-more { margin-top: 8px; height: 30px; padding: 0 12px; border-radius: 8px; font-size: 12px; font-weight: 600; color: var(--text2); background: var(--surface); border: 1px solid var(--border); }
+        @media (max-width: 768px) { .an-ac { padding: 6px 8px 10px; } .an-ac-msg { padding: 12px; } }
         .an-agent-id { min-width: 0; }
         .an-agent-name, .an-agent-email { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .an-avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--primary-light); color: var(--primary); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; }
@@ -718,6 +877,7 @@ export default function AnalyticsPage() {
         .an-badge.lead { background: rgba(37,99,235,0.14); color: #3b82f6; }
         .an-badge.prospek { background: rgba(99,102,241,0.15); color: #6366f1; }
         .an-badge.deal { background: rgba(16,185,129,0.14); color: #10b981; }
+        .an-badge.fail { background: rgba(239,68,68,0.12); color: #ef4444; }
         @media (prefers-color-scheme: dark) { .an-badge.prospek { color: #a5b4fc; } .an-badge.lead, .an-badge.open { color: #7aa7ff; } }
         .an-resp { display: inline-block; min-width: 44px; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; color: var(--success); background: rgba(16,185,129,0.12); font-variant-numeric: tabular-nums; }
         .an-resp.slow { color: #d97706; background: rgba(217,119,6,0.13); }

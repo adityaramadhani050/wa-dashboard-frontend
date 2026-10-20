@@ -71,6 +71,7 @@ export const getAgentStats = (from, to, region) => api.get('/stats/agents', { pa
 export const getContactStats = (region) => api.get('/stats/contacts', { params: { region: region || undefined } }).then(r => r.data)
 export const getAnalyticsSummary = (from, to, region) => api.get('/stats/summary', { params: { from, to, region: region || undefined } }).then(r => r.data)
 export const getResponseKpi = (from, to, region) => api.get('/stats/response-kpi', { params: { from, to, region: region || undefined } }).then(r => r.data)
+export const getAgentChats = (agentId, from, to, region) => api.get('/stats/agent-chats', { params: { agent_id: agentId, from, to, region: region || undefined } }).then(r => r.data)
 export const getFunnel = (from, to, region) => api.get('/stats/funnel', { params: { from, to, region: region || undefined } }).then(r => r.data)
 export const getAgents = () => api.get('/agents').then(r => r.data)
 export const createAgent = (payload) => api.post('/agents', payload).then(r => r.data)
