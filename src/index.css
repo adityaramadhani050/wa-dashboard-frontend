@@ -88,10 +88,8 @@
 }
 
 /* Detail ala WhatsApp Web (terang & gelap) */
-@media (min-width: 769px) {
-  /* Menu kiri desktop: item aktif abu. (Di HP penandanya pil di ikon — lihat Sidebar.) */
-  .ib-btn.active { background: var(--surface3) !important; color: var(--text) !important; }
-}
+/* Menu aktif (desktop & HP): latar abu saja, tanpa warna biru */
+.ib-btn.active { background: var(--surface3) !important; color: var(--text) !important; }
 .cl-item.active { background: var(--surface3) !important; box-shadow: none !important; }
 .cl-item:hover:not(.active) { background: var(--surface2); }
 .cl-seg button.active { background: var(--chip-active-bg) !important; color: var(--chip-active-text) !important; box-shadow: none !important; }

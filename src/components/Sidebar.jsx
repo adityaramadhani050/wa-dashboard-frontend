@@ -322,8 +322,8 @@ export default function IconBar() {
           .ib-more-btn { display: flex; }
           .ib-label { display: block; font-size: 10px; font-weight: 600; line-height: 1; margin-top: 3px; white-space: nowrap; }
           .icon-bar .ib-btn { flex-direction: column; width: 58px; height: 46px; gap: 0; border-radius: 12px; }
-          .icon-bar .ib-btn.active { background: transparent; color: var(--primary); }
-          .icon-bar .ib-btn.active svg { background: var(--primary-light); border-radius: 999px; padding: 3px 10px; width: 44px; height: 26px; box-sizing: border-box; }
+          /* Menu aktif di HP: cukup latar abu (tanpa pil/teks biru), sama seperti desktop */
+          .icon-bar .ib-btn.active { background: var(--surface3); color: var(--text); }
           .icon-bar .ib-btn svg { padding: 3px 10px; width: 44px; height: 26px; box-sizing: border-box; }
           .ib-badge { top: -1px; right: 8px; }
           .ib-notif-dot { top: 2px; right: 14px; }
