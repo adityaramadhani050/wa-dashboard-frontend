@@ -28,38 +28,49 @@
   --scrim: rgba(15,23,42,0.5);   /* overlay modal */
   --skeleton: #e6ecf5;      /* placeholder loading */
   --shadow: rgba(20,40,80,0.06);
+  --tick-read: #a0c8f0;      /* centang biru (dibaca) di bubble keluar */
 }
 
-/* Palet gelap — otomatis mengikuti tema device (prefers-color-scheme). */
+/* Palet gelap — mengikuti tema device (prefers-color-scheme). Latar & panel meniru
+   WhatsApp Web (abu-abu netral, panel datar bergaris tipis); aksen tetap biru. */
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0b141a;
-    --surface: #202c33;
-    --surface2: #273440;
-    --surface3: #2f3d4a;
+    --bg: #161717;
+    --surface: #161717;
+    --surface2: #242626;
+    --surface3: #2e2f2f;
     --primary: #5b8cff;
     --primary-hover: #7aa2ff;
     --primary-light: rgba(91,140,255,0.16);
-    --border: #30404f;
-    --border2: #3f5164;
-    --text: #f4f7ff;
-    --text2: #c6d2e6;
-    --muted: #93a4be;
-    --sent: #2f6fed;
-    --sent-text: #ffffff;
-    --recv: #2a3942;
-    --recv-text: #f4f7ff;
-    --sidebar-bg: #111b21;
+    --border: #2a2b2b;
+    --border2: #3b3d3d;
+    --text: #fafafa;
+    --text2: #d1d4d3;
+    --muted: #a5a5a5;
+    --sent: #1f4fbf;
+    --sent-text: #fafafa;
+    --recv: #242626;
+    --recv-text: #fafafa;
+    --sidebar-bg: #1d1f1f;
     --sidebar-active: #5b8cff;
-    --sidebar-muted: #8a9ab4;
-    --danger: #ff6b6b;
+    --sidebar-muted: #a5a5a5;
+    --danger: #f15c6d;
     --success: #34c795;
-    --warning: #e0a63a;
-    --scrim: rgba(0,0,0,0.6);
-    --skeleton: #263243;
-    --shadow: rgba(0,0,0,0.4);
+    --warning: #ffb02e;
+    --on-primary: #ffffff;
+    --tick-read: #8ad8ff;
+    --scrim: rgba(0,0,0,0.65);
+    --skeleton: #242626;
+    --shadow: rgba(0,0,0,0.45);
     color-scheme: dark;
   }
+  /* Detail ala WhatsApp Web */
+  .ib-btn.active { background: var(--surface3) !important; color: var(--text) !important; }
+  .cl-item.active { background: var(--surface3) !important; box-shadow: none !important; }
+  .cl-item:hover:not(.active) { background: var(--surface2); }
+  .cl-seg button.active { background: rgba(91,140,255,0.2) !important; color: #d6e3ff !important; box-shadow: none !important; }
+  .brecv { border-color: transparent !important; }
+  .cv-bubble { box-shadow: 0 1px 0.5px rgba(0,0,0,0.25) !important; }
 }
 
 html, body, #root {
@@ -96,7 +107,8 @@ a { text-decoration: none; color: inherit; }
 .wa-app > * { min-height: 0; min-width: 0; }
 
 .wa-left-panel {
-  width: 420px;
+  /* Lebar daftar chat mengikuti WhatsApp Web: 30% layar lebar, 40% layar sedang */
+  width: clamp(340px, 30vw, 680px);
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
@@ -118,6 +130,10 @@ a { text-decoration: none; color: inherit; }
   overflow-y: auto;
   overflow-x: hidden;
   background: var(--bg);
+}
+
+@media (min-width: 769px) and (max-width: 1300px) {
+  .wa-left-panel { width: clamp(320px, 40vw, 480px); }
 }
 
 /* ─── Icon bar ─────────────────────────────────────────────── */
