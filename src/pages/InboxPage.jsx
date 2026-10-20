@@ -116,7 +116,12 @@ export default function InboxPage() {
   const handleRefresh = useCallback(async () => {
     if (refreshing) return
     setRefreshing(true)
-    try { await fetch() } finally { setTimeout(() => setRefreshing(false), 400) }
+    const started = Date.now()
+    try { await fetch() } finally {
+      // Berputar minimal 700 ms & berhenti setelah daftar selesai digambar ulang
+      const rest = Math.max(0, 700 - (Date.now() - started))
+      setTimeout(() => requestAnimationFrame(() => requestAnimationFrame(() => setRefreshing(false))), rest)
+    }
   }, [refreshing, fetch])
 
   // Sinkronisasi otomatis HANYA saat WA benar-benar tersambung KEMBALI
@@ -314,6 +319,23 @@ export default function InboxPage() {
     return new Date(b.lastMessageAt || b.updated_at || 0) - new Date(a.lastMessageAt || a.updated_at || 0)
   })
 
+  // Render bertahap: ratusan chat tidak digambar sekaligus (berat & membuat UI
+  // membeku). 60 dulu, sisanya bertambah otomatis saat daftar digulir.
+  const PAGE = 60
+  const [renderCount, setRenderCount] = useState(PAGE)
+  const moreRef = useRef(null)
+  const filterKey = [search, statusFilter, activeTagFilter, lifecycleFilter, agentFilter, regionFilter].join('|')
+  useEffect(() => { setRenderCount(PAGE) }, [filterKey])
+  useEffect(() => {
+    const el = moreRef.current
+    if (!el) return
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some(e => e.isIntersecting)) setRenderCount(c => c + PAGE)
+    }, { root: el.closest('.cl-list'), rootMargin: '600px 0px' })
+    io.observe(el)
+    return () => io.disconnect()
+  })
+
   const STATUS_FILTERS = [
     { key: 'all', label: 'Semua', short: 'Semua' },
     { key: 'unread', label: 'Belum dibaca', short: 'Belum baca' },
@@ -356,7 +378,9 @@ export default function InboxPage() {
               </button>
             )}
             <button className="cl-icon-btn" onClick={handleRefresh} disabled={refreshing} title="Refresh daftar">
-              <RefreshCw size={15} className={refreshing ? 'cl-spin' : ''} />
+              {/* Diputar lewat span (animasi compositor) agar tetap berputar walau
+                  browser sedang sibuk merender ratusan chat */}
+              <span className={`cl-spin-wrap${refreshing ? ' on' : ''}`}><RefreshCw size={15} /></span>
             </button>
           </div>
         </div>
@@ -489,7 +513,7 @@ export default function InboxPage() {
             {hasFilter && <button className="cl-empty-reset" onClick={resetFilters}>Reset filter</button>}
           </div>
         ) : (
-          sorted.map(conv => {
+          <>{sorted.slice(0, renderCount).map(conv => {
             const isActive = String(conv.id) === String(activeChatId)
             const name = conv.contact?.name || conv.contact?.phone || 'Unknown'
             const initial = name[0].toUpperCase()
@@ -557,7 +581,8 @@ export default function InboxPage() {
                 </div>
               </div>
             )
-          })
+          })}
+          {sorted.length > renderCount && <div ref={moreRef} className="cl-more" aria-hidden="true" />}</>
         )}
       </div>
 
@@ -579,6 +604,11 @@ export default function InboxPage() {
         @media (max-width: 380px) { .cl-avail-text { display: none; } }
         .cl-sync-banner { display: flex; align-items: center; gap: 8px; padding: 7px 12px; border-radius: 9px; background: var(--primary-light); color: var(--primary); font-size: 12px; font-weight: 600; }
         .cl-spin { animation: spin 0.8s linear infinite; }
+        .cl-spin-wrap { display: inline-flex; }
+        .cl-more { height: 1px; }
+        .cl-spin-wrap.on { animation: spin 0.8s linear infinite; will-change: transform; }
+        /* Ratusan chat: browser hanya menggambar baris yang terlihat di layar */
+        .cl-item { content-visibility: auto; contain-intrinsic-size: auto 84px; }
         @keyframes spin { to { transform: rotate(360deg); } }
         .cl-search { display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; transition: border-color 0.15s, background 0.15s; }
         .cl-search:focus-within { border-color: var(--primary); background: var(--surface); }
