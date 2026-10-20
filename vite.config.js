@@ -11,7 +11,7 @@ export default defineConfig({
       // src/lib/pwaUpdate.js (pendaftaran manual, bukan script bawaan plugin).
       registerType: 'autoUpdate',
       injectRegister: false,
-      includeAssets: ['favicon.png', 'apple-touch-icon.png'],
+      includeAssets: ['favicon.png', 'apple-touch-icon.png', 'chat-doodle-light.svg', 'chat-doodle-dark.svg'],
       manifest: {
         name: 'RenusPro Chat',
         short_name: 'RenusPro Chat',
