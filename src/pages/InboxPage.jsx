@@ -161,14 +161,16 @@ export default function InboxPage() {
     finally { pageRef.current.loadingMore = false; setLoadingMore(false) }
   }, [queryParams])
 
-  // Chat yang belum ada di daftar (pesan baru / baru di-assign): ambil chat itu saja
+  // Chat yang belum ada di daftar (pesan baru / baru di-assign): ambil chat itu saja,
+  // dengan filter yang sedang aktif agar chat di luar filter tidak ikut masuk
   const fetchByIds = useCallback(async (ids) => {
     if (!ids.length) return
     try {
-      const d = await getConversationsPage({ ids: ids.slice(0, 50).join(',') })
+      const { limit: _l, ...filters } = queryParams()
+      const d = await getConversationsPage({ ...filters, ids: ids.slice(0, 50).join(',') })
       if (d?.items?.length) setConversations(prev => mergeUnique(d.items, prev))
     } catch {}
-  }, [])
+  }, [queryParams])
 
   useEffect(() => { fetch() }, [fetch])
   // Sinkron ulang (tersambung lagi / tab aktif lagi / polling saat terputus)
@@ -269,13 +271,19 @@ export default function InboxPage() {
     const isAgent = user?.role === 'agent'
     const have = new Set(convRef.current.map(c => String(c.id)))
     // Agent: chat yang baru di-assign ke dirinya belum ada di daftar -> ambil chat itu
-    const newlyMine = isAgent ? [...new Set(fresh.filter(e => String(e.agent?.id ?? '') === String(user.id)).map(e => String(e.conversationId)))].filter(id => !have.has(id)) : []
+    const watchId = isAgent ? user.id : agentFilter
+    const newlyMine = watchId ? [...new Set(fresh.filter(e => String(e.agent?.id ?? '') === String(watchId)).map(e => String(e.conversationId)))].filter(id => !have.has(id)) : []
     setConversations(prev => {
       let list = prev
       for (const evt of fresh) {
         const cid = String(evt.conversationId ?? '')
         // Agent: chat dipindah ke agent lain / dilepas -> langsung hilang dari daftarnya
         if (isAgent && String(evt.agent?.id ?? '') !== String(user.id)) {
+          list = list.filter(c => String(c.id) !== cid)
+          continue
+        }
+        // Admin memfilter agent tertentu: chat yang dipindah ke agent lain ikut keluar
+        if (!isAgent && agentFilter && String(evt.agent?.id ?? '') !== String(agentFilter)) {
           list = list.filter(c => String(c.id) !== cid)
           continue
         }
@@ -291,7 +299,7 @@ export default function InboxPage() {
       return list
     })
     fetchByIds(newlyMine)
-  }, [assignmentUpdates, fetchByIds, user])
+  }, [assignmentUpdates, fetchByIds, user, agentFilter])
 
   // Regional / status bot lokasi berubah: update badge tanpa refetch
   const processedConvUpdRef = useRef(null)
