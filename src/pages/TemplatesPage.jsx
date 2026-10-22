@@ -3,17 +3,15 @@ import {
   getTemplates, createTemplate, updateTemplate, deleteTemplate,
   getQuickMedia, uploadQuickMedia, deleteQuickMedia,
   getTags, createTag, updateTag, deleteTag,
-  getProducts, createProduct, updateProduct, deleteProduct,
   getBroadcastTemplates, createBroadcastTemplate, updateBroadcastTemplate, deleteBroadcastTemplate,
 } from '../hooks/useApi'
-import { Plus, Pencil, Trash2, X, MessageSquareText, Image as ImageIcon, FileText, Tag as TagIcon, Package, Megaphone, Zap, Search, Film } from 'lucide-react'
+import { Plus, Pencil, Trash2, X, MessageSquareText, Image as ImageIcon, FileText, Tag as TagIcon, Megaphone, Zap, Search, Film } from 'lucide-react'
 import PdfThumb, { isPdf } from '../components/PdfThumb'
 import { useAuth } from '../context/AuthContext'
 
 const EMPTY_TEMPLATE = { title: '', body: '', shortcut: '', category: '' }
 const EMPTY_TAG = { name: '', color: '#3563e9' }
 const TAG_COLORS = ['#3563e9', '#0891b2', '#16a34a', '#d97706', '#dc2626', '#c026d3', '#7c3aed', '#64748b']
-const EMPTY_PRODUCT = { name: '', category: '', capacity: '', price: '', specs: '', active: true }
 
 // Sorot variabel {{nama}} dsb. di pratinjau isi pesan
 function WithVars({ text }) {
@@ -233,62 +231,12 @@ function TagForm({ initial, onSave, onClose, loading, error }) {
   )
 }
 
-function ProductForm({ initial, onSave, onClose, loading, error }) {
-  const [form, setForm] = useState(initial || EMPTY_PRODUCT)
-  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
-
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    if (!form.name.trim()) return
-    onSave(form)
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="am-form">
-      <div className="am-field">
-        <label>Nama Produk <span className="req">*</span></label>
-        <input value={form.name} onChange={e => set('name', e.target.value)} placeholder="contoh: Paket PLTS Hybrid 2000W" required />
-      </div>
-      <div className="am-field">
-        <label>Kategori <span style={{fontSize:11,color:'var(--muted)'}}>(opsional)</span></label>
-        <input value={form.category || ''} onChange={e => set('category', e.target.value)} placeholder="contoh: Hybrid / On-grid / Paket Rumah" />
-      </div>
-      <div className="am-field">
-        <label>Kapasitas <span style={{fontSize:11,color:'var(--muted)'}}>(opsional)</span></label>
-        <input value={form.capacity || ''} onChange={e => set('capacity', e.target.value)} placeholder="contoh: 2000W / 3 kWp" />
-      </div>
-      <div className="am-field">
-        <label>Harga <span style={{fontSize:11,color:'var(--muted)'}}>(opsional)</span></label>
-        <input value={form.price || ''} onChange={e => set('price', e.target.value)} placeholder="contoh: Rp 30.000.000 atau mulai 25jt" />
-      </div>
-      <div className="am-field">
-        <label>Spesifikasi & Poin Jual <span style={{fontSize:11,color:'var(--muted)'}}>(opsional)</span></label>
-        <textarea value={form.specs || ''} onChange={e => set('specs', e.target.value)} placeholder="contoh: panel 4x550W, inverter hybrid, baterai 5kWh, garansi 25 tahun, hemat s/d 40%" rows={4} />
-        <span className="am-hint">Dipakai AI sebagai sumber harga/spek saat membuat saran balasan</span>
-      </div>
-      <div className="am-field">
-        <label style={{display:'flex',alignItems:'center',gap:8,cursor:'pointer'}}>
-          <input type="checkbox" checked={form.active !== false} onChange={e => set('active', e.target.checked)} style={{width:16,height:16}} />
-          Aktif (dipakai AI)
-        </label>
-      </div>
-      {error && <div className="am-form-err">{error}</div>}
-      <div className="am-form-actions">
-        <button type="button" className="am-btn secondary" onClick={onClose}>Batal</button>
-        <button type="submit" className="am-btn primary" disabled={loading}>
-          {loading ? 'Menyimpan...' : 'Simpan'}
-        </button>
-      </div>
-    </form>
-  )
-}
-
 export default function TemplatesPage() {
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
   // Agent: hanya boleh mengubah/menghapus item buatannya sendiri (admin: semua)
   const canEdit = (item) => isAdmin || (item?.created_by != null && String(item.created_by) === String(user?.id))
-  const [tab, setTabState] = useState(() => { try { return sessionStorage.getItem('tp_tab') || 'templates' } catch { return 'templates' } }) // 'templates' | 'broadcast' | 'media' | 'tags' | 'products'
+  const [tab, setTabState] = useState(() => { try { return sessionStorage.getItem('tp_tab') || 'templates' } catch { return 'templates' } }) // 'templates' | 'broadcast' | 'media' | 'tags'
   const [q, setQ] = useState('')
   const setTab = (t) => { setTabState(t); setQ(''); try { sessionStorage.setItem('tp_tab', t) } catch {} }
 
@@ -328,15 +276,6 @@ export default function TemplatesPage() {
   const [tagDeleteTarget, setTagDeleteTarget] = useState(null)
   const [tagDeleting, setTagDeleting] = useState(false)
 
-  // Products state
-  const [products, setProducts] = useState([])
-  const [loadingProducts, setLoadingProducts] = useState(true)
-  const [prodModal, setProdModal] = useState(null)
-  const [prodSaving, setProdSaving] = useState(false)
-  const [prodError, setProdError] = useState('')
-  const [prodDeleteTarget, setProdDeleteTarget] = useState(null)
-  const [prodDeleting, setProdDeleting] = useState(false)
-
   const loadTemplates = useCallback(async () => {
     setLoadingTemplates(true)
     try { setTemplates(await getTemplates()) } catch {}
@@ -355,12 +294,6 @@ export default function TemplatesPage() {
     finally { setLoadingTags(false) }
   }, [])
 
-  const loadProducts = useCallback(async () => {
-    setLoadingProducts(true)
-    try { setProducts(await getProducts()) } catch {}
-    finally { setLoadingProducts(false) }
-  }, [])
-
   const loadBc = useCallback(async () => {
     setLoadingBc(true)
     try { setBcTemplates(await getBroadcastTemplates()) } catch {}
@@ -369,9 +302,9 @@ export default function TemplatesPage() {
 
   useEffect(() => {
     loadTemplates(); loadMedia()
-    // Template broadcast, label & katalog hanya untuk admin
-    if (isAdmin) { loadTags(); loadProducts(); loadBc() }
-  }, [isAdmin, loadTemplates, loadMedia, loadTags, loadProducts, loadBc])
+    // Template broadcast & label hanya untuk admin
+    if (isAdmin) { loadTags(); loadBc() }
+  }, [isAdmin, loadTemplates, loadMedia, loadTags, loadBc])
 
   const handleSaveBc = async ({ name, body, file, removeMedia }) => {
     setBcSaving(true); setBcError('')
@@ -478,49 +411,17 @@ export default function TemplatesPage() {
     finally { setTagDeleting(false) }
   }
 
-  const handleCreateProduct = async (form) => {
-    setProdSaving(true); setProdError('')
-    try {
-      const p = await createProduct(form)
-      setProducts(prev => [p, ...prev])
-      setProdModal(null)
-    } catch (e) { setProdError(e.response?.data?.error || 'Gagal membuat produk') }
-    finally { setProdSaving(false) }
-  }
-
-  const handleUpdateProduct = async (form) => {
-    setProdSaving(true); setProdError('')
-    try {
-      const updated = await updateProduct(prodModal.product.id, form)
-      setProducts(prev => prev.map(p => p.id === updated.id ? updated : p))
-      setProdModal(null)
-    } catch (e) { setProdError(e.response?.data?.error || 'Gagal mengupdate produk') }
-    finally { setProdSaving(false) }
-  }
-
-  const handleDeleteProduct = async () => {
-    setProdDeleting(true)
-    try {
-      await deleteProduct(prodDeleteTarget.id)
-      setProducts(prev => prev.filter(p => p.id !== prodDeleteTarget.id))
-      setProdDeleteTarget(null)
-    } catch {}
-    finally { setProdDeleting(false) }
-  }
-
   const match = (...fields) => !q.trim() || fields.some(f => String(f || '').toLowerCase().includes(q.trim().toLowerCase()))
   const fTemplates = templates.filter(t => match(t.title, t.body, t.shortcut, t.category))
   const fBc = bcTemplates.filter(t => match(t.name, t.body))
   const fMedia = media.filter(m => match(m.label, m.category))
   const fTags = tags.filter(t => match(t.name))
-  const fProducts = products.filter(p => match(p.name, p.category, p.capacity, p.specs))
 
   const ALL_TABS = [
     { key: 'templates', label: 'Template Pesan', short: 'Template', icon: MessageSquareText, count: templates.length, add: 'Tambah Template', onAdd: () => { setTplError(''); setTplModal('create') } },
     { key: 'broadcast', label: 'Template Broadcast', short: 'Broadcast', icon: Megaphone, count: bcTemplates.length, add: 'Tambah Template', onAdd: () => { setBcError(''); setBcModal('create') } },
     { key: 'media', label: 'Galeri Produk', short: 'Galeri', icon: ImageIcon, count: media.length, add: 'Tambah Media', onAdd: () => { setMediaError(''); setMediaModal(true) } },
     { key: 'tags', label: 'Label Percakapan', short: 'Label', icon: TagIcon, count: tags.length, add: 'Tambah Label', onAdd: () => { setTagError(''); setTagModal('create') } },
-    { key: 'products', label: 'Katalog Produk', short: 'Katalog', icon: Package, count: products.length, add: 'Tambah Produk', onAdd: () => { setProdError(''); setProdModal('create') } },
   ]
   // Agent hanya melihat Template Pesan & Galeri Produk
   const TABS = isAdmin ? ALL_TABS : ALL_TABS.filter(t => t.key === 'templates' || t.key === 'media')
@@ -563,7 +464,6 @@ export default function TemplatesPage() {
           {q && <button onClick={() => setQ('')} aria-label="Hapus pencarian"><X size={14} /></button>}
         </div>
         {tabKey === 'templates' && <span className="tp-tip">Ketik <b>/shortcut</b> di kolom chat untuk memakai template.</span>}
-        {tabKey === 'products' && <span className="tp-tip">Produk aktif dipakai AI sebagai acuan harga & spesifikasi.</span>}
       </div>
 
       {tabKey === 'templates' && (
@@ -611,7 +511,7 @@ export default function TemplatesPage() {
       )}
 
       {tabKey === 'media' && (
-        loadingMedia ? loadingView : fMedia.length === 0 ? emptyView(ImageIcon, "Belum ada media di galeri. Media di sini bisa dikirim cepat dari menu Produk / katalog di chat.") : (
+        loadingMedia ? loadingView : fMedia.length === 0 ? emptyView(ImageIcon, "Belum ada media di galeri. Media di sini bisa dikirim cepat dari menu Produk di chat.") : (
           <div className="tp-media-grid">
             {fMedia.map(m => (
               <div key={m.id} className="tp-media-card">
@@ -640,57 +540,6 @@ export default function TemplatesPage() {
             ))}
           </div>
         )
-      )}
-
-      {tabKey === 'products' && (
-        loadingProducts ? loadingView : fProducts.length === 0 ? emptyView(Package, "Belum ada produk. Isi katalog agar AI bisa menjawab harga & spesifikasi.") : (
-          <div className="tp-grid">
-            {fProducts.map(p => (
-              <div key={p.id} className={`tp-card${p.active === false ? ' inactive' : ''}`}>
-                <div className="tp-card-head">
-                  <div className="tp-card-titles">
-                    <span className="tp-card-title">{p.name}</span>
-                    <span className="tp-card-meta">
-                      <span className={`tp-pill ${p.active !== false ? 'ok' : ''}`}>{p.active !== false ? 'Aktif' : 'Nonaktif'}</span>
-                      {p.category && <span className="tp-pill">{p.category}</span>}
-                      {p.capacity && <span className="tp-pill">{p.capacity}</span>}
-                    </span>
-                  </div>
-                  <CardActions onEdit={() => { setProdError(''); setProdModal({ product: p }) }} onDelete={() => setProdDeleteTarget(p)} />
-                </div>
-                {p.price && <div className="tp-price">{p.price}</div>}
-                {p.specs && <div className="tp-card-body">{p.specs}</div>}
-              </div>
-            ))}
-          </div>
-        )
-      )}
-
-      {prodModal === 'create' && (
-        <Modal title="Tambah Produk Baru" onClose={() => setProdModal(null)}>
-          <ProductForm onSave={handleCreateProduct} onClose={() => setProdModal(null)} loading={prodSaving} error={prodError} />
-        </Modal>
-      )}
-
-      {prodModal?.product && (
-        <Modal title="Edit Produk" onClose={() => setProdModal(null)}>
-          <ProductForm initial={prodModal.product} onSave={handleUpdateProduct} onClose={() => setProdModal(null)} loading={prodSaving} error={prodError} />
-        </Modal>
-      )}
-
-      {prodDeleteTarget && (
-        <Modal title="Hapus Produk" onClose={() => setProdDeleteTarget(null)}>
-          <div className="am-confirm">
-            <p>Yakin ingin menghapus produk <strong>{prodDeleteTarget.name}</strong>?</p>
-            <p className="am-confirm-sub">Tindakan ini tidak dapat dibatalkan.</p>
-            <div className="am-form-actions">
-              <button className="am-btn secondary" onClick={() => setProdDeleteTarget(null)}>Batal</button>
-              <button className="am-btn danger" onClick={handleDeleteProduct} disabled={prodDeleting}>
-                {prodDeleting ? 'Menghapus...' : 'Hapus'}
-              </button>
-            </div>
-          </div>
-        </Modal>
       )}
 
       {tplModal === 'create' && (

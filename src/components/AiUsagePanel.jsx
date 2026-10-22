@@ -38,7 +38,7 @@ export default function AiUsagePanel() {
       <div className="ak-head">
         <div>
           <div className="aa-title">Pemakaian Token AI</div>
-          <div className="aa-desc">Jumlah token yang dipakai setiap fitur AI. Token input = konteks yang dibacakan ke AI (riwayat, katalog, skill…), output = teks yang ditulis AI. Token "ter-cache" ditagih lebih murah. Biaya dari OpenRouter (model gratis = $0).</div>
+          <div className="aa-desc">Jumlah token yang dipakai setiap fitur AI. Token input = konteks yang dibacakan ke AI (riwayat, skill, ingatan…), output = teks yang ditulis AI. Token "ter-cache" ditagih lebih murah. Biaya dari OpenRouter (model gratis = $0).</div>
         </div>
         <div className="au-seg">
           {RANGES.map(r => <button key={r.d} className={days === r.d ? 'active' : ''} onClick={() => setDays(r.d)}>{r.label}</button>)}

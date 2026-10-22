@@ -711,7 +711,7 @@ export default function AgentManagementPage() {
                 <div className="rr-head">
                   <div>
                     <div className="aa-title">AI Sales Agent</div>
-                    <div className="aa-desc">Akun agent yang dikendalikan AI: ikut auto-assign, membalas customer otomatis layaknya sales (menggali kebutuhan, penawaran dari Katalog Produk, sampai mengumpulkan data & usulan jadwal survei). Konfirmasi survei & Deal tetap oleh admin. Ambil alih chat kapan saja dengan meng-assign ke agent lain.</div>
+                    <div className="aa-desc">Akun agent yang dikendalikan AI: ikut auto-assign, membalas customer otomatis layaknya sales (menggali kebutuhan, penawaran dari Skill / Playbook, sampai mengumpulkan data & usulan jadwal survei). Konfirmasi survei & Deal tetap oleh admin. Ambil alih chat kapan saja dengan meng-assign ke agent lain.</div>
                   </div>
                   {ai && (
                     <button className={`aa-switch${ai.enabled ? ' on' : ''}`} onClick={() => saveAi({ enabled: !ai.enabled })}
@@ -784,7 +784,7 @@ export default function AgentManagementPage() {
                       <textarea rows={5} value={ai.instructions || ''} maxLength={3000}
                         placeholder={'Contoh:\n- Area layanan: Jawa Timur & Bali\n- Promo Oktober: gratis maintenance 1 tahun\n- Survei hanya Senin–Sabtu jam 08.00–16.00\n- Jangan menjanjikan cicilan'}
                         onChange={e => setAi({ ...ai, instructions: e.target.value })} />
-                      <small>Harga & spesifikasi diambil dari Katalog Produk (Template & Galeri). AI tidak memberi diskon di luar yang tertulis di sini.</small>
+                      <small>Harga & spesifikasi diambil dari Skill / Playbook. AI tidak memberi diskon di luar yang tertulis di sini.</small>
                     </label>
 
                     <div className="ai-rules">
