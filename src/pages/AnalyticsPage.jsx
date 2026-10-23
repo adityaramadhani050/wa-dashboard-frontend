@@ -113,7 +113,6 @@ const Tip = ({ active, payload, label }) => {
 
 // Grafik Lead Baru per hari: hari kerja hijau, Sabtu-Minggu oranye
 const DAY_SHORT = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab']
-const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0]
 const LEAD_COLOR = '#10b981'
 const WEEKEND_COLOR = '#f59e0b'
 
@@ -390,13 +389,6 @@ export default function AnalyticsPage() {
       'Lead Baru': d.new_contacts || 0,
     }
   })
-  // Rata-rata lead baru per hari dalam seminggu (untuk melihat hari teramai)
-  const byDow = DAY_ORDER.map(dow => {
-    const days = chartData.filter(d => d.dow === dow)
-    const total = days.reduce((n, d) => n + d['Lead Baru'], 0)
-    return { dow, day: DAY_SHORT[dow], weekend: dow === 0 || dow === 6, total, avg: days.length ? total / days.length : null }
-  })
-  const topAvg = Math.max(0, ...byDow.map(d => d.avg || 0))
   // Label hari+tanggal hanya bila tiap batang cukup lebar; selain itu sebagian label disembunyikan
   const perBar = leadChartW / Math.max(1, chartData.length)
   const showDate = perBar >= 38
@@ -404,9 +396,8 @@ export default function AnalyticsPage() {
 
   const agentChart = agents.map(a => ({
     name: a.name || 'Agent',
-    'Total Lead': a.total_leads || 0,
-    Prospek: a.prospek || 0,
-    Deal: a.deal || 0,
+    'Lead Baru': a.new_contacts || 0,
+    'Lead Lama': a.old_chats || 0,
   }))
 
   return (
@@ -637,6 +628,50 @@ export default function AnalyticsPage() {
         </div>
       )}
 
+      {/* Charts */}
+      <div className="an-charts">
+        <div className="an-chart-box">
+          <SectionHead icon={Activity} title="Lead Baru per Hari" right={rangeLabel} />
+          {loading ? <div className="an-skel" /> : chartData.every(d => d['Lead Baru'] === 0) ? (
+            <div className="an-chart-empty">Belum ada lead baru pada periode ini</div>
+          ) : (
+            <div ref={leadChartRef}>
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                  <XAxis dataKey="key" interval={allTicks ? 0 : 'preserveStartEnd'} minTickGap={6} height={showDate ? 34 : 22}
+                    tick={<DayTick data={chartData} showDate={showDate} />} tickLine={false} />
+                  <YAxis tick={{ fill: 'var(--muted)', fontSize: 11 }} allowDecimals={false} />
+                  <Tooltip content={<LeadTip />} cursor={{ fill: 'var(--surface2)' }} />
+                  <Bar dataKey="Lead Baru" radius={[4, 4, 0, 0]} maxBarSize={28}>
+                    {chartData.map(d => <Cell key={d.key} fill={d.weekend ? WEEKEND_COLOR : LEAD_COLOR} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+
+        <div className="an-chart-box">
+          <SectionHead icon={BarChart2} title="Performa Agent" right="Lead Baru · Lead Lama" />
+          {loading ? <div className="an-skel" /> : agents.length === 0 ? (
+            <div className="an-chart-empty">Belum ada percakapan yang di-assign</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={agentChart} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                <XAxis dataKey="name" tick={{ fill: 'var(--muted)', fontSize: 11 }} />
+                <YAxis tick={{ fill: 'var(--muted)', fontSize: 11 }} allowDecimals={false} />
+                <Tooltip content={<Tip />} />
+                <Legend wrapperStyle={{ fontSize: 12, color: 'var(--text2)' }} />
+                <Bar dataKey="Lead Baru" stackId="lead" fill="#2563eb" maxBarSize={48} />
+                <Bar dataKey="Lead Lama" stackId="lead" fill="#94a3b8" radius={[4,4,0,0]} maxBarSize={48} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+      </div>
+
       {/* KPI Response Time & Funnel */}
       <div className="an-kpi-row">
         <div className="an-kpi-box">
@@ -708,66 +743,6 @@ export default function AnalyticsPage() {
 
       {/* Laporan follow-up */}
       <FollowupReport data={fuReport} loading={loading} rangeLabel={rangeLabel} />
-
-      {/* Charts */}
-      <div className="an-charts">
-        <div className="an-chart-box">
-          <SectionHead icon={Activity} title="Lead Baru per Hari" right={rangeLabel} />
-          {loading ? <div className="an-skel" /> : chartData.every(d => d['Lead Baru'] === 0) ? (
-            <div className="an-chart-empty">Belum ada lead baru pada periode ini</div>
-          ) : (
-            <div ref={leadChartRef}>
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                  <XAxis dataKey="key" interval={allTicks ? 0 : 'preserveStartEnd'} minTickGap={6} height={showDate ? 34 : 22}
-                    tick={<DayTick data={chartData} showDate={showDate} />} tickLine={false} />
-                  <YAxis tick={{ fill: 'var(--muted)', fontSize: 11 }} allowDecimals={false} />
-                  <Tooltip content={<LeadTip />} cursor={{ fill: 'var(--surface2)' }} />
-                  <Bar dataKey="Lead Baru" radius={[4, 4, 0, 0]} maxBarSize={28}>
-                    {chartData.map(d => <Cell key={d.key} fill={d.weekend ? WEEKEND_COLOR : LEAD_COLOR} />)}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-              <div className="an-dow">
-                <div className="an-dow-head">
-                  <span>Rata-rata lead baru per hari</span>
-                  <span className="an-dow-legend"><i style={{ background: LEAD_COLOR }} />Hari kerja <i style={{ background: WEEKEND_COLOR }} />Sabtu–Minggu</span>
-                </div>
-                <div className="an-dow-row">
-                  {byDow.map(d => (
-                    <div key={d.dow} className={`an-dow-item${d.weekend ? ' weekend' : ''}${d.avg && d.avg === topAvg ? ' top' : ''}`}
-                      title={d.avg == null ? 'Tidak ada hari ini dalam periode' : `${d.total} lead baru dalam periode`}>
-                      <span className="an-dow-day">{d.day}</span>
-                      <span className="an-dow-val">{d.avg == null ? '—' : d.avg.toLocaleString('id-ID', { maximumFractionDigits: 1 })}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="an-chart-box">
-          <SectionHead icon={BarChart2} title="Performa Agent" right="Total Lead · Prospek · Deal" />
-          {loading ? <div className="an-skel" /> : agents.length === 0 ? (
-            <div className="an-chart-empty">Belum ada percakapan yang di-assign</div>
-          ) : (
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={agentChart} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="name" tick={{ fill: 'var(--muted)', fontSize: 11 }} />
-                <YAxis tick={{ fill: 'var(--muted)', fontSize: 11 }} allowDecimals={false} />
-                <Tooltip content={<Tip />} />
-                <Legend wrapperStyle={{ fontSize: 12, color: 'var(--text2)' }} />
-                <Bar dataKey="Total Lead" fill="#2563eb" radius={[4,4,0,0]} />
-                <Bar dataKey="Prospek" fill="#6366f1" radius={[4,4,0,0]} />
-                <Bar dataKey="Deal" fill="#10b981" radius={[4,4,0,0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          )}
-        </div>
-      </div>
 
       {/* Template Terpopuler */}
       {!loading && topTemplates.length > 0 && (
@@ -857,17 +832,6 @@ export default function AnalyticsPage() {
         .an-chart-box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px; min-width: 0; box-shadow: 0 1px 3px var(--shadow); }
         .an-chart-sub { font-size: 12px; color: var(--muted); margin-bottom: 14px; }
         .an-skel { height: 220px; background: var(--skeleton); border-radius: 8px; animation: pulse 1.4s ease infinite; }
-        .an-dow { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
-        .an-dow-head { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 11.5px; color: var(--muted); margin-bottom: 8px; }
-        .an-dow-legend { display: inline-flex; align-items: center; gap: 6px; }
-        .an-dow-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-left: 6px; }
-        .an-dow-row { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
-        .an-dow-item { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 2px; border-radius: 8px; background: var(--surface2); border: 1px solid transparent; }
-        .an-dow-day { font-size: 11px; font-weight: 600; color: var(--text2); }
-        .an-dow-item.weekend .an-dow-day { color: #f59e0b; }
-        .an-dow-val { font-size: 14px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
-        .an-dow-item.top { border-color: #10b981; background: color-mix(in srgb, #10b981 12%, var(--surface2)); }
-        .an-dow-item.top.weekend { border-color: #f59e0b; background: color-mix(in srgb, #f59e0b 12%, var(--surface2)); }
         .an-chart-empty { height: 220px; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 13px; }
         .an-tip { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; font-size: 12px; box-shadow: 0 4px 16px var(--shadow); }
         .an-tip-lbl { font-weight: 600; margin-bottom: 6px; color: var(--text); }
