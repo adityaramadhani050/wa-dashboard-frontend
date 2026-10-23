@@ -134,6 +134,13 @@ export const removeTagFromConversation = (conversationId, tagId) => api.delete(`
 export const getFollowupTasks = (view, filters = {}) =>
   api.get('/followup/tasks', { params: { view, ...filters } }).then(r => r.data)
 export const getFollowupDue = () => api.get('/followup/due').then(r => r.data)
+
+// Permintaan nomor WA customer (agent -> admin)
+export const getNumberRequests = (status) => api.get('/number-requests', { params: { status } }).then(r => r.data)
+export const getChatNumberRequest = (conversationId) => api.get(`/number-requests/conversation/${conversationId}`).then(r => r.data)
+export const createNumberRequest = (conversation_id, note) => api.post('/number-requests', { conversation_id, note }).then(r => r.data)
+export const fulfillNumberRequest = (id, number) => api.post(`/number-requests/${id}/fulfill`, { number }).then(r => r.data)
+export const rejectNumberRequest = (id, reason) => api.post(`/number-requests/${id}/reject`, { reason }).then(r => r.data)
 export const getFollowupSummary = (filters = {}) => api.get('/followup/summary', { params: filters }).then(r => r.data)
 export const getConversationResponseStats = (conversationId) => api.get(`/conversations/${conversationId}/response-stats`).then(r => r.data)
 export const getConversationFollowup = (conversationId) => api.get(`/followup/conversation/${conversationId}`).then(r => r.data)

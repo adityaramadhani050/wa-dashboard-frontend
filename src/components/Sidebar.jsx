@@ -2,11 +2,54 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useSocket } from '../context/SocketContext'
-import { getFollowupDue } from '../hooks/useApi'
+import { getFollowupDue, getNumberRequests, fulfillNumberRequest, rejectNumberRequest } from '../hooks/useApi'
 import { STEP_INFO, dueLabel, dueTone } from './followupUi'
 import ChangePasswordModal from './ChangePasswordModal'
 import { enableWebPush, getNotificationStatus } from '../native/webpush'
-import { MessageSquare, BarChart2, QrCode, LogOut, Users, BookUser, Zap, Bell, BellRing, Megaphone, ListChecks, AlertTriangle, LayoutGrid, X, CheckCircle2, KeyRound } from 'lucide-react'
+import { MessageSquare, BarChart2, QrCode, LogOut, Users, BookUser, Zap, Bell, BellRing, Megaphone, ListChecks, AlertTriangle, LayoutGrid, X, CheckCircle2, KeyRound, Phone } from 'lucide-react'
+
+// Permintaan nomor yang sudah dilihat agent (hasil disetujui/ditolak)
+const NR_SEEN_KEY = 'nr_seen'
+const loadSeen = () => { try { return new Set(JSON.parse(localStorage.getItem(NR_SEEN_KEY) || '[]')) } catch { return new Set() } }
+const saveSeen = (set) => { try { localStorage.setItem(NR_SEEN_KEY, JSON.stringify([...set].slice(-200))) } catch {} }
+
+// Admin: isi nomor / tolak permintaan nomor dari agent
+function NumberRequestAdminItem({ r, onDone, onOpen }) {
+  const [number, setNumber] = useState('')
+  const [rejecting, setRejecting] = useState(false)
+  const [reason, setReason] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  const run = async (fn) => {
+    setBusy(true); setErr('')
+    try { await fn(); onDone() } catch (e) { setErr(e?.response?.data?.error || 'Gagal memproses.') } finally { setBusy(false) }
+  }
+  return (
+    <div className="ib-nr-item">
+      <button className="ib-nr-head" onClick={onOpen} title="Buka chat">
+        <span className="ib-reminder-name">{r.contact?.name || 'Customer'}</span>
+        <span className="ib-reminder-agent">dari {r.agent?.name || 'agent'}</span>
+      </button>
+      {r.note && <div className="ib-nr-note">“{r.note}”</div>}
+      {!rejecting ? (
+        <div className="ib-nr-actions">
+          <input value={number} onChange={e => setNumber(e.target.value)} placeholder="08xx / 628xx" inputMode="tel" disabled={busy}
+            onKeyDown={e => { if (e.key === 'Enter' && number.trim()) run(() => fulfillNumberRequest(r.id, number)) }} />
+          <button className="ib-nr-ok" disabled={busy || !number.trim()} onClick={() => run(() => fulfillNumberRequest(r.id, number))}>Simpan</button>
+          <button className="ib-nr-no" disabled={busy} onClick={() => setRejecting(true)}>Tolak</button>
+        </div>
+      ) : (
+        <div className="ib-nr-actions">
+          <input value={reason} onChange={e => setReason(e.target.value)} placeholder="Alasan ditolak" autoFocus disabled={busy}
+            onKeyDown={e => { if (e.key === 'Enter' && reason.trim()) run(() => rejectNumberRequest(r.id, reason)) }} />
+          <button className="ib-nr-no" disabled={busy || !reason.trim()} onClick={() => run(() => rejectNumberRequest(r.id, reason))}>Kirim</button>
+          <button className="ib-nr-cancel" disabled={busy} onClick={() => setRejecting(false)}>Batal</button>
+        </div>
+      )}
+      {err && <div className="ib-nr-err">{err}</div>}
+    </div>
+  )
+}
 
 // mobile: true -> tampil langsung di navbar bawah HP; sisanya masuk menu "Lainnya"
 const NAV_ITEMS = [
@@ -43,6 +86,9 @@ export default function IconBar() {
     return () => document.removeEventListener('mousedown', onDown)
   }, [showAccount])
   const panelRef = useRef(null)
+  // Permintaan nomor: admin -> yang menunggu; agent -> hasil yang belum dilihat
+  const [numberReqs, setNumberReqs] = useState([])
+  const [nrSeen, setNrSeen] = useState(loadSeen)
   const [notifStatus, setNotifStatus] = useState('granted') // sembunyikan tombol default
   const [enabling, setEnabling] = useState(false)
 
@@ -78,6 +124,29 @@ export default function IconBar() {
       setLateAlert(d?.alert?.count ? d.alert : null)
     } catch {}
   }, [])
+
+  const loadNumberReqs = useCallback(async () => {
+    try {
+      const rows = await getNumberRequests(isAdmin ? 'pending' : 'all')
+      setNumberReqs(Array.isArray(rows) ? rows : [])
+    } catch {}
+  }, [isAdmin])
+  useEffect(() => {
+    loadNumberReqs()
+    const interval = setInterval(loadNumberReqs, 120000)
+    window.addEventListener('nr:changed', loadNumberReqs)
+    return () => { clearInterval(interval); window.removeEventListener('nr:changed', loadNumberReqs) }
+  }, [loadNumberReqs])
+  // Agent: hasil 7 hari terakhir yang belum dilihat
+  const nrResults = isAdmin ? [] : numberReqs.filter(r => r.status !== 'pending' && Date.now() - new Date(r.handled_at || r.created_at).getTime() < 7 * 86400000)
+  const nrUnseen = nrResults.filter(r => !nrSeen.has(r.id))
+  const nrList = isAdmin ? numberReqs : nrResults
+  const nrCount = isAdmin ? numberReqs.length : nrUnseen.length
+  // Panel dibuka -> hasil permintaan dianggap sudah dilihat
+  useEffect(() => {
+    if (!showReminders || isAdmin || !nrUnseen.length) return
+    const next = new Set(nrSeen); nrUnseen.forEach(r => next.add(r.id)); setNrSeen(next); saveSeen(next)
+  }, [showReminders, isAdmin, nrUnseen, nrSeen])
 
   useEffect(() => {
     loadDue()
@@ -131,18 +200,34 @@ export default function IconBar() {
           </button>
         )}
         <div className="ib-reminder-wrap" ref={panelRef}>
-          <button className={`ib-btn ib-bell-btn${showReminders ? ' open' : ''}`} onClick={() => { setShowReminders(s => !s); setShowMore(false); if (!showReminders) loadDue() }}
-            aria-label="Follow-up jatuh tempo" data-tip="Follow-up jatuh tempo">
+          <button className={`ib-btn ib-bell-btn${showReminders ? ' open' : ''}`} onClick={() => { setShowReminders(s => !s); setShowMore(false); if (!showReminders) { loadDue(); loadNumberReqs() } }}
+            aria-label="Pengingat & permintaan" data-tip="Pengingat & permintaan">
             <Bell size={18} />
-            {dueCount > 0 && <span className="ib-badge">{dueCount > 9 ? '9+' : dueCount}</span>}
+            {dueCount + nrCount > 0 && <span className="ib-badge">{dueCount + nrCount > 9 ? '9+' : dueCount + nrCount}</span>}
             <span className="ib-label">Pengingat</span>
           </button>
           {showReminders && (
             <div className="ib-reminder-panel">
               <div className="ib-reminder-panel-title">
-                <span>Follow-up jatuh tempo{dueCount ? ` (${dueCount})` : ''}</span>
+                <span>Pengingat</span>
                 <button className="ib-panel-close" onClick={() => setShowReminders(false)} aria-label="Tutup"><X size={16} /></button>
               </div>
+              {nrList.length > 0 && (
+                <div className="ib-nr">
+                  <div className="ib-nr-title"><Phone size={13} />{isAdmin ? `Permintaan nomor customer (${nrList.length})` : 'Hasil permintaan nomor'}</div>
+                  {isAdmin ? nrList.map(r => (
+                    <NumberRequestAdminItem key={r.id} r={r} onDone={loadNumberReqs} onOpen={() => { setShowReminders(false); navigate(`/chat/${r.conversation_id}`) }} />
+                  )) : nrList.map(r => (
+                    <button key={r.id} className={`ib-reminder-item${nrSeen.has(r.id) ? '' : ' unseen'}`} onClick={() => { setShowReminders(false); navigate(`/chat/${r.conversation_id}`) }}>
+                      <div className="ib-reminder-info">
+                        <span className="ib-reminder-name">{r.contact?.name || 'Customer'}</span>
+                        <span className="ib-reminder-time">{r.status === 'done' ? `Nomor: ${r.number}` : `Ditolak: ${r.reason || '-'}`}</span>
+                      </div>
+                      <span className={`ib-nr-st ${r.status}`}>{r.status === 'done' ? 'Diisi' : 'Ditolak'}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
               {isAdmin && lateAlert && (
                 <button className="ib-fu-alert" onClick={() => { setShowReminders(false); navigate('/followup?tab=overdue&late=1') }}>
                   <AlertTriangle size={14} />
@@ -152,6 +237,7 @@ export default function IconBar() {
                   </span>
                 </button>
               )}
+              <div className="ib-nr-title ib-fu-title"><ListChecks size={13} />Follow-up jatuh tempo{dueCount ? ` (${dueCount})` : ''}</div>
               {dueTasks.length === 0 ? (
                 <div className="ib-reminder-empty"><CheckCircle2 size={26} strokeWidth={1.5} /><span>Tidak ada follow-up yang jatuh tempo.</span></div>
               ) : (
@@ -290,6 +376,26 @@ export default function IconBar() {
         .ib-fu-step { display: inline-block; color: #fff; font-size: 9.5px; font-weight: 800; letter-spacing: .3px; padding: 1px 7px; border-radius: 999px; }
         .ib-fu-due { flex-shrink: 0; font-size: 11px; font-weight: 700; color: var(--text2); }
         .ib-fu-due.today { color: #d97706; } .ib-fu-due.late { color: var(--danger, #e53e3e); }
+        .ib-nr { flex-shrink: 0; max-height: 55%; overflow-y: auto; border-bottom: 1px solid var(--border); background: var(--surface2); }
+        .ib-nr-title { display: flex; align-items: center; gap: 6px; padding: 8px 14px 4px; font-size: 11.5px; font-weight: 700; color: var(--text2); text-transform: uppercase; letter-spacing: .3px; }
+        .ib-fu-title { flex-shrink: 0; padding-top: 10px; }
+        .ib-nr-item { padding: 8px 14px 10px; border-bottom: 1px solid var(--border); }
+        .ib-nr-item:last-child { border-bottom: none; }
+        .ib-nr-head { display: flex; align-items: baseline; gap: 6px; width: 100%; text-align: left; min-width: 0; font-size: 11.5px; }
+        .ib-nr-head:hover .ib-reminder-name { color: var(--primary); text-decoration: underline; }
+        .ib-nr-note { margin-top: 3px; font-size: 11.5px; color: var(--text2); font-style: italic; }
+        .ib-nr-actions { display: flex; gap: 6px; margin-top: 7px; }
+        .ib-nr-actions input { flex: 1; min-width: 0; height: 30px; padding: 0 9px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: 12.5px; }
+        .ib-nr-actions button { height: 30px; padding: 0 10px; border-radius: 8px; font-size: 12px; font-weight: 700; flex-shrink: 0; }
+        .ib-nr-actions button:disabled { opacity: .5; }
+        .ib-nr-ok { background: var(--primary); color: var(--on-primary, #fff); }
+        .ib-nr-no { background: rgba(229,62,62,0.12); color: var(--danger, #e53e3e); }
+        .ib-nr-cancel { color: var(--text2); background: var(--surface3); }
+        .ib-nr-err { margin-top: 5px; font-size: 11.5px; color: var(--danger, #e53e3e); }
+        .ib-nr-st { flex-shrink: 0; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
+        .ib-nr-st.done { background: rgba(16,185,129,0.14); color: #10b981; }
+        .ib-nr-st.rejected { background: rgba(229,62,62,0.12); color: var(--danger, #e53e3e); }
+        .ib-reminder-item.unseen .ib-reminder-name::before { content: ''; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--primary); margin-right: 6px; vertical-align: middle; }
         .ib-reminder-all { width: 100%; padding: 11px 14px; font-size: 12.5px; font-weight: 700; color: var(--primary); border-top: 1px solid var(--border); text-align: center; flex-shrink: 0; }
         .ib-reminder-all:hover { background: var(--surface3); }
         .ib-fu-alert { width: 100%; display: flex; align-items: flex-start; gap: 8px; padding: 9px 14px; text-align: left; color: var(--danger, #e53e3e); background: rgba(229,62,62,0.08); border-bottom: 1px solid var(--border); cursor: pointer; flex-shrink: 0; }

@@ -8,7 +8,7 @@ import {
   getTemplates, getQuickMedia, sendQuickMedia, useTemplate,
   getTags, addTagToConversation, removeTagFromConversation,
   getContactNotes, createContactNote, getContactConversations, getConversationFollowup, getConversationResponseStats, getAiMemory, saveAiMemory, getTeamRequests, deleteConversation, resumeAiChat,
-  generateAiSuggestion, updateContact,
+  generateAiSuggestion, updateContact, getChatNumberRequest, createNumberRequest,
 } from '../hooks/useApi'
 import { supabase } from '../lib/supabase'
 import PdfThumb, { isPdf } from '../components/PdfThumb'
@@ -1285,8 +1285,43 @@ export default function ChatPage({ chatId }) {
     return () => clearTimeout(t)
   }, [lastMsgKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Nomor disembunyikan WhatsApp (ID samaran @lid) & belum ada nomor manual
+  const waJid = conversation?.wa_jid || ''
+  const phoneHidden = waJid.endsWith('@lid') && !conversation?.contact?.manual_wa_number
+    && (!conversation?.contact?.phone || conversation.contact.phone === waJid.split('@')[0])
+  // Permintaan nomor ke admin (agent)
+  const [numberReq, setNumberReq] = useState(null)
+  const [nrNote, setNrNote] = useState('')
+  const [nrOpen, setNrOpen] = useState(false)
+  const [nrBusy, setNrBusy] = useState(false)
+  const [nrError, setNrError] = useState('')
+  useEffect(() => { setNumberReq(null); setNrOpen(false); setNrNote(''); setNrError('') }, [id])
+  useEffect(() => {
+    if (!id || !showNotesPanel || !phoneHidden && !numberReq) return
+    getChatNumberRequest(id).then(setNumberReq).catch(() => {})
+  }, [id, showNotesPanel, phoneHidden]) // eslint-disable-line react-hooks/exhaustive-deps
+  // Admin memproses permintaan -> status & nomor di panel langsung berubah
+  useEffect(() => {
+    const onChange = (e) => {
+      const r = e.detail?.request
+      if (!r || String(r.conversation_id) !== String(id)) return
+      setNumberReq(r)
+      if (r.status === 'done' && r.number) setConversation(p => p ? { ...p, contact: { ...p.contact, manual_wa_number: r.number } } : p)
+    }
+    window.addEventListener('nr:changed', onChange)
+    return () => window.removeEventListener('nr:changed', onChange)
+  }, [id])
+  const submitNumberRequest = async () => {
+    setNrBusy(true); setNrError('')
+    try {
+      setNumberReq(await createNumberRequest(id, nrNote.trim()))
+      setNrOpen(false); setNrNote('')
+    } catch (e) { setNrError(e?.response?.data?.error || 'Gagal mengirim permintaan.') }
+    finally { setNrBusy(false) }
+  }
+
   const name = conversation?.contact?.name || conversation?.contact?.phone || 'Unknown'
-  const phone = conversation?.contact?.manual_wa_number || cleanPhone(conversation?.contact?.phone)
+  const phone = conversation?.contact?.manual_wa_number || (phoneHidden ? '' : cleanPhone(conversation?.contact?.phone))
   const assignedAgent = conversation?.agents
   const aiAgentId = useAiAgentId()
   const isAiChat = !!(aiAgentId && assignedAgent && String(assignedAgent.id) === aiAgentId)
@@ -1839,6 +1874,7 @@ export default function ChatPage({ chatId }) {
                 <div className="cv-nc-id">
                   <div className="cv-notes-contact-name">{name}</div>
                   {phone && <div className="cv-notes-contact-phone">{phone}</div>}
+                  {phoneHidden && <div className="cv-notes-contact-phone cv-phone-hidden" title="WhatsApp menyembunyikan nomor asli customer ini">Nomor disembunyikan WhatsApp</div>}
                 </div>
                 {isAdmin && (
                   <button className="cv-contact-edit-btn" title="Edit kontak" onClick={openEditContact}>
@@ -1846,6 +1882,30 @@ export default function ChatPage({ chatId }) {
                   </button>
                 )}
               </div>
+              {!isAdmin && (phoneHidden || numberReq?.status === 'done') && (
+                <div className={`cv-nr ${numberReq?.status || 'none'}`}>
+                  {numberReq?.status === 'pending' ? (
+                    <span><b>Menunggu admin</b> mencarikan nomor customer ini.</span>
+                  ) : numberReq?.status === 'done' ? (
+                    <span>Admin sudah mengisi nomor: <b>{numberReq.number}</b></span>
+                  ) : nrOpen ? (
+                    <>
+                      <input value={nrNote} onChange={e => setNrNote(e.target.value)} maxLength={300} autoFocus
+                        placeholder="Catatan untuk admin (opsional)" onKeyDown={e => { if (e.key === 'Enter') submitNumberRequest() }} />
+                      <div className="cv-nr-btns">
+                        <button className="cv-nr-cancel" onClick={() => setNrOpen(false)} disabled={nrBusy}>Batal</button>
+                        <button className="cv-nr-send" onClick={submitNumberRequest} disabled={nrBusy}>{nrBusy ? 'Mengirim…' : 'Kirim ke admin'}</button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      {numberReq?.status === 'rejected' && <span className="cv-nr-rej">Permintaan sebelumnya ditolak: {numberReq.reason}</span>}
+                      <button className="cv-nr-open" onClick={() => setNrOpen(true)}><Phone size={13} />{numberReq?.status === 'rejected' ? 'Minta lagi ke admin' : 'Minta nomor ke admin'}</button>
+                    </>
+                  )}
+                  {nrError && <span className="cv-nr-err">{nrError}</span>}
+                </div>
+              )}
               <div className="cv-nc-meta">
                 <span className="cv-notes-contact-label">Agent</span>
                 <div>
@@ -2425,6 +2485,19 @@ export default function ChatPage({ chatId }) {
         .cv-edit-cancel:disabled { opacity: 0.5; }
         .cv-edit-save { padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--on-primary); background: var(--primary); }
         .cv-edit-save:disabled { opacity: 0.5; }
+        .cv-phone-hidden { font-style: italic; }
+        .cv-nr { display: flex; flex-direction: column; gap: 6px; margin: 8px 0 2px; padding: 9px 10px; border-radius: 10px; background: var(--surface2); border: 1px solid var(--border); font-size: 12px; color: var(--text2); }
+        .cv-nr.pending { border-color: rgba(245,158,11,0.45); background: rgba(245,158,11,0.08); }
+        .cv-nr.done { border-color: rgba(16,185,129,0.45); background: rgba(16,185,129,0.08); }
+        .cv-nr input { height: 32px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: 12.5px; }
+        .cv-nr-btns { display: flex; justify-content: flex-end; gap: 6px; }
+        .cv-nr-btns button, .cv-nr-open { height: 30px; padding: 0 12px; border-radius: 8px; font-size: 12px; font-weight: 700; }
+        .cv-nr-open { display: inline-flex; align-items: center; justify-content: center; gap: 6px; color: var(--primary); background: var(--primary-light); }
+        .cv-nr-send { background: var(--primary); color: var(--on-primary, #fff); }
+        .cv-nr-cancel { background: var(--surface3); color: var(--text2); }
+        .cv-nr button:disabled { opacity: .55; }
+        .cv-nr-rej { color: var(--danger, #e53e3e); }
+        .cv-nr-err { color: var(--danger, #e53e3e); font-size: 11.5px; }
         .cv-notes-contact-phone { font-size: 12.5px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .cv-notes-contact-label { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; }
         .cv-notes-contact-tags { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }

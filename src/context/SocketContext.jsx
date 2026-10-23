@@ -248,6 +248,10 @@ export function SocketProvider({ children }) {
     s.on('conversation_updated', (data) => setConversationUpdates(prev => [...prev.slice(-99), data]))
     // Pesan dihapus — hilangkan dari daftar secara realtime
     s.on('message_deleted', (data) => setDeletedMessages(prev => [...prev.slice(-99), data]))
+    // Permintaan nomor customer (agent -> admin): diteruskan sebagai event window
+    s.on('number_request', (data) => {
+      try { window.dispatchEvent(new CustomEvent('nr:changed', { detail: data })) } catch {}
+    })
 
     // Push yang tiba saat dashboard sedang aktif diteruskan service worker ke sini.
     // Bila pesannya belum diterima lewat socket (socket bermasalah) -> tetap
