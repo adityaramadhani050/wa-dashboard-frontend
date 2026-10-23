@@ -6,12 +6,7 @@ import { getFollowupDue, getNumberRequests, fulfillNumberRequest, rejectNumberRe
 import { STEP_INFO, dueLabel, dueTone } from './followupUi'
 import ChangePasswordModal from './ChangePasswordModal'
 import { enableWebPush, getNotificationStatus } from '../native/webpush'
-import { MessageSquare, BarChart2, QrCode, LogOut, Users, BookUser, Zap, Bell, BellRing, Megaphone, ListChecks, LayoutGrid, X, CheckCircle2, KeyRound, Phone } from 'lucide-react'
-
-// Permintaan nomor yang sudah dilihat agent (hasil disetujui/ditolak)
-const NR_SEEN_KEY = 'nr_seen'
-const loadSeen = () => { try { return new Set(JSON.parse(localStorage.getItem(NR_SEEN_KEY) || '[]')) } catch { return new Set() } }
-const saveSeen = (set) => { try { localStorage.setItem(NR_SEEN_KEY, JSON.stringify([...set].slice(-200))) } catch {} }
+import { MessageSquare, BarChart2, QrCode, LogOut, Users, BookUser, Zap, Bell, BellRing, Megaphone, ListChecks, LayoutGrid, X, CheckCircle2, KeyRound } from 'lucide-react'
 
 // Admin: isi nomor / tolak permintaan nomor dari agent
 function NumberRequestAdminItem({ r, onDone, onOpen }) {
@@ -84,9 +79,8 @@ export default function IconBar() {
     return () => document.removeEventListener('mousedown', onDown)
   }, [showAccount])
   const panelRef = useRef(null)
-  // Permintaan nomor: admin -> yang menunggu; agent -> hasil yang belum dilihat
+  // Admin: permintaan nomor dari agent yang menunggu diproses
   const [numberReqs, setNumberReqs] = useState([])
-  const [nrSeen, setNrSeen] = useState(loadSeen)
   const [notifStatus, setNotifStatus] = useState('granted') // sembunyikan tombol default
   const [enabling, setEnabling] = useState(false)
 
@@ -124,8 +118,9 @@ export default function IconBar() {
   }, [isAdmin])
 
   const loadNumberReqs = useCallback(async () => {
+    if (!isAdmin) return // agent: hasil permintaan cukup lewat push & Detail Chat
     try {
-      const rows = await getNumberRequests(isAdmin ? 'pending' : 'all')
+      const rows = await getNumberRequests('pending')
       setNumberReqs(Array.isArray(rows) ? rows : [])
     } catch {}
   }, [isAdmin])
@@ -135,17 +130,7 @@ export default function IconBar() {
     window.addEventListener('nr:changed', loadNumberReqs)
     return () => { clearInterval(interval); window.removeEventListener('nr:changed', loadNumberReqs) }
   }, [loadNumberReqs])
-  // Agent: hasil 7 hari terakhir yang belum dilihat
-  const nrResults = isAdmin ? [] : numberReqs.filter(r => r.status !== 'pending' && Date.now() - new Date(r.handled_at || r.created_at).getTime() < 7 * 86400000)
-  const nrUnseen = nrResults.filter(r => !nrSeen.has(r.id))
-  const nrList = isAdmin ? numberReqs : nrResults
-  const nrCount = isAdmin ? numberReqs.length : nrUnseen.length
-  const bellCount = isAdmin ? nrCount : dueCount + nrCount
-  // Panel dibuka -> hasil permintaan dianggap sudah dilihat
-  useEffect(() => {
-    if (!showReminders || isAdmin || !nrUnseen.length) return
-    const next = new Set(nrSeen); nrUnseen.forEach(r => next.add(r.id)); setNrSeen(next); saveSeen(next)
-  }, [showReminders, isAdmin, nrUnseen, nrSeen])
+  const bellCount = isAdmin ? numberReqs.length : dueCount
 
   useEffect(() => {
     loadDue()
@@ -212,22 +197,13 @@ export default function IconBar() {
                 <button className="ib-panel-close" onClick={() => setShowReminders(false)} aria-label="Tutup"><X size={16} /></button>
               </div>
               {/* Admin: hanya permintaan nomor (follow-up ada di menu Follow-up) */}
-              {isAdmin && nrList.length === 0 && (
+              {isAdmin && numberReqs.length === 0 && (
                 <div className="ib-reminder-empty"><CheckCircle2 size={26} strokeWidth={1.5} /><span>Tidak ada permintaan nomor dari agent.</span></div>
               )}
-              {nrList.length > 0 && (
-                <div className={`ib-nr${isAdmin ? ' full' : ''}`}>
-                  {!isAdmin && <div className="ib-nr-title"><Phone size={13} />Hasil permintaan nomor</div>}
-                  {isAdmin ? nrList.map(r => (
+              {isAdmin && numberReqs.length > 0 && (
+                <div className="ib-nr full">
+                  {numberReqs.map(r => (
                     <NumberRequestAdminItem key={r.id} r={r} onDone={loadNumberReqs} onOpen={() => { setShowReminders(false); navigate(`/chat/${r.conversation_id}`) }} />
-                  )) : nrList.map(r => (
-                    <button key={r.id} className={`ib-reminder-item${nrSeen.has(r.id) ? '' : ' unseen'}`} onClick={() => { setShowReminders(false); navigate(`/chat/${r.conversation_id}`) }}>
-                      <div className="ib-reminder-info">
-                        <span className="ib-reminder-name">{r.contact?.name || 'Customer'}</span>
-                        <span className="ib-reminder-time">{r.status === 'done' ? `Nomor: ${r.number}` : `Ditolak: ${r.reason || '-'}`}</span>
-                      </div>
-                      <span className={`ib-nr-st ${r.status}`}>{r.status === 'done' ? 'Diisi' : 'Ditolak'}</span>
-                    </button>
                   ))}
                 </div>
               )}
@@ -386,10 +362,6 @@ export default function IconBar() {
         .ib-nr-no { background: rgba(229,62,62,0.12); color: var(--danger, #e53e3e); }
         .ib-nr-cancel { color: var(--text2); background: var(--surface3); }
         .ib-nr-err { margin-top: 5px; font-size: 11.5px; color: var(--danger, #e53e3e); }
-        .ib-nr-st { flex-shrink: 0; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
-        .ib-nr-st.done { background: rgba(16,185,129,0.14); color: #10b981; }
-        .ib-nr-st.rejected { background: rgba(229,62,62,0.12); color: var(--danger, #e53e3e); }
-        .ib-reminder-item.unseen .ib-reminder-name::before { content: ''; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--primary); margin-right: 6px; vertical-align: middle; }
         .ib-reminder-all { width: 100%; padding: 11px 14px; font-size: 12.5px; font-weight: 700; color: var(--primary); border-top: 1px solid var(--border); text-align: center; flex-shrink: 0; }
         .ib-reminder-all:hover { background: var(--surface3); }
         .ib-fu-alert { width: 100%; display: flex; align-items: flex-start; gap: 8px; padding: 9px 14px; text-align: left; color: var(--danger, #e53e3e); background: rgba(229,62,62,0.08); border-bottom: 1px solid var(--border); cursor: pointer; flex-shrink: 0; }
