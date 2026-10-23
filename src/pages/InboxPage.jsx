@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo, memo } from 'react'
 import { useNavigate, useMatch, useLocation } from 'react-router-dom'
 import { useSocket } from '../context/SocketContext'
 import { useAuth } from '../context/AuthContext'
@@ -64,6 +64,73 @@ function timeStr(dateStr) {
   return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', ...(d.getFullYear() !== now.getFullYear() ? { year: '2-digit' } : {}) })
 }
 
+// Satu baris chat. memo: baris hanya digambar ulang bila datanya berubah,
+// sehingga pesan baru / memuat halaman berikutnya tidak menggambar ulang semua chat.
+const ConvRow = memo(function ConvRow({ conv, isActive, overdue, waitMins, isAdmin, aiAgentId, onOpen }) {
+  const name = conv.contact?.name || conv.contact?.phone || 'Unknown'
+  const initial = name[0].toUpperCase()
+  const preview = conv.lastMessage || 'Belum ada pesan'
+  const assignedAgent = conv.agents
+  const agentLabel = assignedAgent?.name?.length > 12 ? assignedAgent.name.slice(0, 12) + '…' : assignedAgent?.name
+  const isAi = !!(aiAgentId && assignedAgent && String(assignedAgent.id) === aiAgentId)
+  const isUnread = !!conv.unread && !isActive
+  const region = chatRegion(conv)
+  return (
+    <div
+      className={`cl-item${isActive ? ' active' : ''}${isUnread ? ' unread' : ''}${overdue ? ' overdue' : ''}`}
+      onClick={() => onOpen(conv.id)}
+    >
+      <div className="cl-avatar" style={avatarStyle(name)}>{initial}</div>
+      <div className="cl-info">
+        <div className="cl-row">
+          <span className="cl-name">{name}</span>
+          <span className="cl-row-right">
+            {overdue && (
+              <span className="cl-overdue-badge" title={`Belum dibalas ${formatWaitLong(waitMins)} (lewat KPI 5 menit)`}>
+                <Clock size={10} />{formatWaitShort(waitMins)}
+              </span>
+            )}
+            {isUnread && <span className="cl-unread-dot" />}
+            {/* Chat overdue: badge sudah menunjukkan lama menunggu -> waktu pesan terakhir disembunyikan */}
+            {!overdue && <span className="cl-time">{timeStr(conv.lastMessageAt || conv.updated_at)}</span>}
+          </span>
+        </div>
+        <div className="cl-row">
+          <span className="cl-preview">
+            {conv.lastFromMe && conv.lastMessage && <CheckCheck size={14} className="cl-tick" />}
+            <span className="cl-preview-text">{preview}</span>
+          </span>
+          {isAdmin && assignedAgent && (
+            <span className={`cl-agent-badge${isAi ? ' ai' : ''}`} title={isAi ? `${assignedAgent.name} (AI Sales)` : assignedAgent.name}>
+              {isAi ? <Sparkles size={9} /> : <UserCheck size={9} />}{agentLabel}
+            </span>
+          )}
+        </div>
+        <div className="cl-tags-row">
+          <span className={`cl-status-badge st-${conv.status || 'open'}`}>{statusLabel(conv.status)}</span>
+          {conv.tags?.slice(0, 3).map(t => (
+            <span key={t.id} className="tag-chip" style={{ background: t.color }}>{t.name}</span>
+          ))}
+          {/* Kolom kanan: badge regional tepat di bawah badge nama agent */}
+          {isAdmin && (conv.bot_state === 'awaiting_location' || region || conv.bot_state === 'unresolved') && (
+            <span className="cl-region-slot">
+              {conv.bot_state === 'awaiting_location' ? (
+                <span className="cl-region-badge bot" title="Bot sedang menanyakan lokasi customer"><Bot size={10} />Bot bertanya</span>
+              ) : region ? (
+                <span className={`cl-region-badge ${region}`} title={[conv.contact?.city, conv.contact?.province].filter(Boolean).join(', ') || 'Regional'}>
+                  <MapPin size={10} />{region === 'barat' ? 'Barat' : 'Timur'}
+                </span>
+              ) : (
+                <span className="cl-region-badge unknown" title="Lokasi tidak terdeteksi — tentukan regional secara manual">Regional?</span>
+              )}
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+})
+
 export default function InboxPage() {
   const aiAgentId = useAiAgentId()
   const [conversations, setConversations] = useState([])
@@ -108,13 +175,17 @@ export default function InboxPage() {
   // Daftar dimuat per halaman dari server (100 chat), filter & pencarian dijalankan
   // di server agar tetap ringan & menemukan chat lama. Chat yang menunggu balasan
   // > 5 menit ikut dimuat di halaman pertama (disematkan di atas).
-  const PAGE = 100
+  // 50 per halaman: lebih cepat tampil di internet lambat; halaman berikutnya
+  // dimuat lebih awal sebelum daftar habis digulir.
+  const PAGE = 50
+  const PAGE_TIMEOUT = 30000
   const [debouncedSearch, setDebouncedSearch] = useState('')
   useEffect(() => { const t = setTimeout(() => setDebouncedSearch(search.trim()), 300); return () => clearTimeout(t) }, [search])
   const [total, setTotal] = useState(null)
   const [hasMore, setHasMore] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
-  const pageRef = useRef({ cursor: null, skip: [], hasMore: false, reqId: 0, loadingMore: false })
+  const [loadMoreErr, setLoadMoreErr] = useState(false)
+  const pageRef = useRef({ cursor: null, skip: [], hasMore: false, reqId: 0, loadingMore: false, failed: false })
   const queryParams = useCallback(() => {
     const p = { limit: PAGE }
     // agent biasa hanya lihat chat miliknya (server juga membatasi); admin bisa filter per agent
@@ -133,14 +204,23 @@ export default function InboxPage() {
     return out
   }
 
-  const fetch = useCallback(async () => {
-    const reqId = ++pageRef.current.reqId
+  // soft = sinkron ulang (tersambung lagi / tab aktif lagi): halaman pertama
+  // digabung ke daftar yang sudah dimuat, sehingga halaman lanjutan & posisi
+  // scroll tidak hilang. Tanpa soft (ganti filter / tombol refresh) = muat dari awal.
+  const fetch = useCallback(async ({ soft = false } = {}) => {
+    const reqId = soft ? pageRef.current.reqId : ++pageRef.current.reqId
     try {
-      const d = await getConversationsPage(queryParams())
+      const d = await getConversationsPage(queryParams(), { timeout: PAGE_TIMEOUT })
       if (reqId !== pageRef.current.reqId) return // sudah ada permintaan yang lebih baru
-      setConversations(mergeUnique(d?.pinned, d?.items))
-      pageRef.current = { ...pageRef.current, cursor: d?.nextCursor || null, skip: d?.nextSkip || [], hasMore: !!d?.hasMore }
-      setHasMore(!!d?.hasMore)
+      const fresh = mergeUnique(d?.pinned, d?.items)
+      if (soft && convRef.current.length > fresh.length) {
+        setConversations(prev => mergeUnique(fresh, prev))
+      } else {
+        setConversations(fresh)
+        pageRef.current = { ...pageRef.current, cursor: d?.nextCursor || null, skip: d?.nextSkip || [], hasMore: !!d?.hasMore, failed: false }
+        setHasMore(!!d?.hasMore)
+        setLoadMoreErr(false)
+      }
       setTotal(typeof d?.total === 'number' ? d.total : null)
     } catch {}
     finally { if (reqId === pageRef.current.reqId) setLoading(false) }
@@ -148,18 +228,30 @@ export default function InboxPage() {
 
   const loadMore = useCallback(async () => {
     const pg = pageRef.current
-    if (!pg.hasMore || pg.loadingMore || !pg.cursor) return
+    // Gagal sebelumnya: tunggu tombol "Coba lagi" / internet kembali (tidak diulang terus)
+    if (!pg.hasMore || pg.loadingMore || !pg.cursor || pg.failed) return
     pg.loadingMore = true; setLoadingMore(true)
     const reqId = pg.reqId
     try {
-      const d = await getConversationsPage({ ...queryParams(), cursor: pg.cursor, skip: (pg.skip || []).join(',') || undefined })
+      const d = await getConversationsPage({ ...queryParams(), cursor: pg.cursor, skip: (pg.skip || []).join(',') || undefined }, { timeout: PAGE_TIMEOUT })
       if (reqId !== pageRef.current.reqId) return
       setConversations(prev => mergeUnique(prev, d?.items))
       pageRef.current = { ...pageRef.current, cursor: d?.nextCursor || null, skip: d?.nextSkip || [], hasMore: !!d?.hasMore }
       setHasMore(!!d?.hasMore)
-    } catch {}
+    } catch {
+      if (reqId === pageRef.current.reqId) { pageRef.current.failed = true; setLoadMoreErr(true) }
+    }
     finally { pageRef.current.loadingMore = false; setLoadingMore(false) }
   }, [queryParams])
+  const retryLoadMore = useCallback(() => {
+    pageRef.current.failed = false; setLoadMoreErr(false); loadMore()
+  }, [loadMore])
+  // Internet kembali -> lanjutkan memuat yang tadi gagal
+  useEffect(() => {
+    const onOnline = () => { if (pageRef.current.failed) retryLoadMore() }
+    window.addEventListener('online', onOnline)
+    return () => window.removeEventListener('online', onOnline)
+  }, [retryLoadMore])
 
   // Chat yang belum ada di daftar (pesan baru / baru di-assign): ambil chat itu saja,
   // dengan filter yang sedang aktif agar chat di luar filter tidak ikut masuk
@@ -174,12 +266,12 @@ export default function InboxPage() {
 
   useEffect(() => { fetch() }, [fetch])
   // Sinkron ulang (tersambung lagi / tab aktif lagi / polling saat terputus)
-  useEffect(() => { if (resyncTick) fetch() }, [resyncTick, fetch])
+  useEffect(() => { if (resyncTick) fetch({ soft: true }) }, [resyncTick, fetch])
 
   // Refetch saat socket reconnect (menyusul update yang terlewat saat offline)
   const wasConnectedRef = useRef(socketConnected)
   useEffect(() => {
-    if (socketConnected && !wasConnectedRef.current) fetch()
+    if (socketConnected && !wasConnectedRef.current) fetch({ soft: true })
     wasConnectedRef.current = socketConnected
   }, [socketConnected, fetch])
 
@@ -214,7 +306,7 @@ export default function InboxPage() {
   // Setelah sinkronisasi selesai (syncing true -> false), muat ulang daftar chat
   const wasSyncingRef = useRef(false)
   useEffect(() => {
-    if (wasSyncingRef.current && !syncing) fetch()
+    if (wasSyncingRef.current && !syncing) fetch({ soft: true })
     wasSyncingRef.current = syncing
   }, [syncing, fetch])
 
@@ -353,10 +445,10 @@ export default function InboxPage() {
     return () => window.removeEventListener('cv:conversation-updated', handler)
   }, [fetch])
 
-  const handleOpenConversation = (convId) => {
-    setConversations(prev => prev.map(c => String(c.id) === String(convId) ? { ...c, unread: false } : c))
+  const handleOpenConversation = useCallback((convId) => {
+    setConversations(prev => prev.map(c => String(c.id) === String(convId) && c.unread ? { ...c, unread: false } : c))
     navigate(`/chat/${convId}`)
-  }
+  }, [navigate])
 
   // Chat yang dikecualikan dari KPI overdue: "fail" (lead mati), "deal"
   // (sudah closing -> koordinasi), & "non-client" (bukan calon klien)
@@ -371,50 +463,43 @@ export default function InboxPage() {
   const isOverdue = (c) => withinWorkHours && !!c.awaitingSince && c.lastFromMe === false && !isOverdueExempt(c) &&
     (now - new Date(c.awaitingSince).getTime()) > RESPONSE_KPI_MS
 
-  const filtered = conversations.filter(c => {
-    const q = search.toLowerCase()
-    const matchesSearch = !search ||
-      c.contact?.name?.toLowerCase().includes(q) ||
-      c.contact?.phone?.includes(q) ||
-      c.lastMessage?.toLowerCase().includes(q)
-    const matchesTag = !activeTagFilter || c.tags?.some(t => t.id === activeTagFilter)
-    let matchesStatus = true
-    if (statusFilter === 'unread') matchesStatus = !!c.unread
-    else if (statusFilter === 'unreplied') matchesStatus = c.lastFromMe === false
-    else if (statusFilter === 'replied') matchesStatus = c.lastFromMe === true
-    let matchesLifecycle = true
-    if (lifecycleFilter !== 'all') {
-      const st = c.status || 'open'
-      matchesLifecycle = st === lifecycleFilter
-    }
-    let matchesRegion = true
-    if (regionFilter === 'barat' || regionFilter === 'timur') matchesRegion = chatRegion(c) === regionFilter
-    else if (regionFilter === 'unknown') matchesRegion = !chatRegion(c)
-    else if (regionFilter === 'bot') matchesRegion = c.bot_state === 'awaiting_location'
-    return matchesSearch && matchesTag && matchesStatus && matchesLifecycle && matchesRegion
-  })
-
-  // Urutkan: chat overdue (>5 menit) paling atas, yang paling lama menunggu duluan;
+  // Saring & urutkan sekali per perubahan data/filter (bukan di setiap render).
+  // Urutan: chat overdue (>5 menit) paling atas, yang paling lama menunggu duluan;
   // sisanya berdasarkan pesan terakhir terbaru.
-  const sorted = [...filtered].sort((a, b) => {
-    const ao = isOverdue(a), bo = isOverdue(b)
-    if (ao && bo) return new Date(a.awaitingSince) - new Date(b.awaitingSince)
-    if (ao) return -1
-    if (bo) return 1
-    return new Date(b.lastMessageAt || b.updated_at || 0) - new Date(a.lastMessageAt || a.updated_at || 0)
-  })
+  const sorted = useMemo(() => {
+    const q = search.toLowerCase()
+    const rows = []
+    for (const c of conversations) {
+      if (search && !(c.contact?.name?.toLowerCase().includes(q) || c.contact?.phone?.includes(q) || c.lastMessage?.toLowerCase().includes(q))) continue
+      if (activeTagFilter && !c.tags?.some(t => t.id === activeTagFilter)) continue
+      if (statusFilter === 'unread' && !c.unread) continue
+      if (statusFilter === 'unreplied' && c.lastFromMe !== false) continue
+      if (statusFilter === 'replied' && c.lastFromMe !== true) continue
+      if (lifecycleFilter !== 'all' && (c.status || 'open') !== lifecycleFilter) continue
+      if (regionFilter === 'barat' || regionFilter === 'timur') { if (chatRegion(c) !== regionFilter) continue }
+      else if (regionFilter === 'unknown') { if (chatRegion(c)) continue }
+      else if (regionFilter === 'bot') { if (c.bot_state !== 'awaiting_location') continue }
+      const od = isOverdue(c)
+      rows.push({ c, od, wait: od ? new Date(c.awaitingSince).getTime() : 0, ts: new Date(c.lastMessageAt || c.updated_at || 0).getTime() })
+    }
+    rows.sort((a, b) => (a.od && b.od) ? a.wait - b.wait : a.od ? -1 : b.od ? 1 : b.ts - a.ts)
+    return rows
+  }, [conversations, search, activeTagFilter, statusFilter, lifecycleFilter, regionFilter, now, withinWorkHours]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Gulir ke bawah -> muat halaman berikutnya dari server
+  // Halaman berikutnya mulai dimuat ~1,5 layar sebelum daftar habis. Observer
+  // dibuat ulang hanya saat jumlah chat / status muat berubah (bukan tiap render),
+  // sehingga bila penanda masih terlihat setelah memuat, halaman berikutnya menyusul.
   const moreRef = useRef(null)
   useEffect(() => {
     const el = moreRef.current
-    if (!el) return
+    if (!el || !hasMore || loadMoreErr) return
     const io = new IntersectionObserver((entries) => {
       if (entries.some(e => e.isIntersecting)) loadMore()
-    }, { root: el.closest('.cl-list'), rootMargin: '600px 0px' })
+    }, { root: el.closest('.cl-list'), rootMargin: '1200px 0px' })
     io.observe(el)
     return () => io.disconnect()
-  })
+  }, [hasMore, loadMoreErr, loadMore, conversations.length, loading])
 
   const STATUS_FILTERS = [
     { key: 'all', label: 'Semua', short: 'Semua' },
@@ -596,76 +681,31 @@ export default function InboxPage() {
             {hasFilter && <button className="cl-empty-reset" onClick={resetFilters}>Reset filter</button>}
           </div>
         ) : (
-          <>{sorted.map(conv => {
+          <>{sorted.map(({ c: conv, od }) => {
             const isActive = String(conv.id) === String(activeChatId)
-            const name = conv.contact?.name || conv.contact?.phone || 'Unknown'
-            const initial = name[0].toUpperCase()
-            const preview = conv.lastMessage || 'Belum ada pesan'
-            const assignedAgent = conv.agents
-            const agentLabel = assignedAgent?.name?.length > 12
-              ? assignedAgent.name.slice(0, 12) + '…'
-              : assignedAgent?.name
-            const isUnread = !!conv.unread && !isActive
-            const overdue = isOverdue(conv) && !isActive
-            const waitMins = overdue ? waitMinutes(conv.awaitingSince, now) : 0
-
+            const overdue = od && !isActive
             return (
-              <div
-                key={conv.id}
-                className={`cl-item${isActive ? ' active' : ''}${isUnread ? ' unread' : ''}${overdue ? ' overdue' : ''}`}
-                onClick={() => handleOpenConversation(conv.id)}
-              >
-                <div className="cl-avatar" style={avatarStyle(name)}>{initial}</div>
-                <div className="cl-info">
-                  <div className="cl-row">
-                    <span className="cl-name">{name}</span>
-                    <span className="cl-row-right">
-                      {overdue && (
-                        <span className="cl-overdue-badge" title={`Belum dibalas ${formatWaitLong(waitMins)} (lewat KPI 5 menit)`}>
-                          <Clock size={10} />{formatWaitShort(waitMins)}
-                        </span>
-                      )}
-                      {isUnread && <span className="cl-unread-dot" />}
-                      {/* Chat overdue: badge sudah menunjukkan lama menunggu -> waktu pesan terakhir disembunyikan */}
-                      {!overdue && <span className="cl-time">{timeStr(conv.lastMessageAt || conv.updated_at)}</span>}
-                    </span>
-                  </div>
-                  <div className="cl-row">
-                    <span className="cl-preview">
-                      {conv.lastFromMe && conv.lastMessage && <CheckCheck size={14} className="cl-tick" />}
-                      <span className="cl-preview-text">{preview}</span>
-                    </span>
-                    {isAdmin && assignedAgent && (
-                      <span className={`cl-agent-badge${aiAgentId && String(assignedAgent.id) === aiAgentId ? ' ai' : ''}`} title={aiAgentId && String(assignedAgent.id) === aiAgentId ? `${assignedAgent.name} (AI Sales)` : assignedAgent.name}>
-                        {aiAgentId && String(assignedAgent.id) === aiAgentId ? <Sparkles size={9} /> : <UserCheck size={9} />}{agentLabel}
-                      </span>
-                    )}
-                  </div>
-                  <div className="cl-tags-row">
-                    <span className={`cl-status-badge st-${conv.status || 'open'}`}>{statusLabel(conv.status)}</span>
-                    {conv.tags?.slice(0, 3).map(t => (
-                      <span key={t.id} className="tag-chip" style={{ background: t.color }}>{t.name}</span>
-                    ))}
-                    {/* Kolom kanan: badge regional tepat di bawah badge nama agent */}
-                    {isAdmin && (conv.bot_state === 'awaiting_location' || chatRegion(conv) || conv.bot_state === 'unresolved') && (
-                      <span className="cl-region-slot">
-                        {conv.bot_state === 'awaiting_location' ? (
-                          <span className="cl-region-badge bot" title="Bot sedang menanyakan lokasi customer"><Bot size={10} />Bot bertanya</span>
-                        ) : chatRegion(conv) ? (
-                          <span className={`cl-region-badge ${chatRegion(conv)}`} title={[conv.contact?.city, conv.contact?.province].filter(Boolean).join(', ') || 'Regional'}>
-                            <MapPin size={10} />{chatRegion(conv) === 'barat' ? 'Barat' : 'Timur'}
-                          </span>
-                        ) : (
-                          <span className="cl-region-badge unknown" title="Lokasi tidak terdeteksi — tentukan regional secara manual">Regional?</span>
-                        )}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
+              <ConvRow key={conv.id} conv={conv} isActive={isActive} overdue={overdue}
+                waitMins={overdue ? waitMinutes(conv.awaitingSince, now) : 0}
+                isAdmin={isAdmin} aiAgentId={aiAgentId} onOpen={handleOpenConversation} />
             )
           })}
-          {hasMore && <div ref={moreRef} className="cl-more" aria-hidden="true">{loadingMore && <span className="cl-more-spin"><RotateCw size={14} /></span>}</div>}</>
+          {hasMore && (
+            <div ref={moreRef} className="cl-more">
+              {loadMoreErr ? (
+                <div className="cl-more-err">
+                  <span>Gagal memuat chat berikutnya{typeof navigator !== 'undefined' && navigator.onLine === false ? ' (offline)' : ''}.</span>
+                  <button onClick={retryLoadMore}>Coba lagi</button>
+                </div>
+              ) : loadingMore ? (
+                [0, 1, 2].map(i => (
+                  <div key={i} className="cl-skel" style={{ animationDelay: `${i * 0.06}s` }}>
+                    <span className="cl-skel-av" /><span className="cl-skel-lines"><i /><i /></span>
+                  </div>
+                ))
+              ) : null}
+            </div>
+          )}</>
         )}
       </div>
 
@@ -688,7 +728,9 @@ export default function InboxPage() {
         .cl-sync-banner { display: flex; align-items: center; gap: 8px; padding: 7px 12px; border-radius: 9px; background: var(--primary-light); color: var(--primary); font-size: 12px; font-weight: 600; }
         .cl-spin { animation: spin 0.8s linear infinite; }
         .cl-spin-wrap { display: inline-flex; }
-        .cl-more { min-height: 1px; display: flex; justify-content: center; padding: 6px 0; color: var(--muted); }
+        .cl-more { min-height: 1px; display: flex; flex-direction: column; color: var(--muted); }
+        .cl-more-err { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 8px; padding: 14px 12px; font-size: 12.5px; color: var(--text2); }
+        .cl-more-err button { height: 30px; padding: 0 14px; border-radius: 8px; font-size: 12.5px; font-weight: 700; color: var(--primary); background: var(--primary-light); }
         .cl-more-spin { display: inline-flex; animation: spin 0.8s linear infinite; }
         .cl-notice { margin: 0 14px 8px; padding: 9px 12px; border-radius: 10px; background: rgba(208,139,40,0.12); border: 1px solid rgba(208,139,40,0.35); color: var(--text); font-size: 12.5px; line-height: 1.4; cursor: pointer; }
         .cl-spin-wrap.on { animation: spin 0.8s linear infinite; will-change: transform; }

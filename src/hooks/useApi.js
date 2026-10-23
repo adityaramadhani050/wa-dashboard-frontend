@@ -33,7 +33,7 @@ api.interceptors.response.use(
 export const getConversations = (agentId) =>
   api.get('/conversations', agentId ? { params: { agent_id: agentId } } : {}).then(r => r.data)
 // Daftar chat per halaman (server-side filter): { items, pinned, nextCursor, nextSkip, hasMore, total }
-export const getConversationsPage = (params) => api.get('/conversations', { params }).then(r => r.data)
+export const getConversationsPage = (params, config) => api.get('/conversations', { params, ...config }).then(r => r.data)
 export const getConversation = (id) => api.get(`/conversations/${id}`).then(r => r.data)
 export const getMessages = (id, params) => api.get(`/conversations/${id}/messages`, params ? { params } : {}).then(r => r.data)
 export const sendMessage = (id, message, replyTo) => api.post(`/conversations/${id}/messages`, { message, reply_to: replyTo || undefined }).then(r => r.data)
