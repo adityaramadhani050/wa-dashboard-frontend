@@ -6,7 +6,7 @@ import { getFollowupDue, getNumberRequests, fulfillNumberRequest, rejectNumberRe
 import { STEP_INFO, dueLabel, dueTone } from './followupUi'
 import ChangePasswordModal from './ChangePasswordModal'
 import { enableWebPush, getNotificationStatus } from '../native/webpush'
-import { MessageSquare, BarChart2, QrCode, LogOut, Users, BookUser, Zap, Bell, BellRing, Megaphone, ListChecks, AlertTriangle, LayoutGrid, X, CheckCircle2, KeyRound, Phone } from 'lucide-react'
+import { MessageSquare, BarChart2, QrCode, LogOut, Users, BookUser, Zap, Bell, BellRing, Megaphone, ListChecks, LayoutGrid, X, CheckCircle2, KeyRound, Phone } from 'lucide-react'
 
 // Permintaan nomor yang sudah dilihat agent (hasil disetujui/ditolak)
 const NR_SEEN_KEY = 'nr_seen'
@@ -72,8 +72,6 @@ export default function IconBar() {
   // Lonceng = tugas follow-up jatuh tempo (hari ini & terlambat) milik user
   const [dueTasks, setDueTasks] = useState([])
   const [dueCount, setDueCount] = useState(0)
-  // Admin: tugas yang terlambat > N hari kerja
-  const [lateAlert, setLateAlert] = useState(null)
   const [showReminders, setShowReminders] = useState(false)
   const [showMore, setShowMore] = useState(false)
   const [showAccount, setShowAccount] = useState(false)
@@ -117,13 +115,13 @@ export default function IconBar() {
   }
 
   const loadDue = useCallback(async () => {
+    if (isAdmin) return // admin memantau follow-up dari menu Follow-up
     try {
       const d = await getFollowupDue()
       setDueTasks(Array.isArray(d?.tasks) ? d.tasks : [])
       setDueCount(d?.count || 0)
-      setLateAlert(d?.alert?.count ? d.alert : null)
     } catch {}
-  }, [])
+  }, [isAdmin])
 
   const loadNumberReqs = useCallback(async () => {
     try {
@@ -142,6 +140,7 @@ export default function IconBar() {
   const nrUnseen = nrResults.filter(r => !nrSeen.has(r.id))
   const nrList = isAdmin ? numberReqs : nrResults
   const nrCount = isAdmin ? numberReqs.length : nrUnseen.length
+  const bellCount = isAdmin ? nrCount : dueCount + nrCount
   // Panel dibuka -> hasil permintaan dianggap sudah dilihat
   useEffect(() => {
     if (!showReminders || isAdmin || !nrUnseen.length) return
@@ -201,20 +200,24 @@ export default function IconBar() {
         )}
         <div className="ib-reminder-wrap" ref={panelRef}>
           <button className={`ib-btn ib-bell-btn${showReminders ? ' open' : ''}`} onClick={() => { setShowReminders(s => !s); setShowMore(false); if (!showReminders) { loadDue(); loadNumberReqs() } }}
-            aria-label="Pengingat & permintaan" data-tip="Pengingat & permintaan">
+            aria-label={isAdmin ? 'Permintaan nomor' : 'Pengingat'} data-tip={isAdmin ? 'Permintaan nomor' : 'Pengingat'}>
             <Bell size={18} />
-            {dueCount + nrCount > 0 && <span className="ib-badge">{dueCount + nrCount > 9 ? '9+' : dueCount + nrCount}</span>}
+            {bellCount > 0 && <span className="ib-badge">{bellCount > 9 ? '9+' : bellCount}</span>}
             <span className="ib-label">Pengingat</span>
           </button>
           {showReminders && (
             <div className="ib-reminder-panel">
               <div className="ib-reminder-panel-title">
-                <span>Pengingat</span>
+                <span>{isAdmin ? 'Permintaan nomor customer' : 'Pengingat'}</span>
                 <button className="ib-panel-close" onClick={() => setShowReminders(false)} aria-label="Tutup"><X size={16} /></button>
               </div>
+              {/* Admin: hanya permintaan nomor (follow-up ada di menu Follow-up) */}
+              {isAdmin && nrList.length === 0 && (
+                <div className="ib-reminder-empty"><CheckCircle2 size={26} strokeWidth={1.5} /><span>Tidak ada permintaan nomor dari agent.</span></div>
+              )}
               {nrList.length > 0 && (
-                <div className="ib-nr">
-                  <div className="ib-nr-title"><Phone size={13} />{isAdmin ? `Permintaan nomor customer (${nrList.length})` : 'Hasil permintaan nomor'}</div>
+                <div className={`ib-nr${isAdmin ? ' full' : ''}`}>
+                  {!isAdmin && <div className="ib-nr-title"><Phone size={13} />Hasil permintaan nomor</div>}
                   {isAdmin ? nrList.map(r => (
                     <NumberRequestAdminItem key={r.id} r={r} onDone={loadNumberReqs} onOpen={() => { setShowReminders(false); navigate(`/chat/${r.conversation_id}`) }} />
                   )) : nrList.map(r => (
@@ -228,15 +231,8 @@ export default function IconBar() {
                   ))}
                 </div>
               )}
-              {isAdmin && lateAlert && (
-                <button className="ib-fu-alert" onClick={() => { setShowReminders(false); navigate('/followup?tab=overdue&late=1') }}>
-                  <AlertTriangle size={14} />
-                  <span>
-                    <b>{lateAlert.count} terlambat &gt;{lateAlert.late_days} hari kerja</b>
-                    <small>{lateAlert.by_agent.slice(0, 3).map(a => `${a.name} ${a.count}`).join(' · ')}{lateAlert.by_agent.length > 3 ? ' · …' : ''}</small>
-                  </span>
-                </button>
-              )}
+              {/* Agent: follow-up yang ditugaskan */}
+              {!isAdmin && (<>
               <div className="ib-nr-title ib-fu-title"><ListChecks size={13} />Follow-up jatuh tempo{dueCount ? ` (${dueCount})` : ''}</div>
               {dueTasks.length === 0 ? (
                 <div className="ib-reminder-empty"><CheckCircle2 size={26} strokeWidth={1.5} /><span>Tidak ada follow-up yang jatuh tempo.</span></div>
@@ -250,7 +246,6 @@ export default function IconBar() {
                           <span className="ib-reminder-name">{t.conversation.contact_name}</span>
                           <span className="ib-reminder-note">
                             <span className="ib-fu-step" style={{ background: st.color || 'var(--primary)' }}>{st.day ? `${st.day} · ` : ''}{st.label}</span>
-                            {isAdmin && t.conversation.agent?.name ? <span className="ib-reminder-agent">{t.conversation.agent.name}</span> : null}
                           </span>
                           {t.step === 'manual' && t.note && <span className="ib-reminder-time">{t.note}</span>}
                         </div>
@@ -260,9 +255,7 @@ export default function IconBar() {
                   })}
                 </div>
               )}
-              {isAdmin && (
-                <button className="ib-reminder-all" onClick={() => { setShowReminders(false); navigate('/followup') }}>Lihat semua follow-up →</button>
-              )}
+              </>)}
             </div>
           )}
         </div>
@@ -379,6 +372,7 @@ export default function IconBar() {
         .ib-nr { flex-shrink: 0; max-height: 55%; overflow-y: auto; border-bottom: 1px solid var(--border); background: var(--surface2); }
         .ib-nr-title { display: flex; align-items: center; gap: 6px; padding: 8px 14px 4px; font-size: 11.5px; font-weight: 700; color: var(--text2); text-transform: uppercase; letter-spacing: .3px; }
         .ib-fu-title { flex-shrink: 0; padding-top: 10px; }
+        .ib-nr.full { max-height: none; flex: 1; min-height: 0; border-bottom: none; background: transparent; }
         .ib-nr-item { padding: 8px 14px 10px; border-bottom: 1px solid var(--border); }
         .ib-nr-item:last-child { border-bottom: none; }
         .ib-nr-head { display: flex; align-items: baseline; gap: 6px; width: 100%; text-align: left; min-width: 0; font-size: 11.5px; }
