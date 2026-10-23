@@ -4,8 +4,8 @@ import { getDailyStats, getAgentStats, getAnalyticsSummary, getContacts, getConv
 import FollowupReport from '../components/FollowupReport'
 import { formatDurShort, formatDurLong } from '../lib/duration'
 import {
-  LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip, Legend, ResponsiveContainer
+  BarChart, Bar, XAxis, YAxis, CartesianGrid,
+  Tooltip, Legend, ResponsiveContainer, Cell
 } from 'recharts'
 import { RefreshCw, TrendingUp, Users, MessageSquare, UserCheck, Clock, UserPlus, Calendar, Download, Zap, MapPin, ChevronDown, Activity, BarChart2, Inbox, CheckCircle2, Info, UserX, ChevronRight, MessageCircle } from 'lucide-react'
 
@@ -108,6 +108,35 @@ const Tip = ({ active, payload, label }) => {
         </p>
       ))}
     </div>
+  )
+}
+
+// Grafik Lead Baru per hari: hari kerja hijau, Sabtu-Minggu oranye
+const DAY_SHORT = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab']
+const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0]
+const LEAD_COLOR = '#10b981'
+const WEEKEND_COLOR = '#f59e0b'
+
+const LeadTip = ({ active, payload }) => {
+  if (!active || !payload?.length) return null
+  const d = payload[0].payload
+  return (
+    <div className="an-tip">
+      <p className="an-tip-lbl">{d.full}{d.weekend ? ' · akhir pekan' : ''}</p>
+      <p style={{ color: d.weekend ? WEEKEND_COLOR : LEAD_COLOR, margin: '2px 0' }}>Lead Baru: <strong>{d['Lead Baru']}</strong></p>
+    </div>
+  )
+}
+
+// Label sumbu X: nama hari di atas tanggal; akhir pekan berwarna oranye
+const DayTick = ({ x, y, payload, data, showDate }) => {
+  const d = data[payload.index]
+  if (!d) return null
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text dy={11} textAnchor="middle" fontSize={11} fontWeight={d.weekend ? 700 : 500} fill={d.weekend ? WEEKEND_COLOR : 'var(--text2)'}>{d.day}</text>
+      {showDate && <text dy={24} textAnchor="middle" fontSize={10} fill="var(--muted)">{d.date}</text>}
+    </g>
   )
 }
 
@@ -338,12 +367,40 @@ export default function AnalyticsPage() {
 
   const kpiMinutes = kpi?.kpiMinutes ?? 5
   const sumOr = (key) => summary?.[key] ?? null
-  const chartData = daily.map(d => ({
-    date: new Date(`${d.date}T00:00:00`).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }),
-    Masuk: d.incoming || 0,
-    Keluar: d.outgoing || 0,
-    'Lead Baru': d.new_contacts || 0,
-  }))
+  // Lebar grafik Lead Baru (untuk menentukan kepadatan label hari)
+  const leadChartRef = useRef(null)
+  const [leadChartW, setLeadChartW] = useState(600)
+  useEffect(() => {
+    const el = leadChartRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(([e]) => setLeadChartW(e.contentRect.width - 40))
+    ro.observe(el)
+    return () => ro.disconnect()
+  })
+  const chartData = daily.map(d => {
+    const dt = new Date(`${d.date}T00:00:00`)
+    const dow = dt.getDay()
+    return {
+      key: d.date,
+      dow,
+      day: DAY_SHORT[dow],
+      weekend: dow === 0 || dow === 6,
+      date: dt.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }),
+      full: dt.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' }),
+      'Lead Baru': d.new_contacts || 0,
+    }
+  })
+  // Rata-rata lead baru per hari dalam seminggu (untuk melihat hari teramai)
+  const byDow = DAY_ORDER.map(dow => {
+    const days = chartData.filter(d => d.dow === dow)
+    const total = days.reduce((n, d) => n + d['Lead Baru'], 0)
+    return { dow, day: DAY_SHORT[dow], weekend: dow === 0 || dow === 6, total, avg: days.length ? total / days.length : null }
+  })
+  const topAvg = Math.max(0, ...byDow.map(d => d.avg || 0))
+  // Label hari+tanggal hanya bila tiap batang cukup lebar; selain itu sebagian label disembunyikan
+  const perBar = leadChartW / Math.max(1, chartData.length)
+  const showDate = perBar >= 38
+  const allTicks = perBar >= 28
 
   const agentChart = agents.map(a => ({
     name: a.name || 'Agent',
@@ -659,15 +716,35 @@ export default function AnalyticsPage() {
           {loading ? <div className="an-skel" /> : chartData.every(d => d['Lead Baru'] === 0) ? (
             <div className="an-chart-empty">Belum ada lead baru pada periode ini</div>
           ) : (
-            <ResponsiveContainer width="100%" height={220}>
-              <LineChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="date" tick={{ fill: 'var(--muted)', fontSize: 11 }} />
-                <YAxis tick={{ fill: 'var(--muted)', fontSize: 11 }} allowDecimals={false} />
-                <Tooltip content={<Tip />} />
-                <Line type="monotone" dataKey="Lead Baru" stroke="#10b981" strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} />
-              </LineChart>
-            </ResponsiveContainer>
+            <div ref={leadChartRef}>
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                  <XAxis dataKey="key" interval={allTicks ? 0 : 'preserveStartEnd'} minTickGap={6} height={showDate ? 34 : 22}
+                    tick={<DayTick data={chartData} showDate={showDate} />} tickLine={false} />
+                  <YAxis tick={{ fill: 'var(--muted)', fontSize: 11 }} allowDecimals={false} />
+                  <Tooltip content={<LeadTip />} cursor={{ fill: 'var(--surface2)' }} />
+                  <Bar dataKey="Lead Baru" radius={[4, 4, 0, 0]} maxBarSize={28}>
+                    {chartData.map(d => <Cell key={d.key} fill={d.weekend ? WEEKEND_COLOR : LEAD_COLOR} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+              <div className="an-dow">
+                <div className="an-dow-head">
+                  <span>Rata-rata lead baru per hari</span>
+                  <span className="an-dow-legend"><i style={{ background: LEAD_COLOR }} />Hari kerja <i style={{ background: WEEKEND_COLOR }} />Sabtu–Minggu</span>
+                </div>
+                <div className="an-dow-row">
+                  {byDow.map(d => (
+                    <div key={d.dow} className={`an-dow-item${d.weekend ? ' weekend' : ''}${d.avg && d.avg === topAvg ? ' top' : ''}`}
+                      title={d.avg == null ? 'Tidak ada hari ini dalam periode' : `${d.total} lead baru dalam periode`}>
+                      <span className="an-dow-day">{d.day}</span>
+                      <span className="an-dow-val">{d.avg == null ? '—' : d.avg.toLocaleString('id-ID', { maximumFractionDigits: 1 })}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           )}
         </div>
 
@@ -780,6 +857,17 @@ export default function AnalyticsPage() {
         .an-chart-box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px; min-width: 0; box-shadow: 0 1px 3px var(--shadow); }
         .an-chart-sub { font-size: 12px; color: var(--muted); margin-bottom: 14px; }
         .an-skel { height: 220px; background: var(--skeleton); border-radius: 8px; animation: pulse 1.4s ease infinite; }
+        .an-dow { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+        .an-dow-head { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 11.5px; color: var(--muted); margin-bottom: 8px; }
+        .an-dow-legend { display: inline-flex; align-items: center; gap: 6px; }
+        .an-dow-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-left: 6px; }
+        .an-dow-row { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+        .an-dow-item { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 2px; border-radius: 8px; background: var(--surface2); border: 1px solid transparent; }
+        .an-dow-day { font-size: 11px; font-weight: 600; color: var(--text2); }
+        .an-dow-item.weekend .an-dow-day { color: #f59e0b; }
+        .an-dow-val { font-size: 14px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+        .an-dow-item.top { border-color: #10b981; background: color-mix(in srgb, #10b981 12%, var(--surface2)); }
+        .an-dow-item.top.weekend { border-color: #f59e0b; background: color-mix(in srgb, #f59e0b 12%, var(--surface2)); }
         .an-chart-empty { height: 220px; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 13px; }
         .an-tip { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; font-size: 12px; box-shadow: 0 4px 16px var(--shadow); }
         .an-tip-lbl { font-weight: 600; margin-bottom: 6px; color: var(--text); }
