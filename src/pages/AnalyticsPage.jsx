@@ -655,9 +655,9 @@ export default function AnalyticsPage() {
       {/* Charts */}
       <div className="an-charts">
         <div className="an-chart-box">
-          <SectionHead icon={Activity} title="Aktivitas Pesan" right={rangeLabel} />
-          {loading ? <div className="an-skel" /> : chartData.every(d => d.Masuk === 0 && d.Keluar === 0 && d['Lead Baru'] === 0) ? (
-            <div className="an-chart-empty">Belum ada data pesan</div>
+          <SectionHead icon={Activity} title="Lead Baru per Hari" right={rangeLabel} />
+          {loading ? <div className="an-skel" /> : chartData.every(d => d['Lead Baru'] === 0) ? (
+            <div className="an-chart-empty">Belum ada lead baru pada periode ini</div>
           ) : (
             <ResponsiveContainer width="100%" height={220}>
               <LineChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
@@ -665,10 +665,7 @@ export default function AnalyticsPage() {
                 <XAxis dataKey="date" tick={{ fill: 'var(--muted)', fontSize: 11 }} />
                 <YAxis tick={{ fill: 'var(--muted)', fontSize: 11 }} allowDecimals={false} />
                 <Tooltip content={<Tip />} />
-                <Legend wrapperStyle={{ fontSize: 12, color: 'var(--text2)' }} />
-                <Line type="monotone" dataKey="Masuk" stroke="#2563eb" strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="Keluar" stroke="#f59e0b" strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="Lead Baru" stroke="#10b981" strokeWidth={2} dot={false} strokeDasharray="4 4" />
+                <Line type="monotone" dataKey="Lead Baru" stroke="#10b981" strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} />
               </LineChart>
             </ResponsiveContainer>
           )}
