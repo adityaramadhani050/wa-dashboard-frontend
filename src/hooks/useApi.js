@@ -67,6 +67,8 @@ export const updateContact = (id, payload) => api.patch(`/contacts/${id}`, paylo
 export const bulkSetContactRegion = (ids, region) =>
   api.post('/contacts/bulk-region', { ids, region: region || null }, { timeout: 60000 }).then(r => r.data)
 export const getDailyStats = (from, to, region) => api.get('/stats/daily', { params: { from, to, region: region || undefined } }).then(r => r.data)
+// Pesan pertama dari customer per kontak (export percakapan)
+export const getFirstMessages = () => api.get('/stats/first-messages', { timeout: 120000 }).then(r => r.data)
 export const getAgentStats = (from, to, region) => api.get('/stats/agents', { params: { from, to, region: region || undefined } }).then(r => r.data)
 export const getContactStats = (region) => api.get('/stats/contacts', { params: { region: region || undefined } }).then(r => r.data)
 export const getAnalyticsSummary = (from, to, region) => api.get('/stats/summary', { params: { from, to, region: region || undefined } }).then(r => r.data)

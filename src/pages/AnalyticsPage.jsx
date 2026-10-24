@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, Fragment } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getDailyStats, getAgentStats, getAnalyticsSummary, getContacts, getConversations, getTopTemplates, getResponseKpi, getFunnel, getFollowupReport, getAgentChats } from '../hooks/useApi'
+import { getDailyStats, getAgentStats, getAnalyticsSummary, getContacts, getConversations, getTopTemplates, getResponseKpi, getFunnel, getFollowupReport, getAgentChats, getFirstMessages } from '../hooks/useApi'
 import FollowupReport from '../components/FollowupReport'
 import { formatDurShort, formatDurLong } from '../lib/duration'
 import {
@@ -137,6 +137,15 @@ const DayTick = ({ x, y, payload, data, showDate }) => {
       {showDate && <text dy={24} textAnchor="middle" fontSize={10} fill="var(--muted)">{d.date}</text>}
     </g>
   )
+}
+
+// Waktu untuk CSV: "2026-10-24 13:05" (jam lokal/WIB)
+const fmtExportTime = (iso) => {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (isNaN(d)) return ''
+  const p = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
 }
 
 // Format tanggal & jam singkat (WIB lokal browser), mis. "12 Okt 2026, 14.05"
@@ -303,14 +312,19 @@ export default function AnalyticsPage() {
   const handleExportConversations = async () => {
     setExporting('conversations')
     try {
-      const data = await getConversations()
-      const rows = (data || []).map(c => ({
-        kontak: c.contact?.name || c.contact?.phone || '',
-        status: c.status || '',
-        agent: c.agents?.name || '',
-        pesan_terakhir: c.lastMessage || '',
-        diperbarui: c.updated_at || '',
-      }))
+      const [data, firsts] = await Promise.all([getConversations(), getFirstMessages().catch(() => null)])
+      const rows = (data || []).map(c => {
+        const first = firsts?.[c.contact_id || c.contact?.id]
+        return {
+          kontak: c.contact?.name || c.contact?.phone || '',
+          status: c.status || '',
+          agent: c.agents?.name || '',
+          pesan_pertama: first?.body || '',
+          waktu_pesan_pertama: fmtExportTime(first?.at),
+          pesan_terakhir: c.lastMessage || '',
+          diperbarui: c.updated_at || '',
+        }
+      })
       downloadCsv(`percakapan-${fmtDate(new Date())}.csv`, rows)
     } catch {
       setError('Gagal mengekspor percakapan.')
